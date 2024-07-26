@@ -8,7 +8,7 @@ from standarization import rz_scores
 from scipy.io import savemat
 
 def main():
-    np.random.seed(5) #test
+    np.random.seed(5)
     
     color_BLUE = (0, 0.6980, 0.9333)
     color_ORANGE = (0.9333, 0.4627, 0)
