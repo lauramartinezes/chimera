@@ -40,8 +40,6 @@ def main():
         ind = np.random.permutation(len(x))
         x = x[ind, :]
         y = y[ind]
-        savemat('x_file.mat', {'x': x})
-        savemat('y_file.mat', {'y': y})
         x = rz_scores(x)
         kModel = AutoRbfKernel(x)
     else:
