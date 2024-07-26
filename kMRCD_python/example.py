@@ -58,7 +58,13 @@ def main():
     solution = poc.runAlgorithm(x, alpha)
 
     print('We have the following solution:')
-    print(solution)
+    for key, value in solution.items():
+        if isinstance(value, np.ndarray):
+            print(f"{key}: [{value.shape} {value.dtype.name}]")
+        elif isinstance(value, str):
+            print(f"{key}: '{value}'")
+        else:
+            print(f"{key}: {round(value, 4)}")
 
     rho = solution['rho']
     scfac = solution['scfac']

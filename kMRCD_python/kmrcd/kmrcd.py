@@ -93,6 +93,7 @@ class kMRCD:
         solution = list(solution.values())[min_idx]
         print(f'-> Best estimator is {solution_name}')
 
+        solution['name'] = solution_name
         solution['rho'] = rho
         solution['scfac'] = scfac
 
