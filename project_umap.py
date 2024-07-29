@@ -101,6 +101,38 @@ def plot_3d_umap(*umaps, labels=None, title='UMAP', caption=None):
         fig.text(0.1, 0.1, caption)
     plt.show()
 
+def plot_umap(*umaps, labels=None, title='UMAP', caption=None):
+    if caption is None:
+        caption = 'Number of samples:\n'
+
+    # Detect the dimensionality of the first UMAP dataset
+    is_3d = umaps[0].shape[1] == 3
+
+    if is_3d:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        fig, ax = plt.subplots()
+
+    for i, umap_data in enumerate(umaps):
+        label = None if labels is None else labels[i]
+        ax.scatter(*umap_data.T, label=label)  # Unpack the columns for scatter plot
+        caption += f' - {label}: {len(umap_data)}\n'
+
+    # Set labels for each axis
+    ax.set_xlabel('UMAP Dimension 1')
+    ax.set_ylabel('UMAP Dimension 2')
+    if is_3d:
+        ax.set_zlabel('UMAP Dimension 3')
+
+    # Set title and legend
+    ax.set_title(title)
+    if labels is not None:
+        ax.legend()
+    if caption is not None:
+        fig.text(0.1, 0.01 if not is_3d else 0.1, caption, va='bottom')
+    plt.show()
+
 def get_nearest_neighbours(reference, target, threshold_distance = 0.5):
     # Calculate Euclidean distance between each point in reference and target
     distances_target_to_reference = np.linalg.norm(target[:, np.newaxis] - reference, axis=2)
@@ -120,26 +152,21 @@ def filter_umap(umap_data, threshold=3):
     # Filter outliers from the original dataset
     return umap_data[~outliers_indices], umap_data[outliers_indices]
 
-# Read a subset of Imagenet
-imagenet_path = '/home/u0159868/Documents/data/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/test'   #'/home/u0159868/Documents/data/imagenet-mini/val'
-imagenet_filepaths = glob.glob(imagenet_path + '/**/*.JPEG', recursive=True)
-len_imagenet_21k = 14197122 # number taken from wikipedia
+# Set Number of Components for Dimensionality Reduction
+n_components = 2
 
-# Read images that were used to train subsequent networks
-df_inaturalist_train_big = pd.read_parquet('/home/u0159868/Documents/repos/stickybugs-warmstart/data/df_train.parquet')
+# Read images that were used to train model
 df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
 
-# Get subsets of the size of the smallest set
-datasets_size = min(len(imagenet_filepaths), len(df_inaturalist_train_big), len(df_sticky_dataset_train_big))
-imagenet_filepaths = random.sample(imagenet_filepaths, datasets_size)
-df_inaturalist_train = df_inaturalist_train_big.sample(n=datasets_size, random_state=42)
-df_sticky_dataset_train = df_sticky_dataset_train_big.sample(n=datasets_size, random_state=42)
+# Get subset for fast experiments
+df_sticky_dataset_train = df_sticky_dataset_train_big.sample(n=1000, random_state=42)
 
-inaturalist_train_file_paths = df_inaturalist_train.filepath.to_list()
 sticky_dataset_train_filepaths = df_sticky_dataset_train.filename.to_list()
 
 # Load pretrained model
 model = timm.create_model('tf_efficientnetv2_m.in21k_ft_in1k', pretrained=True)
+
+# TODO: Load Checkpoint from WP1 Imagenet+All
 
 # Modify model architecture to remove the final classification layer
 model = torch.nn.Sequential(*list(model.children())[:-1])
@@ -149,115 +176,26 @@ model = model.to('cuda')
 for param in model.parameters():
     param.requires_grad = False
 
-# Forward pass your dataset through the modified model to extract features
-inaturalist_transforms = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.CenterCrop(224),
-    transforms.Resize(150, antialias=True)])
-
+# Forward pass the dataset through the modified model to extract features
 sticky_dataset_transforms = transforms.Compose([
     transforms.ToTensor(), 
     transforms.Resize(size=(150, 150))])
 
-dataset_inaturalist = InsectDataset(file_paths=inaturalist_train_file_paths, transform=inaturalist_transforms)
 dataset_sticky = InsectDataset(file_paths=sticky_dataset_train_filepaths, transform=sticky_dataset_transforms)
-dataset_imagenet = InsectDataset(file_paths=imagenet_filepaths, transform=sticky_dataset_transforms)
-
-dataloader_inaturalist = DataLoader(dataset_inaturalist, batch_size=batch_size, shuffle=False)
 dataloader_sticky = DataLoader(dataset_sticky, batch_size=batch_size, shuffle=False)
-dataloader_imagenet = DataLoader(dataset_imagenet, batch_size=batch_size, shuffle=False)
-
-features_inaturalist = extract_features(dataloader_inaturalist, model)
-features_sticky = extract_features(dataloader_sticky, model)
-features_imagenet = extract_features(dataloader_imagenet, model)
-
-# Create dataset identifiers
-dataset_identifier_inaturalist = np.zeros((len(features_inaturalist), 1))  # 0 indicates inaturalist
-dataset_identifier_sticky = np.ones((len(features_sticky), 1))   # 1 indicates sticky
-dataset_identifier_imagenet = np.ones((len(features_imagenet), 1)) * 2   # 2 indicates imagenet
-
-features_all = torch.cat((features_inaturalist, features_sticky, features_imagenet), dim=0).cpu().numpy()
-dataset_identifiers_all = np.concatenate((dataset_identifier_inaturalist, dataset_identifier_sticky, dataset_identifier_imagenet), axis=0)
-
-# Permute the features to avoid bias given by order of vectors
-random_permutation = np.random.permutation(len(features_all))
-features_all_shuffled = features_all[random_permutation]
-dataset_identifiers_all_shuffled = dataset_identifiers_all[random_permutation]
+features_sticky = extract_features(dataloader_sticky, model).cpu().numpy()
 
 # Get UMAP
-umap_all = apply_umap(features_all_shuffled)
+umap_sticky = apply_umap(features_sticky, n_components)
 
-umap_inaturalist = umap_all[dataset_identifiers_all_shuffled[:,0] == 0]
-umap_sticky = umap_all[dataset_identifiers_all_shuffled[:,0] == 1]
-umap_imagenet = umap_all[dataset_identifiers_all_shuffled[:,0] == 2]
-
-# Get proportional umaps
-percent_inaturalist = len(df_inaturalist_train_big)/ len_imagenet_21k
-percent_sticky_dataset = len(df_sticky_dataset_train_big)/ len_imagenet_21k
-
-len_proportional_umap_inaturalist = round(percent_inaturalist * len(umap_imagenet))
-len_proportional_umap_sticky_dataset = round(percent_sticky_dataset * len(umap_imagenet))
-
-umap_inaturalist_proportional = umap_inaturalist[np.random.choice(umap_inaturalist.shape[0], size=len_proportional_umap_inaturalist, replace=False)]
-umap_sticky_proportional = umap_sticky[np.random.choice(umap_sticky.shape[0], size=len_proportional_umap_sticky_dataset, replace=False)]
-
-# Remove outliers from sticky dataset for a more efficient filtering of inaturalist and imagenet
+# Remove outliers from sticky dataset
 umap_sticky_inliers, umap_sticky_outliers = filter_umap(umap_sticky, 2.5)
-umap_sticky_proportional_inliers, umap_sticky_proportional_outliers = filter_umap(umap_sticky_proportional, 2.5)
-
-# Filter umaps based on closeness to umap_sticky
-umap_inaturalist_filtered = get_nearest_neighbours(umap_sticky_inliers, umap_inaturalist)
-umap_imagenet_filtered = get_nearest_neighbours(umap_sticky_inliers, umap_imagenet)
-
-umap_inaturalist_proportional_filtered = get_nearest_neighbours(umap_sticky_proportional_inliers, umap_inaturalist_proportional)
-umap_imagenet_proportional_filtered = get_nearest_neighbours(umap_sticky_proportional_inliers, umap_imagenet)
 
 # Plot umaps
-plot_3d_umap(
-    umap_inaturalist, 
-    umap_sticky, 
-    umap_imagenet, 
-    labels=['iNaturalist', setting.capitalize(), 'ImageNet'],
+plot_umap(
+    umap_sticky,  
+    labels=[setting.capitalize()],
     title='UMAP Scatter Plot'
-)
-
-plot_3d_umap( 
-    umap_sticky_outliers, 
-    umap_sticky_inliers, 
-    labels=[f'{setting.capitalize()} outliers', f'{setting.capitalize()} inliers'],
-    title=f'UMAP {setting.capitalize()} Inliers and Outliers Scatter Plot'
-)
-
-plot_3d_umap( 
-    umap_inaturalist_filtered, 
-    umap_sticky_inliers, 
-    umap_imagenet_filtered, 
-    labels=['iNaturalist Filtered', f'{setting.capitalize()} Inliers', 'ImageNet Filtered'],
-    title='UMAP filtered Scatter Plot',
-)
-
-# Proportional samples
-plot_3d_umap(
-    umap_inaturalist_proportional, 
-    umap_sticky_proportional, 
-    umap_imagenet, 
-    labels=['iNaturalist', setting.capitalize(), 'ImageNet'],
-    title='UMAP Scatter Plot - Proportional'
-)
-
-plot_3d_umap( 
-    umap_sticky_proportional_outliers, 
-    umap_sticky_proportional_inliers, 
-    labels=[f'{setting.capitalize()} outliers', f'{setting.capitalize()} inliers'],
-    title=f'UMAP {setting.capitalize()} Inliers and Outliers Scatter Plot - Proportional'
-)
-
-plot_3d_umap( 
-    umap_inaturalist_proportional_filtered, 
-    umap_sticky_proportional_inliers, 
-    umap_imagenet_proportional_filtered, 
-    labels=['iNaturalist Filtered', f'{setting.capitalize()} Inliers', 'ImageNet Filtered'],
-    title='UMAP filtered Scatter Plot - Proportional',
 )
 
 print('')
