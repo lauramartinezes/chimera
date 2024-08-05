@@ -1,14 +1,17 @@
+import glob
 import os
 import shutil
 import pandas as pd
 
 from config.config import SAVE_DIR
+from project_umap import detect_outliers
 
 saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
 saved_model_path = f'models/{saved_model}_best.pth.tar'
 original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
 
 setting = 'fuji'
+n_components = 2
 
 # Read images that were used to train model
 df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
@@ -38,21 +41,46 @@ for i in iterations:
     os.makedirs(inlier_folder, exist_ok=True)
 
     model_i_path = os.path.join(iteration_folder, f'{saved_model}_best_{i}.pth.tar')
+    models.append(model_i_path)
+    datasets.append(inlier_folder)
 
     if i == 0:
         shutil.copy(saved_model_path, model_i_path)
         shutil.copy(original_fuji_folder, inlier_folder)
-
-        models.append(model_i_path)
-        datasets.append(inlier_folder)
-        
         #accs_0 = test(model_0, test_data)
 
     else:
-        # umaps_i, dataset_i = get outliers(models[i-1], datasets[i-1], active_classes)
+        for species in active_classes:
+            if species!='wmv': 
+                continue
+
+            # df_sticky_dataset_single_species = df_sticky_dataset_train_big[df_sticky_dataset_train_big.txt_label == species]
+            # sticky_dataset_train_filepaths = df_sticky_dataset_single_species.filename.to_list()
+
+            # original_fuji_species = glob.glob(os.path.join(original_fuji_folder, '*', '*'))
+            # sticky_dataset_train_filepaths = [path for path in original_fuji_species if os.path.basename(path) not in base_names_val and os.path.basename(path) not in base_names_test]
+            # print(len(original_fuji_species), len(sticky_dataset_train_filepaths))
+
+            dataset_species_paths = glob.glob(os.path.join(datasets[i-1], species, '*'))
+
+            outlier_filepaths, inlier_filepaths = detect_outliers(
+                    species,
+                    dataset_species_paths,
+                    active_classes, 
+                    all_classes,
+                    models[i-1], 
+                    iteration_folder, 
+                    umaps_folder, 
+                    solution_outlier_detector_folder, 
+                    outlier_folder, 
+                    inlier_folder, 
+                    n_components=2
+            )
         if inactive_classes:
-            print('')
-            # copy the inactive_classes in dataset_i (inliers)
+            for species in inactive_classes:
+                species_file_path_i_minus_1 = os.path.join(datasets[i-1], species)
+                species_file_path_i = os.path.join(datasets[i], species)
+                shutil.copy(species_file_path_i_minus_1, species_file_path_i)
         # model_i = train(models[i-1], dataset[i], val_data, all_classes)
         # accs_i = test(model_i, test_data)
         # active_classes = active_classes[accs_i > accs_i-1]

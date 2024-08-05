@@ -85,31 +85,7 @@ def apply_umap(data, n_components=3, n_neighbors=15, min_dist=0.1, metric='eucli
     print("UMAP Fitting")
     return umap_model.fit_transform(data)
 
-def plot_3d_umap(*umaps, labels=None, title='UMAP', caption=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    if caption is None:
-        caption='Number of samples:\n'
-
-    for i, umap_data in enumerate(umaps):
-        label = None if labels is None else labels[i]
-        ax.scatter(umap_data[:, 0], umap_data[:, 1], umap_data[:, 2], label=label)
-        caption=caption + f' - {label}: {len(umap_data)}\n'
-
-    # Set labels for each axis
-    ax.set_xlabel('UMAP Dimension 1')
-    ax.set_ylabel('UMAP Dimension 2')
-    ax.set_zlabel('UMAP Dimension 3')
-
-    # Set title and legend
-    ax.set_title(title)
-    if labels is not None:
-        ax.legend()
-    if caption is not None:
-        fig.text(0.1, 0.1, caption)
-    plt.show()
-
-def plot_umap(*umaps, labels=None, title='UMAP', caption=None):
+def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.svg', show_plot=False):
     if caption is None:
         caption = 'Number of samples:\n'
 
@@ -139,67 +115,26 @@ def plot_umap(*umaps, labels=None, title='UMAP', caption=None):
         ax.legend()
     if caption is not None:
         fig.text(0.1, 0.01 if not is_3d else 0.1, caption, va='bottom')
-    plt.show()
+    plt.savefig(os.path.join(save_path), format="svg")
+    
+    if show_plot: plt.show()
 
-def get_nearest_neighbours(reference, target, threshold_distance = 0.5):
-    # Calculate Euclidean distance between each point in reference and target
-    distances_target_to_reference = np.linalg.norm(target[:, np.newaxis] - reference, axis=2)
 
-    # Find indices of points close to any umap_sticky point
-    indices_target_close_to_reference = np.any(distances_target_to_reference < threshold_distance, axis=1)
+# # Read images that were used to train model
+# df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
+# df_sticky_dataset_val_big = pd.read_parquet(f"{SAVE_DIR}/df_val_{setting}.parquet")
+# df_sticky_dataset_test_big = pd.read_parquet(f"{SAVE_DIR}/df_test_{setting}.parquet")
+# classes = df_sticky_dataset_train_big['txt_label'].unique().tolist()
 
-    # Filter based on the indices
-    return target[indices_target_close_to_reference]
+# original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
+# train_paths = df_sticky_dataset_train_big.filename.to_list()
+# val_paths = df_sticky_dataset_val_big.filename.to_list()
+# test_paths = df_sticky_dataset_test_big.filename.to_list()
 
-def filter_umap(umap_data, threshold=2.5): 
-    # Compute z-scores for each dimension
-    z_scores = (umap_data - umap_data.mean(axis=0)) / umap_data.std(axis=0)
-    # Identify outliers
-    outliers_mask = np.abs(z_scores) > threshold
-    outliers_indices = np.any(outliers_mask, axis=1)
-    # Filter outliers from the original dataset
-    return umap_data[~outliers_indices], umap_data[outliers_indices], outliers_indices
+# base_names_val = set(os.path.basename(path) for path in val_paths)
+# base_names_test = set(os.path.basename(path) for path in test_paths)
 
-# Set Number of Components for Dimensionality Reduction
-n_components = 2
-
-output_folder = 'output'
-umaps_folder = os.path.join(output_folder, 'umaps')
-solution_outlier_detector_folder = os.path.join(output_folder, 'outlier_detections')
-outlier_folder = os.path.join(output_folder, 'output_dataset', 'outliers')
-inlier_folder = os.path.join(output_folder, 'output_dataset', 'inliers')
-
-os.makedirs(umaps_folder, exist_ok=True)
-os.makedirs(solution_outlier_detector_folder, exist_ok=True)
-os.makedirs(outlier_folder, exist_ok=True)
-os.makedirs(inlier_folder, exist_ok=True)
-
-# Read images that were used to train model
-df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
-df_sticky_dataset_val_big = pd.read_parquet(f"{SAVE_DIR}/df_val_{setting}.parquet")
-df_sticky_dataset_test_big = pd.read_parquet(f"{SAVE_DIR}/df_test_{setting}.parquet")
-topclasses = df_sticky_dataset_train_big['txt_label'].unique().tolist()
-
-original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
-train_paths = df_sticky_dataset_train_big.filename.to_list()
-val_paths = df_sticky_dataset_val_big.filename.to_list()
-test_paths = df_sticky_dataset_test_big.filename.to_list()
-
-base_names_val = set(os.path.basename(path) for path in val_paths)
-base_names_test = set(os.path.basename(path) for path in test_paths)
-
-# Get subset for single insect species
-for species in topclasses:
-    if species!='wmv': 
-        continue
-
-    df_sticky_dataset_single_species = df_sticky_dataset_train_big[df_sticky_dataset_train_big.txt_label == species]
-    sticky_dataset_train_filepaths = df_sticky_dataset_single_species.filename.to_list()
-
-    # original_fuji_species = glob.glob(os.path.join(original_fuji_folder, '*', '*'))
-    # sticky_dataset_train_filepaths = [path for path in original_fuji_species if os.path.basename(path) not in base_names_val and os.path.basename(path) not in base_names_test]
-    # print(len(original_fuji_species), len(sticky_dataset_train_filepaths))
-
+def detect_outliers(species, sticky_dataset_train_filepaths, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
     umap_file_name = os.path.join(umaps_folder, f'umap_{species}.npy')
     solution_outlier_detector_file_name = os.path.join(solution_outlier_detector_folder, f'solution_outlier_detector_{species}.pkl')
     
@@ -213,20 +148,18 @@ for species in topclasses:
         umap_sticky = np.load(umap_file_name)
     else:
         # Load pretrained model
-        model = timm.create_model('tf_efficientnetv2_m.in21k_ft_in1k', pretrained=True, num_classes=len(topclasses))
+        model = timm.create_model('tf_efficientnetv2_m.in21k_ft_in1k', pretrained=True, num_classes=len(classes))
         train_on_gpu = torch.cuda.is_available()
         print(f'Train on gpu: {train_on_gpu}')  # Number of gpus
         model = model.to('cuda', dtype=torch.float)
 
         # Load Checkpoint from WP1 Imagenet+All
-        saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
-        class_sample_count = np.unique(df_sticky_dataset_train_big.label, return_counts=True)[1]
+        class_sample_count = len(all_classes)#np.unique(df_sticky_dataset_train_big.label, return_counts=True)[1]
         weight = 1. / class_sample_count
         criterion = nn.CrossEntropyLoss(
             label_smoothing=.15, weight=torch.Tensor(weight).cuda())
         optimizer = optim.AdamW(model.parameters(), lr=.003, weight_decay=0.01)
-        model, optimizer = load_checkpoint(
-            f'models/{saved_model}_best.pth.tar', model, optimizer)
+        model, optimizer = load_checkpoint(model_path, model, optimizer)
 
         # Modify model architecture to remove the final classification layer
         model = torch.nn.Sequential(*list(model.children())[:-1])
@@ -248,9 +181,6 @@ for species in topclasses:
         # Get UMAP
         umap_sticky = apply_umap(features_sticky, n_components)
         np.save(umap_file_name, umap_sticky)
-
-    # Remove outliers from sticky dataset
-    #umap_sticky_inliers, umap_sticky_outliers, outliers_indices = filter_umap(umap_sticky, 2.5)
 
     # Detect outliers using kmrcd
     if os.path.exists(solution_outlier_detector_file_name):
@@ -275,17 +205,18 @@ for species in topclasses:
     plot_umap(
         umap_sticky,  
         labels=[f'{setting.capitalize()} {species}'],
-        title=f'UMAP Scatter Plot {species}'
+        title=f'UMAP Scatter Plot {species}',
+        save_path=os.path.join(iteration_folder, f'umap_{species}.svg')
     )
 
     plot_umap(
         umap_sticky_inliers,  
         umap_sticky_outliers,
         labels=['umap_sticky_inliers', 'umap_sticky_outliers'],
-        title='UMAP Scatter Plot'
+        title='UMAP Scatter Plot {species}',
+        save_path=os.path.join(iteration_folder, f'umap_{species}_outliers.svg')
     )
 
-    #outlier_indices = np.where(outliers_indices)[0]
     outlier_filepaths = [sticky_dataset_train_filepaths[i] for i in outlier_indices]
     inlier_filepaths = [sticky_dataset_train_filepaths[i] for i in inlier_indices]
 
@@ -296,4 +227,4 @@ for species in topclasses:
     for file_path in inlier_filepaths:
         shutil.copy(file_path, os.path.join(inlier_folder_species, os.path.basename(file_path)))
 
-    print('')
+    return outlier_filepaths, inlier_filepaths
