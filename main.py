@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 
 from config.config import SAVE_DIR
-from project_umap import detect_outliers
+from detect_outliers import detect_outliers
 
 saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
 saved_model_path = f'models/{saved_model}_best.pth.tar'
@@ -50,6 +50,7 @@ for i in iterations:
         #accs_0 = test(model_0, test_data)
 
     else:
+        # Separate outliers and inliers
         for species in active_classes:
             if species!='wmv': 
                 continue
@@ -81,6 +82,7 @@ for i in iterations:
                 species_file_path_i_minus_1 = os.path.join(datasets[i-1], species)
                 species_file_path_i = os.path.join(datasets[i], species)
                 shutil.copy(species_file_path_i_minus_1, species_file_path_i)
+        # Train new model
         # model_i = train(models[i-1], dataset[i], val_data, all_classes)
         # accs_i = test(model_i, test_data)
         # active_classes = active_classes[accs_i > accs_i-1]
