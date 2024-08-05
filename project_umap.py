@@ -1,6 +1,8 @@
 import glob
 import os
+import pickle
 import random
+import shutil
 import time
 
 import matplotlib.pyplot as plt
@@ -16,6 +18,8 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from config.config import SAVE_DIR
+from kernels import AutoLaplacianKernel, AutoRbfKernel, LinKernel, PolyKernel, RbfKernel
+from kmrcd import kMRCD
 from utils import load_checkpoint
 
 setting = 'fuji'
@@ -159,6 +163,17 @@ def filter_umap(umap_data, threshold=2.5):
 # Set Number of Components for Dimensionality Reduction
 n_components = 2
 
+output_folder = 'output'
+umaps_folder = os.path.join(output_folder, 'umaps')
+solution_outlier_detector_folder = os.path.join(output_folder, 'outlier_detections')
+outlier_folder = os.path.join(output_folder, 'output_dataset', 'outliers')
+inlier_folder = os.path.join(output_folder, 'output_dataset', 'inliers')
+
+os.makedirs(umaps_folder, exist_ok=True)
+os.makedirs(solution_outlier_detector_folder, exist_ok=True)
+os.makedirs(outlier_folder, exist_ok=True)
+os.makedirs(inlier_folder, exist_ok=True)
+
 # Read images that were used to train model
 df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
 df_sticky_dataset_val_big = pd.read_parquet(f"{SAVE_DIR}/df_val_{setting}.parquet")
@@ -166,6 +181,7 @@ df_sticky_dataset_test_big = pd.read_parquet(f"{SAVE_DIR}/df_test_{setting}.parq
 topclasses = df_sticky_dataset_train_big['txt_label'].unique().tolist()
 
 original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
+train_paths = df_sticky_dataset_train_big.filename.to_list()
 val_paths = df_sticky_dataset_val_big.filename.to_list()
 test_paths = df_sticky_dataset_test_big.filename.to_list()
 
@@ -176,53 +192,84 @@ base_names_test = set(os.path.basename(path) for path in test_paths)
 for species in topclasses:
     if species!='wmv': 
         continue
-    df_sticky_dataset_single_species = df_sticky_dataset_train_big#[df_sticky_dataset_train_big.txt_label == species]
-    df_sticky_dataset_train = df_sticky_dataset_single_species #df_sticky_dataset_train_big.sample(n=1000, random_state=42)
-    sticky_dataset_train_filepaths = df_sticky_dataset_train.filename.to_list()
+
+    df_sticky_dataset_single_species = df_sticky_dataset_train_big[df_sticky_dataset_train_big.txt_label == species]
+    sticky_dataset_train_filepaths = df_sticky_dataset_single_species.filename.to_list()
 
     # original_fuji_species = glob.glob(os.path.join(original_fuji_folder, '*', '*'))
     # sticky_dataset_train_filepaths = [path for path in original_fuji_species if os.path.basename(path) not in base_names_val and os.path.basename(path) not in base_names_test]
     # print(len(original_fuji_species), len(sticky_dataset_train_filepaths))
 
-    # Load pretrained model
-    model = timm.create_model('tf_efficientnetv2_m.in21k_ft_in1k', pretrained=True, num_classes=len(topclasses))
-    train_on_gpu = torch.cuda.is_available()
-    print(f'Train on gpu: {train_on_gpu}')  # Number of gpus
-    model = model.to('cuda', dtype=torch.float)
+    umap_file_name = os.path.join(umaps_folder, f'umap_{species}.npy')
+    solution_outlier_detector_file_name = os.path.join(solution_outlier_detector_folder, f'solution_outlier_detector_{species}.pkl')
+    
+    outlier_folder_species = os.path.join(outlier_folder, species)
+    inlier_folder_species = os.path.join(inlier_folder, species)
 
-    # Load Checkpoint from WP1 Imagenet+All
-    # saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
-    # class_sample_count = np.unique(df_sticky_dataset_train_big.label, return_counts=True)[1]
-    # weight = 1. / class_sample_count
-    # criterion = nn.CrossEntropyLoss(
-    #     label_smoothing=.15, weight=torch.Tensor(weight).cuda())
-    # optimizer = optim.AdamW(model.parameters(), lr=.003, weight_decay=0.01)
-    # model, optimizer = load_checkpoint(
-    #     f'models/{saved_model}_best.pth.tar', model, optimizer)
+    os.makedirs(outlier_folder_species, exist_ok=True)
+    os.makedirs(inlier_folder_species, exist_ok=True)
 
-    # Modify model architecture to remove the final classification layer
-    model = torch.nn.Sequential(*list(model.children())[:-1])
-    model = model.to('cuda')
+    if os.path.exists(umap_file_name): 
+        umap_sticky = np.load(umap_file_name)
+    else:
+        # Load pretrained model
+        model = timm.create_model('tf_efficientnetv2_m.in21k_ft_in1k', pretrained=True, num_classes=len(topclasses))
+        train_on_gpu = torch.cuda.is_available()
+        print(f'Train on gpu: {train_on_gpu}')  # Number of gpus
+        model = model.to('cuda', dtype=torch.float)
 
-    # Freeze the parameters of the model
-    for param in model.parameters():
-        param.requires_grad = False
+        # Load Checkpoint from WP1 Imagenet+All
+        saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
+        class_sample_count = np.unique(df_sticky_dataset_train_big.label, return_counts=True)[1]
+        weight = 1. / class_sample_count
+        criterion = nn.CrossEntropyLoss(
+            label_smoothing=.15, weight=torch.Tensor(weight).cuda())
+        optimizer = optim.AdamW(model.parameters(), lr=.003, weight_decay=0.01)
+        model, optimizer = load_checkpoint(
+            f'models/{saved_model}_best.pth.tar', model, optimizer)
 
-    # Forward pass the dataset through the modified model to extract features
-    sticky_dataset_transforms = transforms.Compose([
-        transforms.ToTensor(), 
-        transforms.Resize(size=(150, 150))])
+        # Modify model architecture to remove the final classification layer
+        model = torch.nn.Sequential(*list(model.children())[:-1])
+        model = model.to('cuda')
 
-    dataset_sticky = InsectDataset(file_paths=sticky_dataset_train_filepaths, transform=sticky_dataset_transforms)
-    dataloader_sticky = DataLoader(dataset_sticky, batch_size=batch_size, shuffle=False)
-    features_sticky = extract_features(dataloader_sticky, model).cpu().numpy()
+        # Freeze the parameters of the model
+        for param in model.parameters():
+            param.requires_grad = False
 
-    # Get UMAP
-    umap_sticky = apply_umap(features_sticky, n_components)
-    #np.save('umap_sticky_test.npy', umap_sticky)
+        # Forward pass the dataset through the modified model to extract features
+        sticky_dataset_transforms = transforms.Compose([
+            transforms.ToTensor(), 
+            transforms.Resize(size=(150, 150))])
+
+        dataset_sticky = InsectDataset(file_paths=sticky_dataset_train_filepaths, transform=sticky_dataset_transforms)
+        dataloader_sticky = DataLoader(dataset_sticky, batch_size=batch_size, shuffle=False)
+        features_sticky = extract_features(dataloader_sticky, model).cpu().numpy()
+
+        # Get UMAP
+        umap_sticky = apply_umap(features_sticky, n_components)
+        np.save(umap_file_name, umap_sticky)
 
     # Remove outliers from sticky dataset
-    umap_sticky_inliers, umap_sticky_outliers, outliers_indices = filter_umap(umap_sticky, 2.5)
+    #umap_sticky_inliers, umap_sticky_outliers, outliers_indices = filter_umap(umap_sticky, 2.5)
+
+    # Detect outliers using kmrcd
+    if os.path.exists(solution_outlier_detector_file_name):
+        with open(solution_outlier_detector_file_name, 'rb') as file:
+            solution_outlier_detector = pickle.load(file)
+    else:
+        alpha = 0.85
+        kernel = AutoRbfKernel
+        kModel = kernel(umap_sticky)
+        poc = kMRCD(kModel)
+        solution_outlier_detector = poc.runAlgorithm(umap_sticky, alpha)
+        with open(solution_outlier_detector_file_name, 'wb') as file:
+            pickle.dump(solution_outlier_detector, file)
+
+    outlier_indices = solution_outlier_detector['flaggedOutlierIndices']
+    inlier_indices = list(set(np.arange(umap_sticky.shape[0])) - set(solution_outlier_detector['flaggedOutlierIndices']))
+
+    umap_sticky_outliers = umap_sticky[outlier_indices]
+    umap_sticky_inliers = umap_sticky[inlier_indices]
 
     # Plot umaps
     plot_umap(
@@ -238,19 +285,15 @@ for species in topclasses:
         title='UMAP Scatter Plot'
     )
 
-    outlier_indices = np.where(outliers_indices)[0]
+    #outlier_indices = np.where(outliers_indices)[0]
     outlier_filepaths = [sticky_dataset_train_filepaths[i] for i in outlier_indices]
+    inlier_filepaths = [sticky_dataset_train_filepaths[i] for i in inlier_indices]
 
-    for image_path in outlier_filepaths:
-        # Open the image
-        image = Image.open(image_path)
-        
-        # Display the image
-        plt.imshow(image)
-        plt.title(f"Image: {image_path}")
-        plt.axis('off')  # Hide the axis
-        plt.show()
-        #time.sleep(1)
-        plt.close()
+    # Copy each image to the destination folder
+    for file_path in outlier_filepaths:
+        shutil.copy(file_path, os.path.join(outlier_folder_species, os.path.basename(file_path)))
+
+    for file_path in inlier_filepaths:
+        shutil.copy(file_path, os.path.join(inlier_folder_species, os.path.basename(file_path)))
 
     print('')
