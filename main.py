@@ -83,6 +83,13 @@ for i in iterations:
                 species_file_path_i = os.path.join(datasets[i], species)
                 shutil.copy(species_file_path_i_minus_1, species_file_path_i)
         # Train new model
+        # Extract basenames from the list of file paths
+        # List all files in the folder matching the pattern
+        train_i_filepaths = glob.glob(os.path.join(datasets[i], '*', '*'))
+        train_i_basenames = [os.path.basename(path) for path in train_i_filepaths]
+
+        # Filter the DataFrame to include only rows where the basename matches
+        df_train_i = df_sticky_dataset_train_big[df_sticky_dataset_train_big["filename"].apply(os.path.basename).isin(train_i_basenames)]
         # model_i = train(models[i-1], dataset[i], val_data, all_classes)
         # accs_i = test(model_i, test_data)
         # active_classes = active_classes[accs_i > accs_i-1]
