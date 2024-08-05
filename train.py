@@ -150,10 +150,6 @@ if __name__ == '__main__':
     df_val = pd.read_parquet(f"{SAVE_DIR}/df_val_{args.setting}.parquet")
     df_test = pd.read_parquet(f"{SAVE_DIR}/df_test_{args.setting}.parquet")
 
-    # Get training subset
-    if args.train_subset_size is not None:
-        df_train = get_dataset_subset(df_train, args.train_subset_size, args.train_subset_seed)
-
     # Get dataloader
     datasets = get_datasets(df_train, df_val, df_test, transform_train=set_train_transform(args.augment), transform_test=set_test_transform())
     train_dataset, valid_dataset, test_dataset = datasets.values()
@@ -163,67 +159,19 @@ if __name__ == '__main__':
 
     # Get model
     torch.backends.cudnn.benchmark = True
-    
-    if args.scenario == "scratch" or args.scenario == 'pretrained_imagenet':
-        if args.scenario == "scratch":
-            model = timm.create_model(args.model_name, pretrained=False, num_classes=len(topclasses))
-        elif args.scenario == 'pretrained_imagenet':
-            model = timm.create_model(args.model_name, pretrained=True, num_classes=len(topclasses))
-            if args.last_layers_to_not_freeze:
-                model = freeze_model_layers(model, args.last_layers_to_not_freeze)
-        # # Check if layers are actually frozen
-        # for name, param in model.named_parameters():
-        #     if not param.requires_grad:
-        #         print(f"Layer '{name}' is frozen.")
-        #     else:
-        #         print(f"Layer '{name}' is trainable.") 
+    model = timm.create_model(args.model_name, pretrained=True, num_classes=len(topclasses))
 
-        # Choosing whether to train on a gpu
-        train_on_gpu = torch.cuda.is_available()
-        print(f'Train on gpu: {train_on_gpu}')  # Number of gpus
-        model = model.to('cuda', dtype=torch.float)
-        
-
-    elif args.scenario == 'pretrained_inaturalist':
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-        # Let's load the model
-        model_directory = os.path.normpath(r'/home/u0159868/Documents/data/inaturalist_models')        
-        model_size = extract_model_size(args.model_name)
-        inaturalist_model_name = f'EfficientNetV2_{model_size}_tf_efficientnetv2_{model_size}.in21k_ft_in1k_32_full_CrossEntropyLoss_sgd_cyclic_latest'
-        model_path = os.path.join(model_directory, f'{inaturalist_model_name}_model.pth')
-        lbl_mapping_path = os.path.join(model_directory, f'{inaturalist_model_name}_label_mapping.json')
-        with open(lbl_mapping_path, 'r') as f:
-            lbl_mapping = json.load(f)
-        num_classes_inaturalist = len(lbl_mapping)
-        # Let's load the model
-        model = timm.create_model(args.model_name, num_classes=num_classes_inaturalist) 
-        model.classifier = torch.nn.Sequential(torch.nn.Dropout(p=0.2, inplace=False), model.classifier)
-
-        z = torch.load(model_path, map_location=torch.device(device))
-        model.load_state_dict(z['model'])
-        
-        model.classifier[1] = nn.Linear(model.classifier[1].in_features, len(topclasses))
-        if args.last_layers_to_not_freeze:
-            model = freeze_model_layers(model, args.last_layers_to_not_freeze)
-        model = model.to('cuda', dtype=torch.float)
+    # Choosing whether to train on a gpu
+    train_on_gpu = torch.cuda.is_available()
+    print(f'Train on gpu: {train_on_gpu}')  # Number of gpus
+    model = model.to('cuda', dtype=torch.float)
 
     class_sample_count = np.unique(df_train.label, return_counts=True)[1]
     weight = 1. / class_sample_count
     criterion = nn.CrossEntropyLoss(
         label_smoothing=.15, weight=torch.Tensor(weight).cuda())
 
-    if not args.last_layers_to_not_freeze or args.scenario == "scratch":
-        optimizer = optim.AdamW(model.parameters(), lr=.003, weight_decay=0.05)
-    else: 
-        optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=0.003, weight_decay=0.05)
-        # Check what params are optimized
-        # for i, param_group in enumerate(optimizer.param_groups):
-        #     print(f"Group {i}:")
-        #     trainable_indices = [str(idx) for idx, param in enumerate(param_group['params']) if param.requires_grad]
-        #     frozen_indices = [str(idx) for idx, param in enumerate(param_group['params']) if not param.requires_grad]
-        #     print(f"  Trainable parameter indices: {', '.join(trainable_indices)}")
-        #     print(f"  Frozen parameter indices: {', '.join(frozen_indices)}") 
+    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=0.003, weight_decay=0.05)
     scheduler = torch.optim.lr_scheduler.CyclicLR(
         optimizer, base_lr=args.lr, max_lr=0.03, cycle_momentum=False, mode="triangular2")
     
