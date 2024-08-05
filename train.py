@@ -16,62 +16,6 @@ from datasets.load_data import *
 from datasets.split_dataset import *
 from datasets.transforms import set_test_transform, set_train_transform
 
-def get_subset_class_counts(df, subset_size):
-    value_counts = df.label.value_counts()
-    total_samples = len(df)
-
-    # Creating DataFrame for value counts
-    df_counts = pd.DataFrame({
-        'label': value_counts.index, 
-        'count': value_counts.values, 
-        'samples_per_subset_size': np.ceil((value_counts.values / total_samples) * subset_size).astype(int)
-        })
-
-    # Calculate rounding error
-    rounding_error = abs(subset_size - df_counts['samples_per_subset_size'].sum())
-
-    # Distribute rounding error by removing one sample from each row
-    for i in range(min(rounding_error, len(df_counts))):
-        df_counts.at[i, 'samples_per_subset_size'] -= 1
-    return df_counts
-
-def get_dataset_subset(df, subset_size, random_seed):
-    df_counts = get_subset_class_counts(df, subset_size)
-    # Create df_train_1000 with samples respecting the proportions
-    df_subset = pd.DataFrame()
-
-    for label, count in zip(df_counts['label'], df_counts['samples_per_subset_size']):
-        # Sample rows for each label
-        sampled_rows = df[df['label'] == label].sample(count, replace=False, random_state=random_seed)
-        
-        # Append sampled rows to df_train_1000
-        df_subset = pd.concat([df_subset, sampled_rows], ignore_index=True)
-    return df_subset
-
-import re
-
-def extract_model_size(model_name):
-    match = re.search(r'_([a-zA-Z]+)\.', model_name)
-    if match:
-        return match.group(1).lower()
-    else:
-        return None
-    
-def freeze_model_layers(model, last_layers_to_not_freeze):
-    # Freeze early layers
-    for name, param in model.named_parameters():
-        #if 'blocks' in name:  # Assuming 'blocks' are deeper layers in EfficientNetV2
-        if name.split('.')[0] == 'blocks' or name.split('.')[0] == 'conv_stem' or name.split('.')[0]=='bn1':
-            param.requires_grad = False
-    
-    # Optionally, unfreeze specified layers
-    if last_layers_to_not_freeze != [-1]:
-        for name, param in model.named_parameters():
-            if any(f'blocks.{layer}' in name for layer in last_layers_to_not_freeze):
-                param.requires_grad = True
-    
-    return model
-
 
 def get_args():
     parser = argparse.ArgumentParser(description='Pretrained nets and scratch net comparison')
@@ -175,9 +119,6 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.CyclicLR(
         optimizer, base_lr=args.lr, max_lr=0.03, cycle_momentum=False, mode="triangular2")
     
-
-
-
     # Training 
     results = {"loss": [], "val_loss": [],
             "train_accuracy": [], "valid_accuracy": []}
