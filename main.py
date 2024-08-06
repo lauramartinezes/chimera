@@ -22,7 +22,7 @@ df_sticky_dataset_val_big = pd.read_parquet(f"{SAVE_DIR}/df_val_{setting}.parque
 df_sticky_dataset_test_big = pd.read_parquet(f"{SAVE_DIR}/df_test_{setting}.parquet")
 
 
-iterations = list(range(101))
+iterations = list(range(51))
 models = []
 datasets = []
 
@@ -34,7 +34,8 @@ if clean_output:
     shutil.rmtree('output')
 
 for i in iterations:
-    iteration_folder = os.path.join('output', f'iteration_{i}')
+    i_2dig = f'{i:02}'
+    iteration_folder = os.path.join('output', f'iteration_{i_2dig}')
     umaps_folder = os.path.join(iteration_folder, 'umaps')
     solution_outlier_detector_folder = os.path.join(iteration_folder, 'outlier_detections')
     outlier_folder = os.path.join(iteration_folder, 'output_dataset', 'outliers')
@@ -65,7 +66,8 @@ for i in iterations:
         df_sticky_dataset_train_big.to_csv(os.path.join(iteration_folder, f'df_train_{i}.csv'), index=False)
 
     else:
-        previous_iteration_folder = os.path.join('output', f'iteration_{i-1}')
+        i_minus_1 = f'{(i-1):02}'
+        previous_iteration_folder = os.path.join('output', f'iteration_{i_minus_1}')
         insect_accuracies_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'accuracy_values.csv'))
         df_train_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'df_train_{i-1}.csv'))
 
