@@ -134,7 +134,7 @@ def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.s
 # base_names_val = set(os.path.basename(path) for path in val_paths)
 # base_names_test = set(os.path.basename(path) for path in test_paths)
 
-def detect_outliers(species, sticky_dataset_train_filepaths, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
+def detect_outliers(species, df_train, sticky_dataset_train_filepaths, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
     umap_file_name = os.path.join(umaps_folder, f'umap_{species}.npy')
     solution_outlier_detector_file_name = os.path.join(solution_outlier_detector_folder, f'solution_outlier_detector_{species}.pkl')
     
@@ -154,7 +154,7 @@ def detect_outliers(species, sticky_dataset_train_filepaths, classes, all_classe
         model = model.to('cuda', dtype=torch.float)
 
         # Load Checkpoint from WP1 Imagenet+All
-        class_sample_count = len(all_classes)#np.unique(df_sticky_dataset_train_big.label, return_counts=True)[1]
+        class_sample_count = np.unique(df_train.label, return_counts=True)[1]
         weight = 1. / class_sample_count
         criterion = nn.CrossEntropyLoss(
             label_smoothing=.15, weight=torch.Tensor(weight).cuda())
