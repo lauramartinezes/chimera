@@ -134,5 +134,8 @@ dmypy.json
 *.parquet
 *.pth.tar
 *.svg
+*.pkl
+*.mat
+*.npy
 wandb/*
 output/*
