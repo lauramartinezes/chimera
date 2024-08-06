@@ -4,10 +4,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from kernels import AutoRbfKernel, LinKernel
-from alyz import NewDataModel, ALYZCorrelationType, ClusterContamination
 from kmrcd import halfkernel, kMRCD, Utils
 from standarization import rz_scores
 from scipy.io import savemat
+
+
+def get_krmcd_outliers(x, alpha=0.75, kernel=AutoRbfKernel):
+    """
+    x: the data in a set of 2D feature vectors
+    alpha: the expected amount of regular observations
+    kernel:
+    """
+    kModel = kernel(x)
+    poc = kMRCD(kModel)
+    solution = poc.runAlgorithm(x, alpha)
+    outliers = x[solution['flaggedOutlierIndices']]
+    inliers = x[~solution['flaggedOutlierIndices']]
+    return inliers, outliers, solution['flaggedOutlierIndices']
 
 def main():
     np.random.seed(5)
@@ -18,12 +31,6 @@ def main():
     color_GREY = (0.25, 0.25, 0.25)
     color_RED = (0.80, 0, 0)
 
-    # Set the example to run
-    runExample = 3
-
-    # Set the contamination degree
-    epsilon = 0.2
-
     # Set the expected amount of regular observations
     alpha = 0.75
 
@@ -31,31 +38,9 @@ def main():
     fontSize = 10
     mSize = 4
 
-    if runExample == 1:
-        N = 1000
-        N1 = int(np.ceil((1 - epsilon) * N))
-        N2 = N - N1
-        data = halfkernel(N1, N2, -20, 20, 40, 5, 0.6)
-        mask = data[:, 2].astype(bool)
-        x = data[:, :2]
-        y = data[:, 2]
-        ind = np.random.permutation(len(x))
-        x = x[ind, :]
-        y = y[ind]
-        x = rz_scores(x)
-        kModel = AutoRbfKernel(x)
-    if runExample == 2:
-        ndm = NewDataModel(ALYZCorrelationType(), ClusterContamination())
-        x, _, _, idxOutliers = ndm.generateDataset(1000, 2, epsilon, 20)
-        y = np.ones(1000)
-        y[idxOutliers] = 0
-        y = y.astype(bool)
-        x = rz_scores(x)
-        kModel = LinKernel()
-    else:
-        x = np.load(r'C:\Users\u0159868\Documents\repos\stickybugs-outliers\umap_sticky_test.npy')
-        y = np.ones(len(x))
-        kModel = AutoRbfKernel(x)
+    x = np.load(r'C:\Users\u0159868\Documents\repos\stickybugs-outliers\umap_sticky_test.npy')
+    y = np.ones(len(x))
+    kModel = AutoRbfKernel(x)
 
     # Run the kMRCD algorithm
     poc = kMRCD(kModel)
@@ -80,50 +65,21 @@ def main():
         else:
             print(f"{key}: {round(value, 4)}")
 
-    rho = solution['rho']
-    scfac = solution['scfac']
-
-    # Visualization
-    # rr, cc = np.meshgrid(np.arange(-5, 5.1, 0.1), np.arange(-5, 5.1, 0.1))
-    # yy = np.column_stack([rr.ravel(), cc.ravel()])
-
-    # Kx = kModel.compute(x[solution['hsubsetIndices'], :], x[solution['hsubsetIndices'], :])
-    # nx = Kx.shape[0]
-    # Kt = kModel.compute(yy, x[solution['hsubsetIndices'], :])
-    # Kc = Utils.center(Kx)
-    # Kt_c = Utils.center(Kx, Kt)
-    # Ktt_diag = np.diag(kModel.compute(yy, yy))  # Precompute
-    # Kxx = Ktt_diag - (2 / nx) * np.sum(Kt, axis=1) + (1 / nx ** 2) * np.sum(Kx)
-    # denominator = (1 - rho) * scfac * Kc + nx * rho * np.eye(nx)
-    # denominator_inv = np.linalg.inv(denominator)
-    # Kt_c_divided = np.dot(Kt_c, denominator_inv)
-    # smdMesh = (1 / rho) * (Kxx - (1 - rho) * scfac * np.sum((Kt_c_divided * Kt_c), axis=1))
-                
-
-    ss = y.astype(bool)
-
     plt.rcParams.update({'font.size': fontSize})
 
-    #plt.contour(rr, cc, np.log(smdMesh).reshape(rr.shape), 20, cmap='bone')
-    plt.plot(x[y > 0, 0], x[y > 0, 1], '.', color=color_GREY, markersize=mSize)
-    plt.plot(x[y == 0, 0], x[y == 0, 1], '.', color=color_RED, markersize=mSize)
-    #plt.ylim([-4, 4])
+    plt.plot(x[:, 0], x[:, 1], '.', color=color_GREY, markersize=mSize)
     plt.title('Input dataset with marked outliers')
     plt.savefig('images/inputdataset.png')
     plt.show()
 
-    #plt.contour(rr, cc, np.log(smdMesh).reshape(rr.shape), 20, cmap='bone')
     plt.plot(x[:, 0], x[:, 1], '.', color=color_GREY, markersize=mSize)
     plt.plot(x[solution['hsubsetIndices'], 0], x[solution['hsubsetIndices'], 1], '.', color=color_GREEN, markersize=mSize)
-    #plt.ylim([-4, 4])
     plt.title('the h-subset')
     plt.savefig('images/hsubset.png')
     plt.show()
 
-    #plt.contour(rr, cc, np.log(smdMesh).reshape(rr.shape), 20, cmap='bone')
     plt.plot(x[:, 0], x[:, 1], '.', color=color_BLUE, markersize=mSize)
     plt.plot(x[solution['flaggedOutlierIndices'], 0], x[solution['flaggedOutlierIndices'], 1], '.', color=color_ORANGE, markersize=mSize)
-    #plt.ylim([-4, 4])
     plt.title('Flagged outliers')
     plt.savefig('images/result.png')
     plt.show()
