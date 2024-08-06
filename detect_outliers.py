@@ -1,3 +1,4 @@
+import argparse
 import glob
 import os
 import pickle
@@ -29,6 +30,11 @@ batch_size = 256
 random.seed(42)
 np.random.seed(42)
 
+def get_args():
+    parser = argparse.ArgumentParser(description='Test a separate iteration')
+    parser.add_argument('--iteration', type=int, default=1)
+    args = parser.parse_args()
+    return args
 class InsectDataset(Dataset):
     def __init__(self, file_paths, transform=None):
         self.file_paths = file_paths
@@ -119,20 +125,6 @@ def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.s
     
     if show_plot: plt.show()
 
-
-# # Read images that were used to train model
-# df_sticky_dataset_train_big = pd.read_parquet(f"{SAVE_DIR}/df_train_{setting}.parquet")
-# df_sticky_dataset_val_big = pd.read_parquet(f"{SAVE_DIR}/df_val_{setting}.parquet")
-# df_sticky_dataset_test_big = pd.read_parquet(f"{SAVE_DIR}/df_test_{setting}.parquet")
-# classes = df_sticky_dataset_train_big['txt_label'].unique().tolist()
-
-# original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
-# train_paths = df_sticky_dataset_train_big.filename.to_list()
-# val_paths = df_sticky_dataset_val_big.filename.to_list()
-# test_paths = df_sticky_dataset_test_big.filename.to_list()
-
-# base_names_val = set(os.path.basename(path) for path in val_paths)
-# base_names_test = set(os.path.basename(path) for path in test_paths)
 
 def detect_outliers(species, df_train, sticky_dataset_train_filepaths, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
     umap_file_name = os.path.join(umaps_folder, f'umap_{species}.npy')
@@ -228,3 +220,49 @@ def detect_outliers(species, df_train, sticky_dataset_train_filepaths, classes, 
         shutil.copy(file_path, os.path.join(inlier_folder_species, os.path.basename(file_path)))
 
     return outlier_filepaths, inlier_filepaths
+
+if __name__ == '__main__':
+    args = get_args()
+    i = args.iteration 
+    if i == 0:  # Check if any string in the list is '0'
+        raise ValueError(f"Invalid value '{i}' for iteration")
+    
+    saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
+    iteration_folder = os.path.join('output', f'iteration_{(i):02}')
+    
+    umaps_folder = os.path.join(iteration_folder, 'umaps')
+    solution_outlier_detector_folder = os.path.join(iteration_folder, 'outlier_detections')
+    outlier_folder = os.path.join(iteration_folder, 'output_dataset', 'outliers')
+    inlier_folder = os.path.join(iteration_folder, 'output_dataset', 'inliers')
+    
+    previous_iteration_folder = os.path.join('output', f'iteration_{(i-1):02}')
+    model_i_minus_1_path = os.path.join(iteration_folder, f'{saved_model}_{i-1}_best.pth.tar')
+    dataset_i_minus_1 = os.path.join(previous_iteration_folder, 'output_dataset', 'inliers')
+
+    # Read images that were used to train model
+    df_train_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'df_train_{i-1}.csv'))
+    all_classes = df_train_i_minus_1['txt_label'].unique().tolist()
+
+    with open(os.path.join(previous_iteration_folder, 'active_classes.pkl'), 'rb') as f: 
+        active_classes = pickle.load(f)
+    with open(os.path.join(previous_iteration_folder, 'inactive_classes.pkl'), 'rb') as f: 
+        inactive_classes = pickle.load(f)
+
+
+    for species in active_classes:
+        dataset_species_paths = glob.glob(os.path.join(dataset_i_minus_1, species, '*'))
+        detect_outliers(
+            species, 
+            df_train_i_minus_1, 
+            dataset_species_paths, 
+            active_classes, 
+            all_classes, 
+            model_i_minus_1_path, 
+            iteration_folder, 
+            umaps_folder, 
+            solution_outlier_detector_folder, 
+            outlier_folder, 
+            inlier_folder, 
+            n_components=2
+        )
+    
