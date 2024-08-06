@@ -6,6 +6,7 @@ import pandas as pd
 from config.config import SAVE_DIR
 from detect_outliers import detect_outliers
 from train import train
+from test import test
 
 saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
 saved_model_path = f'models/{saved_model}_best.pth.tar'
@@ -48,9 +49,16 @@ for i in iterations:
         models.append(model_0_path)
         shutil.copy(saved_model_path, model_0_path)
         shutil.copy(original_fuji_folder, inlier_folder)
-        #accs_0 = test(model_0, test_data)
+        bacc, cm, y_true, y_pred, info, insect_accuracies = test(
+            model_0_path, 
+            df_sticky_dataset_train_big, 
+            df_sticky_dataset_val_big, 
+            df_sticky_dataset_test_big, 
+            iteration_folder
+        )
 
     else:
+        previous_iteration_folder = os.path.join('output', f'iteration_{i-1}')
         # Separate outliers and inliers
         for species in active_classes:
             if species!='wmv': 
@@ -85,19 +93,34 @@ for i in iterations:
                 shutil.copy(species_file_path_i_minus_1, species_file_path_i)
         
         # Train new model
-        # Extract basenames from the list of file paths
-        # List all files in the folder matching the pattern
         train_i_filepaths = glob.glob(os.path.join(datasets[i], '*', '*'))
         train_i_basenames = [os.path.basename(path) for path in train_i_filepaths]
-
-        # Filter the DataFrame to include only rows where the basename matches
         df_train_i = df_sticky_dataset_train_big[df_sticky_dataset_train_big["filename"].apply(os.path.basename).isin(train_i_basenames)]
+        
         # Train the model i, we dont return it but we could eventually do so, tbd, also we could give all_classes as input
         model_i_path = train(df_train_i, df_sticky_dataset_val_big, df_sticky_dataset_test_big, i, iteration_folder)
         models.append(model_i_path)
 
-        # accs_i = test(model_i, test_data)
-        # active_classes = active_classes[accs_i > accs_i-1]
-        # inactive_classes = active_classes[accs_i <= accs_i-1]
+        # Test new model
+        bacc_i, cm_i, y_true_i, y_pred_i, info_i, insect_accuracies_i = test(
+            model_i_path, 
+            df_train_i, 
+            df_sticky_dataset_val_big, 
+            df_sticky_dataset_test_big, 
+            iteration_folder
+        )
+
+        # Open accuracies from i-1
+        insect_accuracies_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'accuracy_values.npy'))
+
+        # Compare accuracies to previous iteration to decide which classes to continue cleaning
+        merged_df = pd.merge(insect_accuracies_i, insect_accuracies_i_minus_1, on='insect_name', suffixes=('_i', '_i_minus_1'))
+        
+        df_active_classes = merged_df[merged_df['accuracy_i'] > merged_df['accuracy_i_minus_1']]
+        active_classes = df_active_classes['insect_name'].tolist()
+
+        df_inactive_classes = merged_df[merged_df['accuracy_i'] <= merged_df['accuracy_i_minus_1']]
+        inactive_classes = df_inactive_classes['insect_name'].tolist()
+
         if not active_classes:
             break
