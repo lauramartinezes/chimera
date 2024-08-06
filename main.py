@@ -12,6 +12,7 @@ saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_s
 saved_model_path = f'models/{saved_model}_best.pth.tar'
 original_fuji_folder = r'D:\All_sticky_plate_images\created_data\fuji_tile_exports'
 
+clean_output = False
 setting = 'fuji'
 n_components = 2
 
@@ -29,6 +30,8 @@ all_classes = df_sticky_dataset_train_big['txt_label'].unique().tolist()
 active_classes = all_classes.copy()
 inactive_classes = []
 
+if clean_output:
+    shutil.rmtree('output')
 
 for i in iterations:
     iteration_folder = os.path.join('output', f'iteration_{i}')
@@ -51,16 +54,21 @@ for i in iterations:
         inlier_folder_is_empty = not any(os.scandir(inlier_folder))
         if inlier_folder_is_empty:
             shutil.copytree(original_fuji_folder, inlier_folder, dirs_exist_ok=True)
-        bacc, cm, y_true, y_pred, info, insect_accuracies = test(
-            model_0_path, 
-            df_sticky_dataset_train_big, 
-            df_sticky_dataset_val_big, 
-            df_sticky_dataset_test_big, 
-            iteration_folder
-        )
+        if os.path.exists(os.path.join(inlier_folder, f'accuracy_values.csv')):
+            bacc, cm, y_true, y_pred, info, insect_accuracies = test(
+                model_0_path, 
+                df_sticky_dataset_train_big, 
+                df_sticky_dataset_val_big, 
+                df_sticky_dataset_test_big, 
+                iteration_folder
+            )
+        df_sticky_dataset_train_big.to_csv(os.path.join(iteration_folder, f'df_train_{i}.csv'), index=False)
 
     else:
         previous_iteration_folder = os.path.join('output', f'iteration_{i-1}')
+        insect_accuracies_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'accuracy_values.csv'))
+        df_train_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'df_train_{i-1}.csv'))
+
         # Separate outliers and inliers
         for species in active_classes:
             if species!='wmv': 
@@ -77,6 +85,7 @@ for i in iterations:
 
             outlier_filepaths, inlier_filepaths = detect_outliers(
                     species,
+                    df_train_i_minus_1,
                     dataset_species_paths,
                     active_classes, 
                     all_classes,
@@ -98,7 +107,8 @@ for i in iterations:
         train_i_filepaths = glob.glob(os.path.join(datasets[i], '*', '*'))
         train_i_basenames = [os.path.basename(path) for path in train_i_filepaths]
         df_train_i = df_sticky_dataset_train_big[df_sticky_dataset_train_big["filename"].apply(os.path.basename).isin(train_i_basenames)]
-        
+        df_train_i.to_csv(os.path.join(iteration_folder, f'df_train_{i}.csv'), index=False)
+
         # Train the model i, we dont return it but we could eventually do so, tbd, also we could give all_classes as input
         model_i_path = train(df_train_i, df_sticky_dataset_val_big, df_sticky_dataset_test_big, i, iteration_folder)
         models.append(model_i_path)
@@ -111,9 +121,6 @@ for i in iterations:
             df_sticky_dataset_test_big, 
             iteration_folder
         )
-
-        # Open accuracies from i-1
-        insect_accuracies_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'accuracy_values.npy'))
 
         # Compare accuracies to previous iteration to decide which classes to continue cleaning
         merged_df = pd.merge(insect_accuracies_i, insect_accuracies_i_minus_1, on='insect_name', suffixes=('_i', '_i_minus_1'))
