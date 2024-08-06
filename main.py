@@ -1,5 +1,6 @@
 import glob
 import os
+import pickle
 import shutil
 import pandas as pd
 
@@ -64,6 +65,8 @@ for i in iterations:
                 iteration_folder
             )
         df_sticky_dataset_train_big.to_csv(os.path.join(iteration_folder, f'df_train_{i}.csv'), index=False)
+        with open(os.path.join(iteration_folder, 'active_classes.pkl'), 'wb') as f: pickle.dump(active_classes, f)
+        with open(os.path.join(iteration_folder, 'inactive_classes.pkl'), 'wb') as f: pickle.dump(inactive_classes, f)
 
     else:
         i_minus_1 = f'{(i-1):02}'
@@ -132,6 +135,9 @@ for i in iterations:
 
         df_inactive_classes = merged_df[merged_df['accuracy_i'] <= merged_df['accuracy_i_minus_1']]
         inactive_classes = df_inactive_classes['insect_name'].tolist()
+
+        with open(os.path.join(iteration_folder, 'active_classes.pkl'), 'wb') as f: pickle.dump(active_classes, f)
+        with open(os.path.join(iteration_folder, 'inactive_classes.pkl'), 'wb') as f: pickle.dump(inactive_classes, f)
 
         if not active_classes:
             break
