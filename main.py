@@ -5,6 +5,7 @@ import pandas as pd
 
 from config.config import SAVE_DIR
 from detect_outliers import detect_outliers
+from train import train
 
 saved_model = 'fuji_tf_efficientnetv2_m.in21k_ft_in1k_pretrained_imagenet_None_seed_x_augmented'
 saved_model_path = f'models/{saved_model}_best.pth.tar'
@@ -40,12 +41,12 @@ for i in iterations:
     os.makedirs(outlier_folder, exist_ok=True)
     os.makedirs(inlier_folder, exist_ok=True)
 
-    model_i_path = os.path.join(iteration_folder, f'{saved_model}_best_{i}.pth.tar')
-    models.append(model_i_path)
     datasets.append(inlier_folder)
 
     if i == 0:
-        shutil.copy(saved_model_path, model_i_path)
+        model_0_path = os.path.join(iteration_folder, f'{saved_model}_{i}_best.pth.tar')
+        models.append(model_0_path)
+        shutil.copy(saved_model_path, model_0_path)
         shutil.copy(original_fuji_folder, inlier_folder)
         #accs_0 = test(model_0, test_data)
 
@@ -82,6 +83,7 @@ for i in iterations:
                 species_file_path_i_minus_1 = os.path.join(datasets[i-1], species)
                 species_file_path_i = os.path.join(datasets[i], species)
                 shutil.copy(species_file_path_i_minus_1, species_file_path_i)
+        
         # Train new model
         # Extract basenames from the list of file paths
         # List all files in the folder matching the pattern
@@ -90,7 +92,10 @@ for i in iterations:
 
         # Filter the DataFrame to include only rows where the basename matches
         df_train_i = df_sticky_dataset_train_big[df_sticky_dataset_train_big["filename"].apply(os.path.basename).isin(train_i_basenames)]
-        # model_i = train(models[i-1], dataset[i], val_data, all_classes)
+        # Train the model i, we dont return it but we could eventually do so, tbd, also we could give all_classes as input
+        model_i_path = train(df_train_i, df_sticky_dataset_val_big, df_sticky_dataset_test_big, i, iteration_folder)
+        models.append(model_i_path)
+
         # accs_i = test(model_i, test_data)
         # active_classes = active_classes[accs_i > accs_i-1]
         # inactive_classes = active_classes[accs_i <= accs_i-1]

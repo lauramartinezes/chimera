@@ -22,7 +22,7 @@ def get_args():
     parser.add_argument('--enable_wandb', type=bool, default=False)
     parser.add_argument('--model_name', type=str, default=None)
     parser.add_argument('--setting', type=str, default="fuji")
-    parser.add_argument('--scenario', type=str, default="scratch", choices=["scratch", "pretrained_imagenet", "pretrained_inaturalist"])
+    parser.add_argument('--scenario', type=str, default="pretrained_imagenet", choices=["scratch", "pretrained_imagenet", "pretrained_inaturalist"])
     parser.add_argument('--train_subset_size', type=int, default=None)
     parser.add_argument('--train_subset_seed', type=int, default=156)
     parser.add_argument('--augment', type=lambda x: x.lower() == 'true', default=True)
@@ -61,9 +61,11 @@ def get_args():
     return args
 
 
-if __name__ == '__main__':
-    system = platform.system()
+# Note: For now we are not using the pretrained weights of the previous iteration, to be discussed in next progress meeting
+def train(df_train, df_val, df_test, iteration, save_folder):
     args = get_args() 
+
+    args.wandb_run_name = args.wandb_run_name + f'_{iteration}'
 
     batch_size = 32
     batch_size_val = 32
@@ -88,11 +90,6 @@ if __name__ == '__main__':
     df['txt_label'] = df['label']
     df['label'] = oe.fit_transform(df.label)
     topclasses = df['label'].value_counts().head(12).index.tolist()
-
-    # Get dfs for train, validation, test (here we assume the existance, refer to notebook otherwise)
-    df_train = pd.read_parquet(f"{SAVE_DIR}/df_train_{args.setting}.parquet")
-    df_val = pd.read_parquet(f"{SAVE_DIR}/df_val_{args.setting}.parquet")
-    df_test = pd.read_parquet(f"{SAVE_DIR}/df_test_{args.setting}.parquet")
 
     # Get dataloader
     datasets = get_datasets(df_train, df_val, df_test, transform_train=set_train_transform(args.augment), transform_test=set_test_transform())
@@ -173,17 +170,26 @@ if __name__ == '__main__':
         print(f"Epoch {epoch}: train_acc: {train_accuracy:.1f}% loss: {loss:.7f},  val_loss: {val_loss:.7f} val_acc: {valid_accuracy:.1f}%")
 
         is_best = valid_accuracy > best_valacc
+
+        model_name = f"{args.setting}_{args.model_name}_{args.scenario}_{args.train_subset_size}_seed_{args.train_subset_seed}_{args.augment_name}{args.unfrozen_layers}{args.conv_stem}_{iteration}"
         if is_best:
             print(
                 f"Validation accuracy improved from {best_valacc:.2f} to {valid_accuracy:.2f}. Saving model..")
         best_valacc = max(valid_accuracy, best_valacc)
-        save_checkpoint({
-            'epoch': epoch,
-            'state_dict': model.state_dict(),
-            'best_valacc': best_valacc,
-            'loss': results['loss'].append(loss.detach().cpu()),
-            'val_loss': results['val_loss'].append(val_loss.detach().cpu()),
-            'train_accuracy': results['train_accuracy'].append(train_accuracy),
-            'valid_accuracy': results['valid_accuracy'].append(valid_accuracy),
-            'optimizer': optimizer.state_dict(),
-        }, is_best, f"{args.setting}_{args.model_name}_{args.scenario}_{args.train_subset_size}_seed_{args.train_subset_seed}_{args.augment_name}{args.unfrozen_layers}{args.conv_stem}")
+        save_checkpoint(
+            {
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'best_valacc': best_valacc,
+                'loss': results['loss'].append(loss.detach().cpu()),
+                'val_loss': results['val_loss'].append(val_loss.detach().cpu()),
+                'train_accuracy': results['train_accuracy'].append(train_accuracy),
+                'valid_accuracy': results['valid_accuracy'].append(valid_accuracy),
+                'optimizer': optimizer.state_dict(),
+            }, 
+            is_best, 
+            f"{args.setting}_{args.model_name}_{args.scenario}_{args.train_subset_size}_seed_{args.train_subset_seed}_{args.augment_name}{args.unfrozen_layers}{args.conv_stem}_{iteration}",
+            folder=save_folder
+        )
+
+        return os.path.join(save_folder, f'{model_name}_best.pth.tar')

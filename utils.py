@@ -84,11 +84,11 @@ def detect_outliers(X_train, algorithm='KNN'):
         raise NotImplementedError()
 
 
-def save_checkpoint(state, is_best, filename=''):
+def save_checkpoint(state, is_best, filename='', folder = SAVE_DIR):
     from shutil import copyfile
 
     import torch
-    filename = f'{SAVE_DIR}/{filename}.pth.tar'
+    filename = os.path.join(folder, f'{filename}.pth.tar')
     torch.save(state, filename)
     if is_best:
         copyfile(filename, f"{filename[:-len('.pth.tar')]}_best.pth.tar")
