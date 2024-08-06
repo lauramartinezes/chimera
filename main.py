@@ -48,7 +48,9 @@ for i in iterations:
         model_0_path = os.path.join(iteration_folder, f'{saved_model}_{i}_best.pth.tar')
         models.append(model_0_path)
         shutil.copy(saved_model_path, model_0_path)
-        shutil.copy(original_fuji_folder, inlier_folder)
+        inlier_folder_is_empty = not any(os.scandir(inlier_folder))
+        if inlier_folder_is_empty:
+            shutil.copytree(original_fuji_folder, inlier_folder, dirs_exist_ok=True)
         bacc, cm, y_true, y_pred, info, insect_accuracies = test(
             model_0_path, 
             df_sticky_dataset_train_big, 
@@ -90,7 +92,7 @@ for i in iterations:
             for species in inactive_classes:
                 species_file_path_i_minus_1 = os.path.join(datasets[i-1], species)
                 species_file_path_i = os.path.join(datasets[i], species)
-                shutil.copy(species_file_path_i_minus_1, species_file_path_i)
+                shutil.copytree(species_file_path_i_minus_1, species_file_path_i, dirs_exist_ok=True)
         
         # Train new model
         train_i_filepaths = glob.glob(os.path.join(datasets[i], '*', '*'))
