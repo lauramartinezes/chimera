@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 
 from config.config import INSECT_LABELS_MAP
@@ -10,10 +11,6 @@ def test_model(model, loader, dataset):
 
     model.eval()
     correct = 0
-    correct_wswl = 0
-    total_wswl = 0
-    correct_wmv = 0
-    total_wmv = 0
 
     y_pred, y_true = [], []
 
@@ -21,8 +18,13 @@ def test_model(model, loader, dataset):
              'location', 'date', 'year', 'xtra', 'width', 'height']
     info = {i: [] for i in feats}
 
-    label_wswl = INSECT_LABELS_MAP['wswl']
-    label_wmv = INSECT_LABELS_MAP['wmv']
+    # Initialize the DataFrame for insect accuracies
+    insect_accuracies = pd.DataFrame({
+        'insect_name': list(INSECT_LABELS_MAP.keys()),
+        'correct': 0,
+        'total': 0,
+        'accuracy': 0.0
+    })
 
     for x_batch, y_batch, imgname, platename, filename, plate_idx, location, date, year, xtra, width, height in tqdm(loader, desc='Testing..\t'):
         y_batch = torch.as_tensor(y_batch).type(torch.LongTensor)
@@ -33,10 +35,14 @@ def test_model(model, loader, dataset):
         y_true.extend(y_batch.detach().cpu().numpy())
         correct += (pred.argmax(axis=1) == y_batch).float().sum().item()
 
-        correct_wswl, total_wswl = update_critical_insects_correct_and_total(
-            y_batch, pred, label_wswl, correct_wswl, total_wswl)
-        correct_wmv, total_wmv = update_critical_insects_correct_and_total(
-            y_batch, pred, label_wmv, correct_wmv, total_wmv)
+        # Update the DataFrame with correct and total counts for each insect
+        for name, label in INSECT_LABELS_MAP.items():
+            correct_insect, total_insect = update_critical_insects_correct_and_total(
+                y_batch, pred, label, insect_accuracies.loc[insect_accuracies['insect_name'] == name, 'correct'].values[0],
+                insect_accuracies.loc[insect_accuracies['insect_name'] == name, 'total'].values[0]
+            )
+            insect_accuracies.loc[insect_accuracies['insect_name'] == name, 'correct'] = correct_insect
+            insect_accuracies.loc[insect_accuracies['insect_name'] == name, 'total'] = total_insect
 
         info['imgname'].extend(imgname)
         info['platename'].extend(platename)
@@ -50,10 +56,11 @@ def test_model(model, loader, dataset):
         info['height'].extend(height)
 
     accuracy = correct / len(dataset) * 100.
-    accuracy_wswl = calculate_accuracy_critical_insects(
-        correct_wswl, total_wswl)
-    accuracy_wmv = calculate_accuracy_critical_insects(
-        correct_wmv, total_wmv)
+
+    # Calculate the accuracy for each insect
+    insect_accuracies['accuracy'] = insect_accuracies.apply(
+        lambda row: calculate_accuracy_critical_insects(row['correct'], row['total']), axis=1
+    )
 
     bacc = balanced_accuracy_score(y_pred=y_pred, y_true=y_true)
     cm = confusion_matrix(y_pred=y_pred, y_true=y_true, normalize='true')
@@ -61,7 +68,7 @@ def test_model(model, loader, dataset):
     # print(f"Accuracy: {accuracy:.2f}")
     # print(f"Balanced accuracy: {bacc*100.:.2f}")
     # print(f"Confusion matrix: \n{cm}")
-    return bacc, cm, y_true, y_pred, info, accuracy_wswl, accuracy_wmv, total_wswl, total_wmv
+    return bacc, cm, y_true, y_pred, info, insect_accuracies
 
 
 def update_critical_insects_correct_and_total(y, p, label_insect, correct_insect, total_insect):
