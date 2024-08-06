@@ -55,7 +55,7 @@ for i in iterations:
         inlier_folder_is_empty = not any(os.scandir(inlier_folder))
         if inlier_folder_is_empty:
             shutil.copytree(original_fuji_folder, inlier_folder, dirs_exist_ok=True)
-        if not os.path.exists(os.path.join(inlier_folder, f'accuracy_values.csv')):
+        if not os.path.exists(os.path.join(iteration_folder, f'accuracy_values.csv')):
             bacc, cm, y_true, y_pred, info, insect_accuracies = test(
                 model_0_path, 
                 df_sticky_dataset_train_big, 
