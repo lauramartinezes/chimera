@@ -48,7 +48,7 @@ def test(model_path, df_train, df_val, df_test, save_folder):
 
     bacc, cm, y_true, y_pred, info, insect_accuracies = test_model(model, test_dataloader, test_dataset)
 
-    insect_accuracies.to_csv(os.path.join(save_folder, f'accuracy_values.npy'), index=False)
+    insect_accuracies.to_csv(os.path.join(save_folder, f'accuracy_values.csv'), index=False)
 
     return bacc, cm, y_true, y_pred, info, insect_accuracies
 
