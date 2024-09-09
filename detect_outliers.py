@@ -66,7 +66,7 @@ def extract_features(dataloader, model):
     return torch.cat(features, dim=0)#.cpu().numpy()
 
 
-def apply_umap(data, n_components=3, n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=None):
+def apply_umap(data, labels, n_components=3, n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=None):
     """
     Apply UMAP dimensionality reduction to the data.
 
@@ -89,9 +89,9 @@ def apply_umap(data, n_components=3, n_neighbors=15, min_dist=0.1, metric='eucli
 
     # Fit the UMAP model to the data and transform it to the specified number of components
     print("UMAP Fitting")
-    return umap_model.fit_transform(data)
+    return umap_model.fit_transform(data, labels)
 
-def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.svg', show_plot=False):
+def plot_umap(*umaps, labels, txt_labels=None, title='UMAP', caption=None, save_path='umap.svg', show_plot=True):
     if caption is None:
         caption = 'Number of samples:\n'
 
@@ -104,12 +104,27 @@ def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.s
     else:
         fig, ax = plt.subplots()
 
-    for i, umap_data in enumerate(umaps):
-        label = None if labels is None else labels[i]
-        ax.scatter(*umap_data.T, label=label)  # Unpack the columns for scatter plot
-        caption += f' - {label}: {len(umap_data)}\n'
+    # Define unique classes and corresponding colors
+    classes = np.unique(labels)
+    colors = plt.cm.Set1(np.linspace(0, 1, len(classes)))
 
-    # Set labels for each axis
+    for i, umap_data in enumerate(umaps):
+        for j, cls in enumerate(classes):
+            # Use txt_labels to create a label only for the first point of each class
+            if txt_labels is not None:
+                class_label = txt_labels[labels.tolist().index(cls)]  # Find the first occurrence of the class label
+            else:
+                class_label = str(cls)
+
+            ax.scatter(*umap_data[labels == cls].T, label=class_label, c=[colors[j]], s=20)
+            caption += f' - {class_label}: {len(umap_data[labels == cls])}\n'
+        
+    # for i, umap_data in enumerate(umaps):
+    #     #txt_label = None if txt_labels is None else txt_labels[i]
+    #     ax.scatter(*umap_data.T, label=txt_labels, c=labels, cmap='Set1', s=2)  # Unpack the columns for scatter plot
+    #     #caption += f' - {txt_label}: {len(umap_data)}\n'
+
+    # Set txt_labels for each axis
     ax.set_xlabel('UMAP Dimension 1')
     ax.set_ylabel('UMAP Dimension 2')
     if is_3d:
@@ -117,16 +132,17 @@ def plot_umap(*umaps, labels=None, title='UMAP', caption=None, save_path='umap.s
 
     # Set title and legend
     ax.set_title(title)
-    if labels is not None:
+    if txt_labels is not None:
         ax.legend()
     if caption is not None:
         fig.text(0.1, 0.01 if not is_3d else 0.1, caption, va='bottom')
     plt.savefig(os.path.join(save_path), format="svg")
     
+
     if show_plot: plt.show()
 
 
-def detect_outliers(species, df_train, sticky_dataset_train_filepaths, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
+def detect_outliers(species, df_train, sticky_dataset_train_filepaths, labels, classes, all_classes, model_path, iteration_folder, umaps_folder, solution_outlier_detector_folder, outlier_folder, inlier_folder, n_components=2):
     umap_file_name = os.path.join(umaps_folder, f'umap_{species}.npy')
     solution_outlier_detector_file_name = os.path.join(solution_outlier_detector_folder, f'solution_outlier_detector_{species}.pkl')
     
@@ -171,58 +187,60 @@ def detect_outliers(species, df_train, sticky_dataset_train_filepaths, classes, 
         features_sticky = extract_features(dataloader_sticky, model).cpu().numpy()
 
         # Get UMAP
-        umap_sticky = apply_umap(features_sticky, n_components)
+        umap_sticky = apply_umap(features_sticky, labels, n_components)
         np.save(umap_file_name, umap_sticky)
 
-    # Detect outliers using kmrcd
-    if os.path.exists(solution_outlier_detector_file_name):
-        with open(solution_outlier_detector_file_name, 'rb') as file:
-            solution_outlier_detector = pickle.load(file)
-    else:
-        alpha = 0.85
-        kernel = AutoRbfKernel
-        kModel = kernel(umap_sticky)
-        poc = kMRCD(kModel)
-        solution_outlier_detector = poc.runAlgorithm(umap_sticky, alpha)
-        with open(solution_outlier_detector_file_name, 'wb') as file:
-            pickle.dump(solution_outlier_detector, file)
+    # # Detect outliers using kmrcd
+    # if os.path.exists(solution_outlier_detector_file_name):
+    #     with open(solution_outlier_detector_file_name, 'rb') as file:
+    #         solution_outlier_detector = pickle.load(file)
+    # else:
+    #     alpha = 0.85
+    #     kernel = AutoRbfKernel
+    #     kModel = kernel(umap_sticky)
+    #     poc = kMRCD(kModel)
+    #     solution_outlier_detector = poc.runAlgorithm(umap_sticky, alpha)
+    #     with open(solution_outlier_detector_file_name, 'wb') as file:
+    #         pickle.dump(solution_outlier_detector, file)
 
-    outlier_indices = solution_outlier_detector['flaggedOutlierIndices']
-    inlier_indices = list(set(np.arange(umap_sticky.shape[0])) - set(solution_outlier_detector['flaggedOutlierIndices']))
+    # outlier_indices = solution_outlier_detector['flaggedOutlierIndices']
+    # inlier_indices = list(set(np.arange(umap_sticky.shape[0])) - set(solution_outlier_detector['flaggedOutlierIndices']))
 
-    umap_sticky_outliers = umap_sticky[outlier_indices]
-    umap_sticky_inliers = umap_sticky[inlier_indices]
+    # umap_sticky_outliers = umap_sticky[outlier_indices]
+    # umap_sticky_inliers = umap_sticky[inlier_indices]
 
     # Plot umaps
     plot_umap(
-        umap_sticky,  
-        labels=[f'{setting.capitalize()} {species}'],
+        umap_sticky,
+        labels=labels,
+        txt_labels=df_train.txt_label.to_list(),#[f'{setting.capitalize()} {species}'],
         title=f'UMAP Scatter Plot {species}',
         save_path=os.path.join(iteration_folder, f'umap_{species}.svg')
     )
 
-    plot_umap(
-        umap_sticky_inliers,  
-        umap_sticky_outliers,
-        labels=['umap_sticky_inliers', 'umap_sticky_outliers'],
-        title='UMAP Scatter Plot {species}',
-        save_path=os.path.join(iteration_folder, f'umap_{species}_outliers.svg')
-    )
+    # plot_umap(
+    #     umap_sticky_inliers,  
+    #     umap_sticky_outliers,
+    #     labels=['umap_sticky_inliers', 'umap_sticky_outliers'],
+    #     title='UMAP Scatter Plot {species}',
+    #     save_path=os.path.join(iteration_folder, f'umap_{species}_outliers.svg')
+    # )
 
-    outlier_filepaths = [sticky_dataset_train_filepaths[i] for i in outlier_indices]
-    inlier_filepaths = [sticky_dataset_train_filepaths[i] for i in inlier_indices]
+    # outlier_filepaths = [sticky_dataset_train_filepaths[i] for i in outlier_indices]
+    # inlier_filepaths = [sticky_dataset_train_filepaths[i] for i in inlier_indices]
 
-    # Copy each image to the destination folder
-    for file_path in outlier_filepaths:
-        shutil.copy(file_path, os.path.join(outlier_folder_species, os.path.basename(file_path)))
+    # # Copy each image to the destination folder
+    # for file_path in outlier_filepaths:
+    #     shutil.copy(file_path, os.path.join(outlier_folder_species, os.path.basename(file_path)))
 
-    for file_path in inlier_filepaths:
-        shutil.copy(file_path, os.path.join(inlier_folder_species, os.path.basename(file_path)))
+    # for file_path in inlier_filepaths:
+    #     shutil.copy(file_path, os.path.join(inlier_folder_species, os.path.basename(file_path)))
 
-    return outlier_filepaths, inlier_filepaths
+    # return outlier_filepaths, inlier_filepaths
 
 if __name__ == '__main__':
     args = get_args()
+    separate_species = False
     i = args.iteration 
     if i == 0:  # Check if any string in the list is '0'
         raise ValueError(f"Invalid value '{i}' for iteration")
@@ -236,25 +254,48 @@ if __name__ == '__main__':
     inlier_folder = os.path.join(iteration_folder, 'output_dataset', 'inliers')
     
     previous_iteration_folder = os.path.join('output', f'iteration_{(i-1):02}')
-    model_i_minus_1_path = os.path.join(iteration_folder, f'{saved_model}_{i-1}_best.pth.tar')
+    model_i_minus_1_path = os.path.join(previous_iteration_folder, f'{saved_model}_{i-1}_best.pth.tar')
     dataset_i_minus_1 = os.path.join(previous_iteration_folder, 'output_dataset', 'inliers')
 
     # Read images that were used to train model
     df_train_i_minus_1 = pd.read_csv(os.path.join(previous_iteration_folder, f'df_train_{i-1}.csv'))
     all_classes = df_train_i_minus_1['txt_label'].unique().tolist()
-
+    
     with open(os.path.join(previous_iteration_folder, 'active_classes.pkl'), 'rb') as f: 
         active_classes = pickle.load(f)
     with open(os.path.join(previous_iteration_folder, 'inactive_classes.pkl'), 'rb') as f: 
         inactive_classes = pickle.load(f)
 
+    if separate_species:
+        for species in active_classes:
+            df_train_i_minus_1_species = dataset_i_minus_1[df_train_i_minus_1.txt_label == species]
+            dataset_species_paths = df_train_i_minus_1_species.filename.to_list()
+            labels = df_train_i_minus_1_species.label.to_numpy()
 
-    for species in active_classes:
-        dataset_species_paths = glob.glob(os.path.join(dataset_i_minus_1, species, '*'))
+            detect_outliers(
+                species, 
+                df_train_i_minus_1, 
+                dataset_species_paths, 
+                labels,
+                active_classes, 
+                all_classes, 
+                model_i_minus_1_path, 
+                iteration_folder, 
+                umaps_folder, 
+                solution_outlier_detector_folder, 
+                outlier_folder, 
+                inlier_folder, 
+                n_components=2
+            )
+    else:
+        dataset_species_paths = df_train_i_minus_1.filename.to_list()
+        labels = df_train_i_minus_1.label.to_numpy()
+
         detect_outliers(
-            species, 
+            'all', 
             df_train_i_minus_1, 
             dataset_species_paths, 
+            labels,
             active_classes, 
             all_classes, 
             model_i_minus_1_path, 
@@ -265,4 +306,3 @@ if __name__ == '__main__':
             inlier_folder, 
             n_components=2
         )
-    
