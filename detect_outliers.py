@@ -45,25 +45,29 @@ class InsectDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.file_paths[idx]
+        label = img_path.split(os.sep)[-2]
         image = Image.open(img_path).convert('RGB')
         image_source = 'inaturalist' if 'inaturalist' in img_path.lower() else setting
 
         if self.transform:
             image = self.transform(image)
 
-        return image, idx, image_source
+        return image, idx, image_source, label
     
 def extract_features(dataloader, model):
     features = []
+    labels = []
     model.eval()
     with torch.no_grad():
-        for images, _, _ in tqdm(dataloader, 'Extracting features', unit='batch', leave=False):
-            images = images.to('cuda')
-            outputs = model(images)
+        for  x_batch, y_batch, imgname, platename, filename, plate_idx, location, date, year, xtra, width, height in tqdm(dataloader, 'Extracting features', unit='batch', leave=False):
+            y_batch = torch.as_tensor(y_batch)
+            x_batch, y_batch = x_batch.float().cuda(), y_batch.cuda()
+            outputs = model(x_batch)
             features.append(outputs)
+            labels.append(y_batch)
 
     # Concatenate features from different batches
-    return torch.cat(features, dim=0)#.cpu().numpy()
+    return torch.cat(features, dim=0).cpu().numpy(), torch.cat(labels, dim=0).cpu().numpy()
 
 
 def apply_umap(data, labels, n_components=3, n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=None):
