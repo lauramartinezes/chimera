@@ -17,13 +17,11 @@ import random
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
-class CustomMNISTCSV(Dataset):
-    def __init__(self, csv_file, transform_percent=0, wrong_label_percent=0, transform=None):
-        data = pd.read_csv(csv_file)
-        
-        # Split into labels and images
-        self.labels = data['label'].values
-        self.images = data.drop('label', axis=1).values.reshape(-1, 28, 28).astype(np.uint8)
+class CustomMNISTDF(Dataset):
+    def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None):
+        # Use the provided DataFrame directly
+        self.labels = df['label'].values
+        self.images = df.drop('label', axis=1).values.reshape(-1, 28, 28).astype(np.uint8)
         self.transform = transform
 
         # Calculate how many samples to modify
@@ -32,7 +30,9 @@ class CustomMNISTCSV(Dataset):
 
         # Randomly select indices for transformation and wrong labels
         self.transform_indices = random.sample(range(len(self.images)), self.num_transform)
-        self.wrong_label_indices = random.sample(range(len(self.labels)), self.num_wrong_label)
+        transform_set = set(self.transform_indices)
+        available_indices = list(set(range(len(self.labels))) - transform_set)
+        self.wrong_label_indices = random.sample(available_indices, self.num_wrong_label)
         
         # Corrupt the labels
         self._corrupt_labels()
@@ -51,8 +51,8 @@ class CustomMNISTCSV(Dataset):
         # Define strong transformations using PIL functions
         transform_list = [
             lambda img: img.filter(ImageFilter.GaussianBlur(radius=3)),                     # Strong blur with large radius
-            lambda img: ImageEnhance.Brightness(img).enhance(10),                          # Very dark image (low brightness)
-            lambda img: ImageOps.equalize(img),                                             # Histogram equalization
+            #lambda img: ImageEnhance.Brightness(img).enhance(10),                          # Very dark image (low brightness)
+            #lambda img: ImageOps.equalize(img),                                             # Histogram equalization
             lambda img: self._add_noise(img, scale=100)                                     # Very strong noise
         ]
         
@@ -107,7 +107,7 @@ class CustomMNISTCSV(Dataset):
             measurement_noise_ = measurement_noise[i].item()
             label_noise_ = label_noise[i]  # Use the label change flag
             plt.imshow(image, cmap="gray")
-            plt.title(f'Label: {label}\n Measurement Noise: {measurement_noise_} | Label Noise: {label_noise_}')
+            plt.title(f'Label: {label} | Label Noise: {label_noise_}')
             plt.axis("off")
         plt.show()
 
@@ -120,16 +120,25 @@ transform = transforms.Compose([
 ])
 
 if __name__ == '__main__':
-    # Create the custom dataset with 25% of images transformed with very strong non-geometric transforms and 10% wrong labels
-    dataset = CustomMNISTCSV(csv_file=os.path.join('digit-recognizer','train.csv'), transform_percent=0.25, wrong_label_percent=0.1, transform=transform)
+    df = pd.read_csv(os.path.join('digit-recognizer', 'train.csv'))
 
-    # Test by loading a batch from the dataset
+    print(f'Number of samples: {len(df)}')
+    # Split the DataFrame into train and test sets
+    train_df = df.sample(frac=0.8, random_state=42)  # 80% for training
+    test_df = df.drop(train_df.index)  # Remaining 20% for testing
+
+    # Create the custom dataset instances
+    train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.10)
+    test_dataset = CustomMNISTDF(test_df)
+
+    # Test by loading a batch from the training dataset
     from torch.utils.data import DataLoader
 
-    train_loader = DataLoader(dataset, batch_size=64, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 
     # Check a batch of data
     images, labels, measurement_noise, label_noise = next(iter(train_loader))
 
-    # Plot the first 16 images
-    dataset.plot_images(images, labels, measurement_noise, label_noise, num_images=16)
+    # Plot the first 16 images from the batch
+    train_dataset.plot_images(images, labels, measurement_noise, label_noise, num_images=16)
+
