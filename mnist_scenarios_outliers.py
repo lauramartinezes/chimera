@@ -17,6 +17,7 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 from PIL import Image
 from mnist_dataset import CustomMNISTDF
+from mnist_matrix import plot_result_matrix
 
 
 if torch.cuda.is_available():
@@ -69,11 +70,12 @@ GRAYSCALE = True
 #                               train=False, 
 #                               transform=transforms.ToTensor())
 
-df = pd.read_csv(os.path.join('digit-recognizer', 'train.csv'))
+train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
+test_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_test.csv'))
 
 # Split the DataFrame into train and test sets
-train_df = df.sample(frac=0.8, random_state=42)  # 80% for training
-test_df = df.drop(train_df.index)  # Remaining 20% for testing
+# train_df = df.sample(frac=0.8, random_state=42)  # 80% for training
+# test_df = df.drop(train_df.index)  # Remaining 20% for testing
 
 # Create the custom dataset instances
 test_dataset = CustomMNISTDF(test_df, transform=transforms.ToTensor())
@@ -137,6 +139,7 @@ for transform_percent, wrong_label_percent in noise_combinations:
             
             ### LOGGING
             if not batch_idx % 50:
+                print(transform_percent, wrong_label_percent)
                 print ('Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f' 
                     %(epoch+1, NUM_EPOCHS, batch_idx, 
                         len(train_loader), cost))
@@ -170,3 +173,4 @@ for transform_percent, wrong_label_percent in noise_combinations:
     print('')
 
 print(results_df)
+plot_result_matrix(results_df)
