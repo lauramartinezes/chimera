@@ -18,7 +18,12 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 
 class CustomMNISTDF(Dataset):
-    def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None):
+    def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None, seed=None):
+        # Set the seed for reproducibility
+        if seed is not None:
+            self.seed = seed
+            self._set_seed(self.seed)
+
         # Use the provided DataFrame directly
         self.labels = df['label'].values
         self.images = df.drop('label', axis=1).values.reshape(-1, 28, 28).astype(np.uint8)
@@ -37,6 +42,13 @@ class CustomMNISTDF(Dataset):
 
         # Corrupt the labels
         self._corrupt_labels()
+
+    def _set_seed(self, seed):
+        random.seed(seed)  # Set the seed for Python's random module
+        np.random.seed(seed)  # Set the seed for NumPy's random module
+        torch.manual_seed(seed)  # Set the seed for PyTorch
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)  # Set the seed for all CUDA devices
 
     def _prepare_indices_per_class(self):
         # Dictionary to store indices for each class
@@ -211,8 +223,8 @@ if __name__ == '__main__':
     test_df = df.drop(train_df.index)  # Remaining 20% for testing
 
     # Create the custom dataset instances
-    train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.10)
-    test_dataset = CustomMNISTDF(test_df)
+    train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.10, seed=42)
+    test_dataset = CustomMNISTDF(test_df, seed=42)
     # Get a subset of the dataset with only class 'A'
     class_a_dataset =  ClassSubset(train_dataset, class_label=1)
 
