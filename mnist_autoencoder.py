@@ -1,13 +1,20 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 import numpy as np
 import seaborn as sns
+import umap
+import pandas as pd
+import os
+
+from mnist_dataset import CustomMNISTDF, ClassSubset
+
+latent_dim = 20  # Size of latent space
 
 # Beta-VAE model
 class BetaVAE(nn.Module):
@@ -74,6 +81,7 @@ class BetaVAE(nn.Module):
 def beta_vae_loss(recon_x, x, mu, logvar, beta=1.0):
     # Reconstruction loss (Binary Cross Entropy)
     recon_loss = F.binary_cross_entropy(recon_x, x, reduction='sum')
+    #recon_loss = F.l1_loss(recon_x, x, reduction='sum') # mae Loss (Less Sensitive to outliers)
 
     # KL Divergence loss
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
@@ -81,23 +89,89 @@ def beta_vae_loss(recon_x, x, mu, logvar, beta=1.0):
     # Total loss (weighted by beta)
     return recon_loss + beta * kl_loss, recon_loss, kl_loss
 
-batch_size = 1024
-num_epochs=10
 
-# Data loading (MNIST)
-transform = transforms.Compose([transforms.ToTensor()])
-train_dataset = datasets.FashionMNIST(root='./data', train=True, transform=transform, download=True)
-test_dataset = datasets.FashionMNIST(root='./data', train=False, transform=transform, download=True)
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+###################################################
 
-# Initialize model, optimizer, and device
-latent_dim = 5  # Size of latent space
-beta = 0.00005  # Set the beta value for Beta-VAE
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+# Step 3: VAE Structure remains the same (from the previous implementation)
+class Encoder(nn.Module):
+    def __init__(self):
+        super(Encoder, self).__init__()
+        self.conv1 = nn.Conv2d(1, 128, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(128, 64, kernel_size=3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        self.flatten = nn.Flatten()
+        self.fc = nn.Linear(12544, 32)
+        self.fc_mu = nn.Linear(32, latent_dim)
+        self.fc_logvar = nn.Linear(32, latent_dim)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = self.flatten(x)
+        x = F.relu(self.fc(x))
+        mu = self.fc_mu(x)
+        logvar = self.fc_logvar(x)
+        return mu, logvar
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self.fc = nn.Linear(latent_dim, 12544)
+        self.reshape = nn.Unflatten(1, (64, 14, 14))
+        self.conv_trans1 = nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1)
+        self.conv_trans2 = nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1)
+        self.conv_trans3 = nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.conv_trans4 = nn.ConvTranspose2d(64, 128, kernel_size=3, padding=1)
+        self.conv_trans5 = nn.ConvTranspose2d(128, 1, kernel_size=3, padding=1)
+
+    def forward(self, z):
+        x = F.relu(self.fc(z))
+        x = self.reshape(x)
+        x = F.relu(self.conv_trans1(x))
+        x = F.relu(self.conv_trans2(x))
+        x = F.relu(self.conv_trans3(x))
+        x = F.relu(self.conv_trans4(x))
+        x = torch.sigmoid(self.conv_trans5(x))
+        return x
+
+class VAE(nn.Module):
+    def __init__(self):
+        super(VAE, self).__init__()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    def forward(self, x):
+        mu, logvar = self.encoder(x)
+        z = self.reparameterize(mu, logvar)
+        recon_x = self.decoder(z)
+        return recon_x, mu, logvar
+
+# Step 4: Define loss function (reconstruction + KL divergence)
+def vae_loss(recon_x, x, mu, logvar):
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return BCE + KLD, BCE, KLD
+
+
+
+###################################################
+
+
+# Function to filter the dataset by the desired classes
+def filter_dataset_by_classes(dataset, keep_classes):
+    # Get the indices of the samples whose labels match the desired classes
+    indices = np.where(np.isin(dataset.targets, keep_classes))[0]
+    # Return a subset of the dataset containing only the desired classes
+    return Subset(dataset, indices)
 
 # Training loop
 def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
@@ -107,7 +181,7 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
         total_recon_loss = 0
         total_kl_loss = 0
 
-        for data, _ in train_loader:
+        for data, _, _, _ in train_loader:
             data = data.to(device)
 
             # Forward pass
@@ -116,7 +190,8 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
             
             # Compute loss
             loss, recon_loss, kl_loss = beta_vae_loss(recon_data, data, mu, logvar, beta)
-            
+            #loss, recon_loss, kl_loss = vae_loss(recon_data, data, mu, logvar)
+
             # Backward pass
             loss.backward()
             optimizer.step()
@@ -131,16 +206,14 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
         
         print(f'Epoch {epoch+1}, Loss: {avg_loss:.4f}, Recon Loss: {avg_recon_loss:.4f}, KL Loss: {avg_kl_loss:.4f}')
 
-# Train the Beta-VAE model
-train_vae(model, train_loader, optimizer, num_epochs=num_epochs, beta=beta)
 
 # Visualization Functions
 
-def visualize_samples(model, test_loader):
+def visualize_samples(model, test_loader, normal_class=None):
     model.eval()
     with torch.no_grad():
         # Get a batch of test data
-        for batch, _ in test_loader:
+        for batch, _, _, _ in test_loader:
             data = batch.to(device)
             recon_data, _, _ = model(data)
             data = data.cpu()
@@ -160,79 +233,155 @@ def visualize_samples(model, test_loader):
         axes[1, i].axis('off')
         axes[1, i].set_title("Reconstructed")
         
-    plt.show()
+    #plt.show()
+    plt.savefig(os.path.join('outputs', f'samples_{normal_class}.png'), format='png')
 
-# t-SNE Latent Space Visualization
 
-def visualize_latent_space(model, test_loader, num_samples=1000):
+def get_latent_vectors(model, test_loader):
     model.eval()
-    latents, labels = [], []
+    latents, labels, measurement_noises,  label_noises = [], [], [], []
     
     with torch.no_grad():
-        for data, label in test_loader:
+        for data, label, measurement_noise, label_noise in test_loader:
             data = data.to(device)
             _, mu, _ = model(data)
             latents.append(mu.cpu())
             labels.append(label)
-            if len(latents) * len(data) >= num_samples:
-                break
+            measurement_noises.append(measurement_noise)
+            label_noises.append(label_noise)
 
     latents = torch.cat(latents, dim=0)
     labels = torch.cat(labels, dim=0)
+    measurement_noises = torch.cat(measurement_noises, dim=0)
+    label_noises = torch.cat(label_noises, dim=0)
 
-    # Perform t-SNE on latent space
-    tsne = TSNE(n_components=2)
-    latents_2d = tsne.fit_transform(latents)
+    latents = np.array(latents)
+    labels = np.array(labels)
+    measurement_noises = np.array(measurement_noises)
+    label_noises = np.array(label_noises)
 
-    # Plot t-SNE results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=labels, palette=sns.color_palette("hsv", 10), legend='full')
-    plt.title("Latent Space t-SNE Visualization")
-    plt.xlabel("t-SNE dimension 1")
-    plt.ylabel("t-SNE dimension 2")
-    plt.show()
-
-import umap
-
-# Existing code from previous implementation (BetaVAE model, loss function, etc.)
+    return latents, labels, measurement_noises,  label_noises
 
 # UMAP Latent Space Visualization
-def visualize_latent_space_umap(model, test_loader, num_samples=1000):
-    model.eval()
-    latents, labels = [], []
+def visualize_latent_space(latents_2d, labels, measurement_noises, label_noises, normal_class=None):
+    measurement_noises = measurement_noises.astype(int)*2
+    label_noises = label_noises.astype(int)
+    noises = measurement_noises + label_noises
     
-    with torch.no_grad():
-        for data, label in test_loader:
-            data = data.to(device)
-            _, mu, _ = model(data)
-            latents.append(mu.cpu())
-            labels.append(label)
-            if len(latents) * len(data) >= num_samples:
-                break
+    # Dictionary to map numbers to text labels
+    label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
+    txt_noise_labels = [label_mapping[label] for label in noises]
 
-    latents = torch.cat(latents, dim=0)
-    labels = torch.cat(labels, dim=0)
+    # Plot UMAP results
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_noise_labels, palette=sns.color_palette("hsv", 3), legend='full')
+    plt.title("Latent Space UMAP Visualization")
+    plt.xlabel("UMAP dimension 1")
+    plt.ylabel("UMAP dimension 2")
+    #plt.show()
+    plt.savefig(os.path.join('outputs', f'umap_plot_{normal_class}.png'), format='png')
+
+def detect_outliers(latent_space_points):
+    dbscan = DBSCAN(eps=0.5, min_samples=1)  # Adjust parameters as needed
+    labels = dbscan.fit_predict(latent_space_points)
+
+    # Count the number of points in each cluster (ignore noise points labeled as -1)
+    unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
+    largest_cluster_label = unique_labels[np.argmax(counts)]
+
+    # second_largest_cluster_label = unique_labels[np.argsort(counts)[-2]]
+    # smallest_cluster_label = unique_labels[np.argmin(counts)]
+    # second_smallest_cluster_label = unique_labels[np.argsort(counts)[1]]
+
+    # Step 3: Mark the points in the smallest cluster as outliers
+    outliers = latent_space_points[labels != largest_cluster_label]
+    inliers = latent_space_points[labels == largest_cluster_label]
+    return outliers, inliers
+
+def visualize_outliers(outliers, inliers):
+    # Plotting the clusters
+    plt.figure(figsize=(10, 6))
+
+    plt.scatter(outliers[:, 0], outliers[:, 1], label=f'Outliers Cluster', color='red', s=50, alpha=0.6)
+    plt.scatter(inliers[:, 0], inliers[:, 1], label=f'Inliers Cluster', color='blue', s=50, alpha=0.6)
+
+    # for label in unique_labels:
+    #     if label == -1:  # Noise points
+    #         cluster_points = latent_space_points[labels == label]
+    #         plt.scatter(cluster_points[:, 0], cluster_points[:, 1], label='Noise', color='gray', s=30, alpha=0.3)
+    #     else:
+    #         cluster_points = latent_space_points[labels == label]
+    #         if (label == largest_cluster_label):# | (label == second_largest_cluster_label):
+    #             plt.scatter(cluster_points[:, 0], cluster_points[:, 1], label=f'Inliers Cluster {label}', color='red', s=50, alpha=0.6)
+    #         else:
+    #             plt.scatter(cluster_points[:, 0], cluster_points[:, 1], label=f'Cluster {label}', s=30, alpha=0.4)
+
+    plt.title('DBSCAN Clustering with Highlighted Largest Cluster')
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    
+
+batch_size = 1024
+transform = transforms.Compose([transforms.ToTensor()])
+
+train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
+test_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_test.csv'))
+
+# Create the custom dataset instances
+train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
+test_dataset = CustomMNISTDF(test_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
+
+classes = train_df.label.unique().tolist()
+classes.sort()
+
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+# Initialize model, optimizer, and device
+beta = 0.00005  # Set the beta value for Beta-VAE
+num_epochs = 30
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+#model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
+model = VAE().to(device)
+model_path = os.path.join('outputs', 'model.pth')
+
+if os.path.exists(model_path):
+    model.load_state_dict(torch.load())
+else:
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    train_vae(model, train_loader, optimizer, num_epochs=num_epochs, beta=beta)
+    torch.save(model.state_dict(), os.path.join('outputs', 'model.pth'))
+
+for normal_class in classes:
+    # Get a subset of the dataset with only class 'A'
+    class_train_dataset =  ClassSubset(train_dataset, class_label=normal_class)
+    class_test_dataset =  ClassSubset(test_dataset, class_label=normal_class)
+
+    class_train_loader = DataLoader(class_train_dataset, batch_size=batch_size, shuffle=True)
+    class_test_loader = DataLoader(class_test_dataset, batch_size=batch_size, shuffle=False)
+
+    latents, labels, measurement_noises, label_noises = get_latent_vectors(model, class_train_loader)
 
     # Perform UMAP on latent space
     reducer = umap.UMAP(n_components=2)
     latents_2d = reducer.fit_transform(latents)
 
-    # Plot UMAP results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=labels, palette=sns.color_palette("hsv", 10), legend='full')
-    plt.title("Latent Space UMAP Visualization")
-    plt.xlabel("UMAP dimension 1")
-    plt.ylabel("UMAP dimension 2")
-    plt.show()
+    outliers, inliers = detect_outliers(latent_space_points)
 
-# Visualize t-SNE Latent Space
-visualize_latent_space(model, test_loader)
+    # Visualize UMAP Latent Space
+    visualize_latent_space(latents_2d, labels, measurement_noises, label_noises, normal_class=normal_class)
+    visualize_outliers(outliers, inliers)
 
-# Visualize UMAP Latent Space
-visualize_latent_space_umap(model, test_loader)
+    #np.save(os.path.join('outputs', f'full_{normal_class}.npy'), latents)
+    #np.save(os.path.join('outputs', f'umap_{normal_class}.npy'), latents_2d)
 
-# Visualize Original vs. Reconstructed Images
-visualize_samples(model, test_loader)
+    # Visualize Original vs. Reconstructed Images
+    visualize_samples(model, class_train_loader, normal_class=normal_class)
+
+    print('')
 
 print('')
    
