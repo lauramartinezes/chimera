@@ -349,7 +349,7 @@ model = VAE().to(device)
 model_path = os.path.join('outputs', 'model.pth')
 
 if os.path.exists(model_path):
-    model.load_state_dict(torch.load())
+    model.load_state_dict(torch.load(model_path))
 else:
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     train_vae(model, train_loader, optimizer, num_epochs=num_epochs, beta=beta)
