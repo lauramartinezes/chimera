@@ -18,16 +18,24 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 
 class CustomMNISTDF(Dataset):
-    def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None, seed=None):
+    def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None, seed=None, outlier_indices=None):
         # Set the seed for reproducibility
         if seed is not None:
             self.seed = seed
             self._set_seed(self.seed)
 
         # Use the provided DataFrame directly
-        self.labels = df['label'].values
+        self.real_labels = df['label'].values
+        self.labels = self.real_labels.copy()
         self.images = df.drop('label', axis=1).values.reshape(-1, 28, 28).astype(np.uint8)
         self.transform = transform
+
+        # Initialize the outlier variable to False for all samples
+        self.outliers = np.full(len(self.labels), False)
+        
+        # Set the outlier flag to True for specified outlier indices
+        if outlier_indices is not None:
+            self.outliers[outlier_indices] = True
 
         # Calculate how many samples to modify
         self.transform_percent = transform_percent
@@ -118,6 +126,8 @@ class CustomMNISTDF(Dataset):
     def __getitem__(self, idx):
         image = self.images[idx]
         label = self.labels[idx]
+        real_label = self.real_labels[idx]
+        outlier = self.outliers[idx] 
 
         # Flags for measurement noise and label change
         measurement_noise = False
@@ -136,7 +146,7 @@ class CustomMNISTDF(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image, label, measurement_noise, label_noise  # Return the flags as well
+        return image, label, real_label, measurement_noise, label_noise, outlier  # Return the flags as well
 
 
 class ClassSubset(Dataset):
@@ -147,6 +157,8 @@ class ClassSubset(Dataset):
         # Filter the images, labels, and flags from the original dataset
         self.images = original_dataset.images[self.class_indices]
         self.labels = original_dataset.labels[self.class_indices]
+        self.real_labels = original_dataset.real_labels[self.class_indices]
+        self.outliers = original_dataset.outliers[self.class_indices]
         self.transform_indices = [i for i in self.class_indices if i in original_dataset.transform_indices]
         self.wrong_label_indices = [i for i in self.class_indices if i in original_dataset.wrong_label_indices]
 
@@ -160,9 +172,9 @@ class ClassSubset(Dataset):
         original_idx = self.class_indices[idx]
 
         # Get image, label, and flags from the original dataset
-        image, label, measurement_noise, label_noise = self.original_dataset[original_idx]
+        image, label, real_label, measurement_noise, label_noise, outlier = self.original_dataset[original_idx]
 
-        return image, label, measurement_noise, label_noise
+        return image, label, real_label, measurement_noise, label_noise, outlier
 
 def plot_images(images, labels, measurement_noise, label_noise, num_images=16):
     plt.figure(figsize=(12, 12))

@@ -181,7 +181,7 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
         total_recon_loss = 0
         total_kl_loss = 0
 
-        for data, _, _, _ in train_loader:
+        for data, _, _, _, _, _ in train_loader: 
             data = data.to(device)
 
             # Forward pass
@@ -213,7 +213,7 @@ def visualize_samples(model, test_loader, normal_class=None):
     model.eval()
     with torch.no_grad():
         # Get a batch of test data
-        for batch, _, _, _ in test_loader:
+        for batch, _, _, _, _, _ in test_loader:
             data = batch.to(device)
             recon_data, _, _ = model(data)
             data = data.cpu()
@@ -242,7 +242,7 @@ def get_latent_vectors(model, test_loader):
     latents, labels, measurement_noises,  label_noises = [], [], [], []
     
     with torch.no_grad():
-        for data, label, measurement_noise, label_noise in test_loader:
+        for data, label, real_label, measurement_noise, label_noise, outlier in test_loader:
             data = data.to(device)
             _, mu, _ = model(data)
             latents.append(mu.cpu())
