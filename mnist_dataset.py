@@ -17,6 +17,116 @@ import random
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+import random
+from PIL import Image, ImageFilter
+
+class CustomBinaryMNISTDF(Dataset):
+    def __init__(self, df, transform_percent=0, transform=None, seed=None, outlier_indices=None):
+        # Set the seed for reproducibility
+        if seed is not None:
+            self.seed = seed
+            self._set_seed(self.seed)
+
+        # Use the provided DataFrame directly
+        self.real_labels = df['label'].values
+        self.mislabeled = df['mislabeled'].values  # Use the mislabeled column directly
+        self.labels = self.real_labels.copy()
+        self.images = df.drop(['label', 'mislabeled'], axis=1).values.reshape(-1, 28, 28).astype(np.uint8)
+        self.transform = transform
+
+        # Initialize the outlier variable to False for all samples
+        self.outliers = np.full(len(self.labels), False)
+        
+        # Set the outlier flag to True for specified outlier indices
+        if outlier_indices is not None:
+            self.outliers[outlier_indices] = True
+
+        # Store the transform percentage
+        self.transform_percent = transform_percent
+
+        # Prepare indices for transformations
+        self._prepare_transform_indices()
+
+        # Precompute transformations for the transform_indices
+        self.precomputed_transforms = {}
+        self._precompute_transforms()
+
+    def _set_seed(self, seed):
+        random.seed(seed)  # Set the seed for Python's random module
+        np.random.seed(seed)  # Set the seed for NumPy's random module
+        torch.manual_seed(seed)  # Set the seed for PyTorch
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)  # Set the seed for all CUDA devices
+
+    def _prepare_transform_indices(self):
+        # Calculate how many transformations to apply based on the total number of samples
+        num_transform = int(self.transform_percent * len(self.labels))
+
+        # Create a list of indices that are not mislabeled
+        non_mislabeled_indices = [i for i in range(len(self.labels)) if not self.mislabeled[i]]
+
+        # Randomly select indices for transformations from the non-mislabeled dataset
+        self.transform_indices = random.sample(non_mislabeled_indices, min(num_transform, len(non_mislabeled_indices)))
+
+    def _precompute_transforms(self):
+        # Define strong transformations using PIL functions
+        transform_list = [
+            lambda img: img.filter(ImageFilter.GaussianBlur(radius=3)),  # Strong blur with large radius
+            lambda img: self._add_noise(img, scale=100)                  # Very strong noise
+        ]
+        
+        # Assign a random transform for each transform index
+        for idx in self.transform_indices:
+            self.precomputed_transforms[idx] = random.choice(transform_list)
+
+    def _apply_precomputed_transform(self, image, idx):
+        # Convert numpy array to PIL image
+        pil_image = Image.fromarray(image)
+
+        # Apply the precomputed transformation for this index
+        if idx in self.precomputed_transforms:
+            transformed_image = self.precomputed_transforms[idx](pil_image)
+            return np.array(transformed_image)
+        return image
+
+    def _add_noise(self, img, scale=25):
+        # Convert PIL image to numpy array
+        img_np = np.array(img)
+        # Generate very strong Gaussian noise
+        noise = np.random.normal(loc=0, scale=scale, size=img_np.shape)
+        noisy_image = img_np + noise
+        noisy_image = np.clip(noisy_image, 0, 255).astype(np.uint8)  # Ensure values are in valid range
+        return Image.fromarray(noisy_image)  # Convert back to PIL image
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+        real_label = self.real_labels[idx]
+        mislabeled = self.mislabeled[idx]  # Get mislabeled status from the column
+        outlier = self.outliers[idx] 
+
+        # Flags for measurement noise
+        measurement_noise = False
+
+        # Apply precomputed transformations only if the sample is included in transform indices
+        if idx in self.transform_indices:
+            image = self._apply_precomputed_transform(image, idx)
+            measurement_noise = True
+
+        # If any transforms are provided (like tensor conversion or normalization), apply them
+        if self.transform:
+            image = Image.fromarray(image)
+            image = self.transform(image)
+
+        return image, label, real_label, measurement_noise, mislabeled, outlier  # Return mislabeled as well
+
+
 class CustomMNISTDF(Dataset):
     def __init__(self, df, transform_percent=0, wrong_label_percent=0, transform=None, seed=None, outlier_indices=None):
         # Set the seed for reproducibility
