@@ -12,6 +12,8 @@ import umap
 import pandas as pd
 import os
 
+from sklearn.cluster import DBSCAN
+
 from mnist_dataset import CustomMNISTDF, ClassSubset
 
 latent_dim = 20  # Size of latent space
@@ -278,8 +280,8 @@ def visualize_latent_space(latents_2d, labels, measurement_noises, label_noises,
     plt.title("Latent Space UMAP Visualization")
     plt.xlabel("UMAP dimension 1")
     plt.ylabel("UMAP dimension 2")
-    #plt.show()
-    plt.savefig(os.path.join('outputs', f'umap_plot_{normal_class}.png'), format='png')
+    plt.show()
+    #plt.savefig(os.path.join('outputs', f'umap_plot_{normal_class}.png'), format='png')
 
 def detect_outliers(latent_space_points):
     dbscan = DBSCAN(eps=0.5, min_samples=1)  # Adjust parameters as needed
@@ -294,9 +296,9 @@ def detect_outliers(latent_space_points):
     # second_smallest_cluster_label = unique_labels[np.argsort(counts)[1]]
 
     # Step 3: Mark the points in the smallest cluster as outliers
-    outliers = latent_space_points[labels != largest_cluster_label]
-    inliers = latent_space_points[labels == largest_cluster_label]
-    return outliers, inliers
+    outliers_idx = (labels != largest_cluster_label)
+    inliers_idx = (labels == largest_cluster_label)
+    return outliers_idx, inliers_idx
 
 def visualize_outliers(outliers, inliers):
     # Plotting the clusters
@@ -369,17 +371,31 @@ for normal_class in classes:
     reducer = umap.UMAP(n_components=2)
     latents_2d = reducer.fit_transform(latents)
 
-    outliers, inliers = detect_outliers(latent_space_points)
+    outliers_idx, inliers_idx = detect_outliers(latents_2d)
+    outliers = latents_2d[outliers_idx]
+    inliers = latents_2d[inliers_idx]
 
     # Visualize UMAP Latent Space
     visualize_latent_space(latents_2d, labels, measurement_noises, label_noises, normal_class=normal_class)
     visualize_outliers(outliers, inliers)
 
+    new_latents=latents[inliers_idx]
+
+    reducer = umap.UMAP(n_components=2)
+    new_latents_2d = reducer.fit_transform(new_latents)
+
+    new_outliers_idx, new_inliers_idx = detect_outliers(new_latents_2d)
+    new_outliers = new_latents_2d[new_outliers_idx]
+    new_inliers = new_latents_2d[new_inliers_idx]
+
+    visualize_latent_space(new_latents_2d, labels[inliers_idx], measurement_noises[inliers_idx], label_noises[inliers_idx], normal_class=normal_class)
+    visualize_outliers(new_outliers, new_inliers)
+
     #np.save(os.path.join('outputs', f'full_{normal_class}.npy'), latents)
     #np.save(os.path.join('outputs', f'umap_{normal_class}.npy'), latents_2d)
 
     # Visualize Original vs. Reconstructed Images
-    visualize_samples(model, class_train_loader, normal_class=normal_class)
+    #visualize_samples(model, class_train_loader, normal_class=normal_class)
 
     print('')
 
