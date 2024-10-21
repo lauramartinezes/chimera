@@ -92,9 +92,12 @@ for model in models:
     print(f'{model}: {metrics}')
 
     metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
+    temp_metrics_df = pd.DataFrame(metrics_list)
+    temp_metrics_df.to_csv('temp_baseline_metrics.csv', index=False)
 
 # Create a DataFrame from the metrics list
 metrics_df = pd.DataFrame(metrics_list)
+metrics_df.to_csv('baseline_metrics.csv', index=False)
 print(metrics_df)
 
 print()
