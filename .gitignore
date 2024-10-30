@@ -137,5 +137,9 @@ dmypy.json
 *.pkl
 *.mat
 *.npy
+*.csv
+
 wandb/*
 output/*
+data/*
+outputs/*

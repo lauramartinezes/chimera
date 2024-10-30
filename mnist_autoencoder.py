@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -91,13 +92,46 @@ def beta_vae_loss(recon_x, x, mu, logvar, beta=1.0):
     # Total loss (weighted by beta)
     return recon_loss + beta * kl_loss, recon_loss, kl_loss
 
+def rvae_loss(recon_x, x, mu, logvar, beta=1.0):
+    # Reconstruction loss (Binary Cross Entropy or MSE depending on the use case)
+    recon_loss = F.binary_cross_entropy(recon_x, x, reduction='sum')
+    # recon_loss = F.mse_loss(recon_x, x, reduction='sum') # For continuous data
+
+    # β-divergence loss (replacing KL divergence)
+    # (mu.pow(2) + logvar.exp() - logvar - 1) is the common term used to calculate divergence between two Gaussians
+    divergence_term = mu.pow(2) + logvar.exp() - logvar - 1
+    
+    # Multiply by exp(-beta * divergence_term) to weight outliers less
+    beta_loss = (1 / beta) * torch.sum(torch.exp(-0.5 * divergence_term))
+
+    # Total loss (weighted by beta)
+    return recon_loss + beta_loss, recon_loss, beta_loss
+
+def rvae_loss_paper(recon_x, x, mu, logvar, beta, sigma=0.5):
+    D = recon_x.shape[1]
+    
+    if beta > 0:
+        # Gaussian β-divergence loss
+        term1 = -((1 + beta) / beta)
+        K1 = 1 / ((2 * math.pi * sigma**2) ** (beta * D / 2))
+        term2 = torch.sum((recon_x - x).pow(2), dim=1)
+        term3 = torch.exp(-(beta / (2 * sigma**2)) * term2)
+        beta_loss = torch.sum(term1 * (K1 * term3 - 1))
+    else:
+        # Default to binary cross-entropy if beta is zero
+        beta_loss = F.binary_cross_entropy(recon_x, x, reduction='sum')
+
+    # Optional KL term for latent space regularization
+    kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    
+    return beta_loss + kl_loss, beta_loss, kl_loss
 
 ###################################################
 
 
 # Step 3: VAE Structure remains the same (from the previous implementation)
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_dim=20):
         super(Encoder, self).__init__()
         self.conv1 = nn.Conv2d(1, 128, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(128, 64, kernel_size=3, stride=2, padding=1)
@@ -120,7 +154,7 @@ class Encoder(nn.Module):
         return mu, logvar
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_dim=20):
         super(Decoder, self).__init__()
         self.fc = nn.Linear(latent_dim, 12544)
         self.reshape = nn.Unflatten(1, (64, 14, 14))
@@ -141,7 +175,7 @@ class Decoder(nn.Module):
         return x
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_dim=20):
         super(VAE, self).__init__()
         self.encoder = Encoder()
         self.decoder = Decoder()
@@ -176,7 +210,7 @@ def filter_dataset_by_classes(dataset, keep_classes):
     return Subset(dataset, indices)
 
 # Training loop
-def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
+def train_vae(model, train_loader, optimizer, device, num_epochs=10, beta=4.0):
     model.train()
     for epoch in range(num_epochs):
         total_loss = 0
@@ -192,6 +226,7 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
             
             # Compute loss
             loss, recon_loss, kl_loss = beta_vae_loss(recon_data, data, mu, logvar, beta)
+            #loss, recon_loss, kl_loss = rvae_loss(recon_data, data, mu, logvar, beta)
             #loss, recon_loss, kl_loss = vae_loss(recon_data, data, mu, logvar)
 
             # Backward pass
@@ -211,8 +246,9 @@ def train_vae(model, train_loader, optimizer, num_epochs=10, beta=4.0):
 
 # Visualization Functions
 
-def visualize_samples(model, test_loader, normal_class=None):
+def visualize_samples(model, test_loader, device, normal_class=None):
     model.eval()
+    c=0
     with torch.no_grad():
         # Get a batch of test data
         for batch, _, _, _, _, _ in test_loader:
@@ -220,7 +256,9 @@ def visualize_samples(model, test_loader, normal_class=None):
             recon_data, _, _ = model(data)
             data = data.cpu()
             recon_data = recon_data.cpu()
-            break
+            c=c+1
+            if c==3:
+                break
 
     fig, axes = plt.subplots(2, 10, figsize=(18, 4))
 
@@ -239,7 +277,7 @@ def visualize_samples(model, test_loader, normal_class=None):
     plt.savefig(os.path.join('outputs', f'samples_{normal_class}.png'), format='png')
 
 
-def get_latent_vectors(model, test_loader):
+def get_latent_vectors(model, test_loader, device):
     model.eval()
     latents, labels, measurement_noises,  label_noises = [], [], [], []
     
@@ -325,79 +363,79 @@ def visualize_outliers(outliers, inliers):
     plt.grid(True)
     plt.show()
     
+if __name__ == '__main__':
+    batch_size = 1024
+    transform = transforms.Compose([transforms.ToTensor()])
 
-batch_size = 1024
-transform = transforms.Compose([transforms.ToTensor()])
+    train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
+    test_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_test.csv'))
 
-train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
-test_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_test.csv'))
+    # Create the custom dataset instances
+    train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
+    test_dataset = CustomMNISTDF(test_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
 
-# Create the custom dataset instances
-train_dataset = CustomMNISTDF(train_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
-test_dataset = CustomMNISTDF(test_df, transform_percent=0.25, wrong_label_percent=0.25, transform = transform, seed=42)
+    classes = train_df.label.unique().tolist()
+    classes.sort()
 
-classes = train_df.label.unique().tolist()
-classes.sort()
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    # Initialize model, optimizer, and device
+    beta = 0.00005  # Set the beta value for Beta-VAE
+    num_epochs = 30
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Initialize model, optimizer, and device
-beta = 0.00005  # Set the beta value for Beta-VAE
-num_epochs = 30
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
+    model = VAE().to(device)
+    model_path = os.path.join('outputs', 'model.pth')
 
-#model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
-model = VAE().to(device)
-model_path = os.path.join('outputs', 'model.pth')
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path))
+    else:
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+        train_vae(model, train_loader, optimizer, device, num_epochs=num_epochs, beta=beta)
+        torch.save(model.state_dict(), os.path.join('outputs', 'model.pth'))
 
-if os.path.exists(model_path):
-    model.load_state_dict(torch.load(model_path))
-else:
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    train_vae(model, train_loader, optimizer, num_epochs=num_epochs, beta=beta)
-    torch.save(model.state_dict(), os.path.join('outputs', 'model.pth'))
+    for normal_class in classes:
+        # Get a subset of the dataset with only class 'A'
+        class_train_dataset =  ClassSubset(train_dataset, class_label=normal_class)
+        class_test_dataset =  ClassSubset(test_dataset, class_label=normal_class)
 
-for normal_class in classes:
-    # Get a subset of the dataset with only class 'A'
-    class_train_dataset =  ClassSubset(train_dataset, class_label=normal_class)
-    class_test_dataset =  ClassSubset(test_dataset, class_label=normal_class)
+        class_train_loader = DataLoader(class_train_dataset, batch_size=batch_size, shuffle=True)
+        class_test_loader = DataLoader(class_test_dataset, batch_size=batch_size, shuffle=False)
 
-    class_train_loader = DataLoader(class_train_dataset, batch_size=batch_size, shuffle=True)
-    class_test_loader = DataLoader(class_test_dataset, batch_size=batch_size, shuffle=False)
+        latents, labels, measurement_noises, label_noises = get_latent_vectors(model, class_train_loader, device)
 
-    latents, labels, measurement_noises, label_noises = get_latent_vectors(model, class_train_loader)
+        # Perform UMAP on latent space
+        reducer = umap.UMAP(n_components=2)
+        latents_2d = reducer.fit_transform(latents)
 
-    # Perform UMAP on latent space
-    reducer = umap.UMAP(n_components=2)
-    latents_2d = reducer.fit_transform(latents)
+        outliers_idx, inliers_idx = detect_outliers(latents_2d)
+        outliers = latents_2d[outliers_idx]
+        inliers = latents_2d[inliers_idx]
 
-    outliers_idx, inliers_idx = detect_outliers(latents_2d)
-    outliers = latents_2d[outliers_idx]
-    inliers = latents_2d[inliers_idx]
+        # Visualize UMAP Latent Space
+        visualize_latent_space(latents_2d, labels, measurement_noises, label_noises, normal_class=normal_class)
+        visualize_outliers(outliers, inliers)
 
-    # Visualize UMAP Latent Space
-    visualize_latent_space(latents_2d, labels, measurement_noises, label_noises, normal_class=normal_class)
-    visualize_outliers(outliers, inliers)
+        new_latents=latents[inliers_idx]
 
-    new_latents=latents[inliers_idx]
+        reducer = umap.UMAP(n_components=2)
+        new_latents_2d = reducer.fit_transform(new_latents)
 
-    reducer = umap.UMAP(n_components=2)
-    new_latents_2d = reducer.fit_transform(new_latents)
+        new_outliers_idx, new_inliers_idx = detect_outliers(new_latents_2d)
+        new_outliers = new_latents_2d[new_outliers_idx]
+        new_inliers = new_latents_2d[new_inliers_idx]
 
-    new_outliers_idx, new_inliers_idx = detect_outliers(new_latents_2d)
-    new_outliers = new_latents_2d[new_outliers_idx]
-    new_inliers = new_latents_2d[new_inliers_idx]
+        visualize_latent_space(new_latents_2d, labels[inliers_idx], measurement_noises[inliers_idx], label_noises[inliers_idx], normal_class=normal_class)
+        visualize_outliers(new_outliers, new_inliers)
 
-    visualize_latent_space(new_latents_2d, labels[inliers_idx], measurement_noises[inliers_idx], label_noises[inliers_idx], normal_class=normal_class)
-    visualize_outliers(new_outliers, new_inliers)
+        #np.save(os.path.join('outputs', f'full_{normal_class}.npy'), latents)
+        #np.save(os.path.join('outputs', f'umap_{normal_class}.npy'), latents_2d)
 
-    #np.save(os.path.join('outputs', f'full_{normal_class}.npy'), latents)
-    #np.save(os.path.join('outputs', f'umap_{normal_class}.npy'), latents_2d)
+        # Visualize Original vs. Reconstructed Images
+        #visualize_samples(model, class_train_loader, device, normal_class=normal_class)
 
-    # Visualize Original vs. Reconstructed Images
-    #visualize_samples(model, class_train_loader, normal_class=normal_class)
+        print('')
 
     print('')
-
-print('')
-   
+    

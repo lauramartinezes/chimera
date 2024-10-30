@@ -76,11 +76,11 @@ measurement_noises = measurement_noise.astype(int)
 label_noises = mislabeled.astype(int)
 y_train = measurement_noises + label_noises
 
-models = ['IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM',
+models = ['SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
+           'SOGAAL', 'MOGAAL','IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM',
           'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
-          'LMDD', 'LODA', 'LOF', 'LOCI', #'LSCP', 'MAD',
-          'MCD', 'PCA', 'ROD', 'SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
-           'SOGAAL', 'MOGAAL']
+          'LMDD', 'LODA', 'LOF', #'LOCI', #'LSCP', 'MAD',
+          'MCD', 'PCA']#,'ROD']
 
 metrics_list = []
 
