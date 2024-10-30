@@ -54,87 +54,6 @@ def show_images_side_by_side(image1, image2):
 
     plt.show()
 
-# Fix the seed for reproducibility
-seed = 42
-np.random.seed(seed)
-torch.manual_seed(seed)
-
-######################## DATA PREPARATION ###########################
-train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
-reduced_train_df = train_df[(train_df.label == 0) | (train_df.label == 1)]
-reduced_train_df['mislabeled'] = False
-
-# Get 10% of rows for each label using value_counts
-n_switch = {label: int(0.1 * len(reduced_train_df[reduced_train_df.label == label])) for label in [0, 1]}
-
-# Loop over labels 0 and 1, switching labels and marking as mislabeled
-for label in [0, 1]:
-    available_indices = reduced_train_df[(reduced_train_df.label == label) & (~reduced_train_df.mislabeled)].index
-    indices_to_switch = np.random.choice(available_indices, n_switch[label], replace=False)
-    reduced_train_df.loc[indices_to_switch, ['label', 'mislabeled']] = [1 - label, True]
-
-class_0_train_df = reduced_train_df[reduced_train_df.label == 0]
-
-batch_size = 1024
-transform_resnet = transforms.Compose([
-    ToRGB(),                        # Convert grayscale to RGB
-    transforms.ToTensor(),  # Convert the image to a tensor
-    transforms.Resize(224),  # Resize the image to 224x224
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalize
-])
-transform_vae = transforms.Compose([transforms.ToTensor()])
-
-train_dataset_vae = CustomBinaryMNISTDF(class_0_train_df, transform_percent=0.1, transform = transform_vae, seed=42)
-train_loader_vae = DataLoader(train_dataset_vae, batch_size=batch_size, shuffle=True)
-test_loader_vae = DataLoader(train_dataset_vae, batch_size=batch_size, shuffle=False)
-
-train_dataset_resnet = CustomBinaryMNISTDF(class_0_train_df, transform_percent=0.1, transform = transform_resnet, seed=42)
-test_loader_resnet = DataLoader(train_dataset_resnet, batch_size=batch_size, shuffle=False)
-
-# Get a single batch from the VAE DataLoader
-vae_images, _, _, _, _, _ = next(iter(test_loader_vae))
-
-# Get a single batch from the ResNet DataLoader
-resnet_images, _, _, _, _, _ = next(iter(test_loader_resnet))
-
-show_images_side_by_side(vae_images[0], resnet_images[0])
-
-######################## MODEL ###########################
-# VAE
-beta = 0.00005  # Set the beta value for Beta-VAE
-num_epochs = 200
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-#model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
-vae_model = VAE().to(device)
-vae_model_path = os.path.join('outputs', 'vae_model.pth')
-
-if os.path.exists(vae_model_path):
-    vae_model.load_state_dict(torch.load(vae_model_path))
-else:
-    optimizer = torch.optim.AdamW(vae_model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    train_vae(vae_model, train_loader_vae, optimizer, device, num_epochs=num_epochs, beta=beta)
-    torch.save(vae_model.state_dict(), vae_model_path)
-
-latents_vae, labels_vae, measurement_noise_vae, mislabeled_vae = get_latent_vectors(vae_model, test_loader_vae, device)
-
-# Resnet
-feature_extractor = timm.create_model('resnet18', pretrained=True)
-feature_extractor = torch.nn.Sequential(*(list(feature_extractor.children())[:-1]))
-feature_extractor.eval()
-
-#latents_resnet, labels_resnet, real_labels_resnet, measurement_noise_resnet, mislabeled_resnet = extract_features_from_dataloader(test_loader_resnet, feature_extractor)
-
-visualize_samples(vae_model, test_loader_vae, device)
-# Perform UMAP on latent space
-reducer = umap.UMAP(n_components=2)
-
-latents_vae_2d = reducer.fit_transform(latents_vae)
-visualize_latent_space(latents_vae_2d, labels_vae, measurement_noise_vae, mislabeled_vae)
-
-#latents_resnet_2d = reducer.fit_transform(latents_resnet)
-#visualize_latent_space(latents_resnet_2d, labels_resnet, measurement_noise_resnet, mislabeled_resnet)
-
 models = ['SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
            'SOGAAL', 'MOGAAL','IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM',
           'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
@@ -157,9 +76,91 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, name=Non
         temp_metrics_df = pd.DataFrame(metrics_list)
         temp_metrics_df.to_csv(f'temp_{name}_metrics.csv', index=False)
 
-get_outlier_methods_csv(latents_vae, measurement_noise_vae.astype(int),  mislabeled_vae.astype(int), 'vae')
-#get_outlier_methods_csv(latents_resnet, measurement_noise_resnet.astype(int),  mislabeled_resnet.astype(int), 'resnet')
+if __name__ == '__main__':
+    # Fix the seed for reproducibility
+    seed = 42
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
-print('Done')
+    ######################## DATA PREPARATION ###########################
+    train_df = pd.read_csv(os.path.join('archive', 'fashion-mnist_train.csv'))
+    reduced_train_df = train_df[(train_df.label == 0) | (train_df.label == 1)]
+    reduced_train_df['mislabeled'] = False
 
-print()
+    # Get 10% of rows for each label using value_counts
+    n_switch = {label: int(0.1 * len(reduced_train_df[reduced_train_df.label == label])) for label in [0, 1]}
+
+    # Loop over labels 0 and 1, switching labels and marking as mislabeled
+    for label in [0, 1]:
+        available_indices = reduced_train_df[(reduced_train_df.label == label) & (~reduced_train_df.mislabeled)].index
+        indices_to_switch = np.random.choice(available_indices, n_switch[label], replace=False)
+        reduced_train_df.loc[indices_to_switch, ['label', 'mislabeled']] = [1 - label, True]
+
+    class_0_train_df = reduced_train_df[reduced_train_df.label == 0]
+
+    batch_size = 1024
+    transform_resnet = transforms.Compose([
+        ToRGB(),                        # Convert grayscale to RGB
+        transforms.ToTensor(),  # Convert the image to a tensor
+        transforms.Resize(224),  # Resize the image to 224x224
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalize
+    ])
+    transform_vae = transforms.Compose([transforms.ToTensor()])
+
+    train_dataset_vae = CustomBinaryMNISTDF(class_0_train_df, transform_percent=0.1, transform = transform_vae, seed=42)
+    train_loader_vae = DataLoader(train_dataset_vae, batch_size=batch_size, shuffle=True)
+    test_loader_vae = DataLoader(train_dataset_vae, batch_size=batch_size, shuffle=False)
+
+    train_dataset_resnet = CustomBinaryMNISTDF(class_0_train_df, transform_percent=0.1, transform = transform_resnet, seed=42)
+    test_loader_resnet = DataLoader(train_dataset_resnet, batch_size=batch_size, shuffle=False)
+
+    # Get a single batch from the VAE DataLoader
+    vae_images, _, _, _, _, _ = next(iter(test_loader_vae))
+
+    # Get a single batch from the ResNet DataLoader
+    resnet_images, _, _, _, _, _ = next(iter(test_loader_resnet))
+
+    show_images_side_by_side(vae_images[0], resnet_images[0])
+
+    ######################## MODEL ###########################
+    # VAE
+    beta = 0.00005  # Set the beta value for Beta-VAE
+    num_epochs = 200
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    #model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
+    vae_model = VAE().to(device)
+    vae_model_path = os.path.join('outputs', 'vae_model.pth')
+
+    if os.path.exists(vae_model_path):
+        vae_model.load_state_dict(torch.load(vae_model_path))
+    else:
+        optimizer = torch.optim.AdamW(vae_model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+        train_vae(vae_model, train_loader_vae, optimizer, device, num_epochs=num_epochs, beta=beta)
+        torch.save(vae_model.state_dict(), vae_model_path)
+
+    latents_vae, labels_vae, measurement_noise_vae, mislabeled_vae = get_latent_vectors(vae_model, test_loader_vae, device)
+
+    # Resnet
+    feature_extractor = timm.create_model('resnet18', pretrained=True)
+    feature_extractor = torch.nn.Sequential(*(list(feature_extractor.children())[:-1]))
+    feature_extractor.eval()
+
+    #latents_resnet, labels_resnet, real_labels_resnet, measurement_noise_resnet, mislabeled_resnet = extract_features_from_dataloader(test_loader_resnet, feature_extractor)
+
+    visualize_samples(vae_model, test_loader_vae, device)
+    # Perform UMAP on latent space
+    reducer = umap.UMAP(n_components=2)
+
+    latents_vae_2d = reducer.fit_transform(latents_vae)
+    visualize_latent_space(latents_vae_2d, labels_vae, measurement_noise_vae, mislabeled_vae)
+
+    #latents_resnet_2d = reducer.fit_transform(latents_resnet)
+    #visualize_latent_space(latents_resnet_2d, labels_resnet, measurement_noise_resnet, mislabeled_resnet)
+
+    get_outlier_methods_csv(latents_vae, measurement_noise_vae.astype(int),  mislabeled_vae.astype(int), 'vae')
+    #get_outlier_methods_csv(latents_resnet, measurement_noise_resnet.astype(int),  mislabeled_resnet.astype(int), 'resnet')
+
+    print('Done')
+
+    print()
