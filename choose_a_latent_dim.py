@@ -8,8 +8,10 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from mnist_autoencoder import VAE, train_vae
+from PyOD import PYOD, metric
+from mnist_autoencoder import VAE, get_latent_vectors, train_vae
 from mnist_dataset import CustomBinaryMNISTDF
+from pyod_our_approach import get_outlier_methods_csv
 
 def plot_losses(latent_dims, losses):
     plt.figure(figsize=(10, 6))
@@ -71,6 +73,15 @@ losses = []
 recon_losses = []
 kl_losses = []
 
+models = ['SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
+           'SOGAAL', 'MOGAAL','IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM',
+          'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
+          'LMDD', 'LODA', 'LOF', #'LOCI', #'LSCP', 'MAD',
+          'MCD', 'PCA']#,'ROD']
+
+results = []
+latent_dims_data = {}
+
 for latent_dim in latent_dims:
     vae_model = VAE(latent_dim=latent_dim).to(device)
     optimizer = torch.optim.AdamW(vae_model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -78,10 +89,46 @@ for latent_dim in latent_dims:
     losses.append(avg_loss)
     recon_losses.append(avg_recon_loss)
     kl_losses.append(avg_kl_loss)
+    latents_vae, labels_vae, measurement_noise_vae, mislabeled_vae = get_latent_vectors(vae_model, test_loader_vae, device)
+    y_train = measurement_noise_vae.astype(int) + mislabeled_vae.astype(int)
 
+    metrics_list = []
+
+    for model in models:
+        pyod_model = PYOD(seed=42, model_name=model)
+        pyod_model.fit(latents_vae, [])
+        anomaly_scores = pyod_model.predict_score(latents_vae)
+        metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
+        print(f'{model}: {metrics}')
+
+        metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
+        outlier_metrics_df = pd.DataFrame(metrics_list)
+
+    latent_dims_data[latent_dim] = outlier_metrics_df
+
+    # Calculate metrics
+    mean_auc_roc = outlier_metrics_df['aucroc'].mean()
+    mean_auc_pr = outlier_metrics_df['aucpr'].mean()
+    median_auc_roc = outlier_metrics_df['aucroc'].median()
+    median_auc_pr = outlier_metrics_df['aucpr'].median()
+    iqr_auc_roc = outlier_metrics_df['aucroc'].quantile(0.75) - outlier_metrics_df['aucroc'].quantile(0.25)
+    iqr_auc_pr = outlier_metrics_df['aucpr'].quantile(0.75) - outlier_metrics_df['aucpr'].quantile(0.25)
+
+    results.append({
+        'latent_dim': latent_dim,
+        'mean_aucroc': mean_auc_roc,
+        'mean_aucpr': mean_auc_pr,
+        'median_aucroc': median_auc_roc,
+        'median_aucpr': median_auc_pr,
+        'iqr_aucroc': iqr_auc_roc,
+        'iqr_aucpr': iqr_auc_pr
+    })
+
+latent_dim_metrics_df = pd.DataFrame(results)
+print(latent_dim_metrics_df)
 # Plot
-plot_losses(latent_dims, losses)
-plot_losses(latent_dims, recon_losses)
-plot_losses(latent_dims, kl_losses)
+# plot_losses(latent_dims, losses)
+# plot_losses(latent_dims, recon_losses)
+# plot_losses(latent_dims, kl_losses)
 
 print('')
