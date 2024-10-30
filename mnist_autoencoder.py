@@ -242,7 +242,7 @@ def train_vae(model, train_loader, optimizer, device, num_epochs=10, beta=4.0):
         avg_kl_loss = total_kl_loss / len(train_loader.dataset)
         
         print(f'Epoch {epoch+1}, Loss: {avg_loss:.4f}, Recon Loss: {avg_recon_loss:.4f}, KL Loss: {avg_kl_loss:.4f}')
-
+    return avg_loss, avg_recon_loss, avg_kl_loss
 
 # Visualization Functions
 
