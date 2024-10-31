@@ -3,6 +3,7 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 
 from torch.utils.data import DataLoader
@@ -64,11 +65,11 @@ test_loader_vae = DataLoader(train_dataset_vae, batch_size=batch_size, shuffle=F
 
 ######################## MODEL ###########################
 # VAE
-beta = 1  # Set the beta value for Beta-VAE
-num_epochs = 100
+betas = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]  # Set the beta value for Beta-VAE
+num_epochs = 50
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-latent_dims = [5, 10, 20, 50, 100, 200, 400]
+latent_dim = 10
 losses = []
 recon_losses = []
 kl_losses = []
@@ -80,9 +81,9 @@ models = ['SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
           'MCD', 'PCA']#,'ROD']
 
 results = []
-latent_dims_data = {}
+beta_data = {}
 
-for latent_dim in latent_dims:
+for beta in betas:
     vae_model = VAE(latent_dim=latent_dim).to(device)
     optimizer = torch.optim.AdamW(vae_model.parameters(), lr=1e-4, weight_decay=1e-4) #= optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     avg_loss, avg_recon_loss, avg_kl_loss = train_vae(vae_model, train_loader_vae, optimizer, device, num_epochs=num_epochs, beta=beta)
@@ -90,6 +91,7 @@ for latent_dim in latent_dims:
     recon_losses.append(avg_recon_loss)
     kl_losses.append(avg_kl_loss)
     latents_vae, labels_vae, measurement_noise_vae, mislabeled_vae = get_latent_vectors(vae_model, test_loader_vae, device)
+    
     y_train = measurement_noise_vae.astype(int) + mislabeled_vae.astype(int)
 
     metrics_list = []
@@ -104,7 +106,9 @@ for latent_dim in latent_dims:
         metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
         outlier_metrics_df = pd.DataFrame(metrics_list)
 
-    latent_dims_data[latent_dim] = outlier_metrics_df
+    beta_data[beta] = outlier_metrics_df
+    beta_filename = os.path.join('outputs', 'beta', f"beta_{beta}_metrics.csv")
+    outlier_metrics_df.to_csv(beta_filename, index=False)
 
     # Calculate metrics
     mean_auc_roc = outlier_metrics_df['aucroc'].mean()
@@ -115,7 +119,7 @@ for latent_dim in latent_dims:
     iqr_auc_pr = outlier_metrics_df['aucpr'].quantile(0.75) - outlier_metrics_df['aucpr'].quantile(0.25)
 
     results.append({
-        'latent_dim': latent_dim,
+        'beta': beta,
         'mean_aucroc': mean_auc_roc,
         'mean_aucpr': mean_auc_pr,
         'median_aucroc': median_auc_roc,
@@ -126,7 +130,8 @@ for latent_dim in latent_dims:
 
 latent_dim_metrics_df = pd.DataFrame(results)
 print(latent_dim_metrics_df)
-latent_dim_metrics_df.to_csv(os.path.join('outputs', 'latent_dim', f'latent_dim_metrics.csv'), index=False)
+latent_dim_metrics_df.to_csv(os.path.join('outputs', 'beta', f'beta_metrics.csv'), index=False)
+
 # Plot
 # plot_losses(latent_dims, losses)
 # plot_losses(latent_dims, recon_losses)
