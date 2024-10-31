@@ -131,14 +131,19 @@ def rvae_loss_paper(recon_x, x, mu, logvar, beta, sigma=0.5):
 
 # Step 3: VAE Structure remains the same (from the previous implementation)
 class Encoder(nn.Module):
-    def __init__(self, latent_dim=20):
+    def __init__(self, in_channels=1, input_size=28, latent_dim=20):
         super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(1, 128, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(in_channels, 128, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(128, 64, kernel_size=3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.conv4 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        
+        # Compute the size after convolutions
+        conv_output_size = input_size // 2  # Due to stride=2 in conv2
+        self.flattened_size = 64 * conv_output_size * conv_output_size
+        
         self.flatten = nn.Flatten()
-        self.fc = nn.Linear(12544, 32)
+        self.fc = nn.Linear(self.flattened_size, 32)
         self.fc_mu = nn.Linear(32, latent_dim)
         self.fc_logvar = nn.Linear(32, latent_dim)
 
@@ -154,15 +159,19 @@ class Encoder(nn.Module):
         return mu, logvar
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim=20):
+    def __init__(self, in_channels=1, input_size=28, latent_dim=20):
         super(Decoder, self).__init__()
-        self.fc = nn.Linear(latent_dim, 12544)
-        self.reshape = nn.Unflatten(1, (64, 14, 14))
+        # Compute size after convolutions (should match Encoder)
+        conv_output_size = input_size // 2
+        self.flattened_size = 64 * conv_output_size * conv_output_size
+
+        self.fc = nn.Linear(latent_dim, self.flattened_size)
+        self.reshape = nn.Unflatten(1, (64, conv_output_size, conv_output_size))
         self.conv_trans1 = nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1)
         self.conv_trans2 = nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1)
         self.conv_trans3 = nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.conv_trans4 = nn.ConvTranspose2d(64, 128, kernel_size=3, padding=1)
-        self.conv_trans5 = nn.ConvTranspose2d(128, 1, kernel_size=3, padding=1)
+        self.conv_trans5 = nn.ConvTranspose2d(128, in_channels, kernel_size=3, padding=1)
 
     def forward(self, z):
         x = F.relu(self.fc(z))
@@ -175,10 +184,10 @@ class Decoder(nn.Module):
         return x
 
 class VAE(nn.Module):
-    def __init__(self, latent_dim=20):
+    def __init__(self, in_channels=1, input_size=28, latent_dim=20):
         super(VAE, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = Encoder(in_channels=in_channels, input_size=input_size, latent_dim=latent_dim)
+        self.decoder = Decoder(in_channels=in_channels, input_size=input_size, latent_dim=latent_dim)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
