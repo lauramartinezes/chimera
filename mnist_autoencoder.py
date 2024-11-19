@@ -255,9 +255,13 @@ def train_vae(model, train_loader, optimizer, device, num_epochs=10, beta=4.0):
 
 # Visualization Functions
 
+import os
+import matplotlib.pyplot as plt
+import torch
+
 def visualize_samples(model, test_loader, device, normal_class=None):
     model.eval()
-    c=0
+    c = 0
     with torch.no_grad():
         # Get a batch of test data
         for batch, _, _, _, _, _ in test_loader:
@@ -265,25 +269,36 @@ def visualize_samples(model, test_loader, device, normal_class=None):
             recon_data, _, _ = model(data)
             data = data.cpu()
             recon_data = recon_data.cpu()
-            c=c+1
-            if c==3:
+            c += 1
+            if c == 3:
                 break
 
     fig, axes = plt.subplots(2, 10, figsize=(18, 4))
 
     for i in range(10):
-        # Original images
-        axes[0, i].imshow(data[i].squeeze(), cmap='gray')
+        # Process and display the original images
+        original_image = data[i]
+        if original_image.shape[0] == 3:  # RGB image, adjust shape for display
+            original_image = original_image.permute(1, 2, 0)
+        else:  # Grayscale image, remove channel dimension
+            original_image = original_image.squeeze(0)
+        axes[0, i].imshow(original_image, cmap='gray' if original_image.ndim == 2 else None)
         axes[0, i].axis('off')
         axes[0, i].set_title("Original")
         
-        # Reconstructed images
-        axes[1, i].imshow(recon_data[i].squeeze(), cmap='gray')
+        # Process and display the reconstructed images
+        reconstructed_image = recon_data[i]
+        if reconstructed_image.shape[0] == 3:  # RGB image, adjust shape for display
+            reconstructed_image = reconstructed_image.permute(1, 2, 0)
+        else:  # Grayscale image, remove channel dimension
+            reconstructed_image = reconstructed_image.squeeze(0)
+        axes[1, i].imshow(reconstructed_image, cmap='gray' if reconstructed_image.ndim == 2 else None)
         axes[1, i].axis('off')
         axes[1, i].set_title("Reconstructed")
         
-    #plt.show()
+    # Save the figure to the specified directory
     plt.savefig(os.path.join('outputs', f'samples_{normal_class}.png'), format='png')
+
 
 
 def get_latent_vectors(model, test_loader, device):
