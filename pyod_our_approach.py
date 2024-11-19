@@ -124,12 +124,13 @@ if __name__ == '__main__':
 
     ######################## MODEL ###########################
     # VAE
-    beta = 0.00005  # Set the beta value for Beta-VAE
+    latent_dim = 20
+    beta = 0 #0.00005  # Set the beta value for Beta-VAE
     num_epochs = 200
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     #model = BetaVAE(latent_dim=latent_dim, beta=beta).to(device)
-    vae_model = VAE().to(device)
+    vae_model = VAE(latent_dim=latent_dim).to(device)
     vae_model_path = os.path.join('outputs', 'vae_model.pth')
 
     if os.path.exists(vae_model_path):
