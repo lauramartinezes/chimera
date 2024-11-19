@@ -25,11 +25,11 @@ def plot_losses(latent_dims, losses):
     # Highlighting the minimum loss
     min_loss_dim = latent_dims[losses.index(min(losses))]
     min_loss_value = min(losses)
-    plt.annotate(f'Lowest Loss\n({min_loss_dim}, {min_loss_value:.2f})', 
-                xy=(min_loss_dim, min_loss_value), 
-                xytext=(min_loss_dim, min_loss_value + 0.05 * min(losses)),
-                arrowprops=dict(facecolor='black', arrowstyle='->'),
-                fontsize=10)
+    # plt.annotate(f'Lowest Loss\n({min_loss_dim}, {min_loss_value:.2f})', 
+    #             xy=(min_loss_dim, min_loss_value), 
+    #             xytext=(min_loss_dim, min_loss_value + 0.05 * min(losses)),
+    #             arrowprops=dict(facecolor='black', arrowstyle='->'),
+    #             fontsize=10)
 
     plt.show()
 
@@ -105,14 +105,19 @@ for latent_dim in latent_dims:
         outlier_metrics_df = pd.DataFrame(metrics_list)
 
     latent_dims_data[latent_dim] = outlier_metrics_df
+    latent_dims_filename = os.path.join('outputs', 'latent_dim', f"latent_dim_{latent_dim}_metrics.csv")
+    outlier_metrics_df.to_csv(latent_dims_filename, index=False)
+
+    threshold = 0.7  # Example threshold for AUC ROC and AUC PR
+    filtered_df = outlier_metrics_df[(outlier_metrics_df['aucroc'] > threshold)]
 
     # Calculate metrics
-    mean_auc_roc = outlier_metrics_df['aucroc'].mean()
-    mean_auc_pr = outlier_metrics_df['aucpr'].mean()
-    median_auc_roc = outlier_metrics_df['aucroc'].median()
-    median_auc_pr = outlier_metrics_df['aucpr'].median()
-    iqr_auc_roc = outlier_metrics_df['aucroc'].quantile(0.75) - outlier_metrics_df['aucroc'].quantile(0.25)
-    iqr_auc_pr = outlier_metrics_df['aucpr'].quantile(0.75) - outlier_metrics_df['aucpr'].quantile(0.25)
+    mean_auc_roc = filtered_df['aucroc'].mean()
+    mean_auc_pr = filtered_df['aucpr'].mean()
+    median_auc_roc = filtered_df['aucroc'].median()
+    median_auc_pr = filtered_df['aucpr'].median()
+    iqr_auc_roc = filtered_df['aucroc'].quantile(0.75) - filtered_df['aucroc'].quantile(0.25)
+    iqr_auc_pr = filtered_df['aucpr'].quantile(0.75) - filtered_df['aucpr'].quantile(0.25)
 
     results.append({
         'latent_dim': latent_dim,
@@ -128,8 +133,8 @@ latent_dim_metrics_df = pd.DataFrame(results)
 print(latent_dim_metrics_df)
 latent_dim_metrics_df.to_csv(os.path.join('outputs', 'latent_dim', f'latent_dim_metrics.csv'), index=False)
 # Plot
-# plot_losses(latent_dims, losses)
-# plot_losses(latent_dims, recon_losses)
-# plot_losses(latent_dims, kl_losses)
+plot_losses(latent_dims, losses)
+plot_losses(latent_dims, recon_losses)
+plot_losses(latent_dims, kl_losses)
 
 print('')
