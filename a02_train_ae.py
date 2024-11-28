@@ -75,7 +75,7 @@ def train_vae(model, train_loader, device, epochs, optimizer, scheduler, patienc
     print(f"Model saved at {save_path}")
 
 
-def plot_original_vs_reconstructed_images(images, reconstructions):
+def plot_original_vs_reconstructed_images(images, reconstructions, filename=None, dirname=None):
     fig, axes = plt.subplots(2, 8, figsize=(12, 4))
     for i in range(8):
         axes[0, i].imshow(images[i].permute(1, 2, 0).numpy())
@@ -85,7 +85,7 @@ def plot_original_vs_reconstructed_images(images, reconstructions):
 
     axes[0, 0].set_title("Original")
     axes[1, 0].set_title("Reconstructed")
-    plt.show()
+    plt.savefig(os.path.join(dirname, f'original_vs_reconstruction_{filename}.png'), format='png')
 
 
 if __name__ == '__main__':
@@ -190,5 +190,10 @@ if __name__ == '__main__':
         recons = recons.cpu() * 0.5 + 0.5
 
         # Plot original and reconstructed images
-        plot_original_vs_reconstructed_images(test_images, recons)
+        plot_original_vs_reconstructed_images(
+            test_images, 
+            recons, 
+            filename=main_insect_class, 
+            dirname=os.path.join(config["logging_params"]["save_dir"], "Reconstructions")
+        )
 
