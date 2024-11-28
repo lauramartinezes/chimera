@@ -1,0 +1,266 @@
+
+import os
+import random
+from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import timm
+import torch
+from tqdm import tqdm
+import umap
+import yaml
+
+from torch.utils.data import DataLoader
+from torchvision import transforms
+
+from PyOD import PYOD, metric
+from mnist_dataset import CustomBinaryInsectDF
+from vq_vae import VQVAE
+
+
+def process_data_ae(df, model, device, config, transform, pin_memory, main_insect_class, umap_folder, phase="train"):
+    # Load the data
+    loader = load_data_from_df(
+        df,
+        transform,
+        config["exp_params"]["manual_seed"],
+        config["data_params"][f"train_batch_size"],
+        config["data_params"]["num_workers"],
+        pin_memory,
+    )
+    print(f"{phase.capitalize()} dataset correctly loaded")
+    
+    # Extract features from encoding latents
+    (
+        raw_features_encoding,
+        features_encoding,
+        labels_encoding,
+        real_labels_encoding,
+        measurement_noise_encoding,
+        mislabeled_encoding,
+    ) = extract_features_from_encoding(model, loader, device)
+    
+    # Reduce dimensions to 2D for visualization
+    reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
+    visualize_latent_space(
+        reshaped_raw_features_encoding,
+        measurement_noise_encoding,
+        mislabeled_encoding,
+        filename=f'ae_{main_insect_class}_{phase}',
+        dirname=umap_folder
+    )
+    
+    # Reduce dimensions to 512D for outlier detection
+    reducer_512d = umap.UMAP(n_components=512)
+    latents_raw_encoding_512d = reducer_512d.fit_transform(reshaped_raw_features_encoding)
+    
+    get_outlier_methods_csv(
+        latents_raw_encoding_512d,
+        measurement_noise_encoding.astype(int),
+        mislabeled_encoding.astype(int),
+        f'ae_512d_{main_insect_class}_{phase}'
+    )
+
+
+def process_data_cnn(df, model, device, config, transform, main_insect_class, umap_folder, phase="train"):
+    loader = load_data_from_df(
+        df,
+        transform,
+        config["exp_params"]["manual_seed"],
+        config["data_params"][f"train_batch_size"],
+        config["data_params"]["num_workers"],
+        pin_memory,
+    )
+    latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features_from_dataloader(loader, model)
+    visualize_latent_space(
+        latents_cnn,
+        measurement_noise_cnn,
+        mislabeled_cnn,
+        filename=f'cnn_{main_insect_class}_{phase}',
+        dirname=umap_folder
+    )
+
+    get_outlier_methods_csv(
+        latents_cnn,
+        measurement_noise_cnn.astype(int),
+        mislabeled_cnn.astype(int),
+        f'cnn_512d_{main_insect_class}_{phase}'
+    )
+
+
+def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
+    dataset = CustomBinaryInsectDF(
+        df, 
+        transform = transform, 
+        seed=seed
+    )
+
+    return DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory
+    )
+
+
+def extract_features_from_encoding(model, dataloader, device):
+    model.eval()  # Set the model to evaluation mode
+    all_features = []  # To store features from all batches
+    all_labels = []    # To store labels if needed
+    all_real_labels = []
+    all_measurement_noise = []
+    all_mislabeled = []
+    all_encodings = []
+
+    with torch.no_grad():
+        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Featured extraction encoding: "):
+            images = images.to(device)
+
+            # Pass images through the encoder layers
+            encoding = model.encode(images)[0]  # Raw encoder output
+
+            # Global Average Pooling: Compute mean across spatial dimensions (H, W)
+            pooled_encoding = encoding.mean(dim=[2, 3])  # Shape: [B, embedding_dim]
+
+            # Append features to the list
+            all_features.append(pooled_encoding.cpu().numpy())
+            all_encodings.append(encoding.cpu().numpy())
+            all_labels.append(labels.numpy())  # Collect labels if needed
+            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
+            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
+            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
+    # Concatenate all features into a single array
+    return np.vstack(all_encodings), np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
+
+
+def visualize_latent_space(features, measurement_noises, label_noises, filename=None, dirname=None):
+    reducer_2d = umap.UMAP(n_components=2)
+    latents_2d = reducer_2d.fit_transform(features)
+
+    measurement_noises = measurement_noises.astype(int)*2
+    label_noises = label_noises.astype(int)
+    noises = measurement_noises + label_noises
+    
+    # Dictionary to map numbers to text labels
+    label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
+    txt_noise_labels = [label_mapping[label] for label in noises]
+
+    # Plot UMAP results
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_noise_labels, palette=sns.color_palette("hsv", 3), legend='full')
+    plt.title("Latent Space UMAP Visualization")
+    plt.xlabel("UMAP dimension 1")
+    plt.ylabel("UMAP dimension 2")
+    plt.savefig(os.path.join('logs', 'UMAPS', f'umap_plot_{filename}.png'), format='png')
+    plt.savefig(os.path.join('logs', 'UMAPS', f'umap_plot_{filename}.svg'), format='svg')
+
+def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, name=None):
+    y_train = measurement_noises + label_noises
+
+    metrics_list = []
+    models = ['SOD', 'SOS', 'DeepSVDD', 'SOGAAL', 'MOGAAL','IForest', 'OCSVM', 
+              'ABOD', 'CBLOF', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 
+              'KNN', 'LMDD', 'LODA', 'LOF', 'MCD', 'PCA']
+    
+    for model in models:
+        pyod_model = PYOD(seed=42, model_name=model)
+        pyod_model.fit(X_train, [])
+        anomaly_scores = pyod_model.predict_score(X_train)
+        metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
+        print(f'{model}: {metrics}')
+
+        metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
+        temp_metrics_df = pd.DataFrame(metrics_list)
+        temp_metrics_df.to_csv(f'temp_{name}_metrics.csv', index=False)
+
+
+def extract_features_from_dataloader(dataloader, model):
+    all_features = []  # To store features from all batches
+    all_labels = []    # To store labels if needed
+    all_real_labels = []
+    all_measurement_noise = []
+    all_mislabeled = []
+
+    with torch.no_grad():  # Disable gradient calculation
+        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Extracting features", total=len(dataloader)):
+            # Forward pass to get the features
+            features = model(images)  # Get features for the batch
+            features_np = features.numpy().reshape(features.shape[0], -1)  # Flatten to 2D array
+            all_features.append(features_np)
+            all_labels.append(labels.numpy())  # Collect labels if needed
+            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
+            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
+            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
+
+    # Stack all features and labels vertically
+    return np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
+
+
+if __name__ == '__main__':
+    # Load the configuration
+    with open("config.yaml", "r") as file:
+        config = yaml.safe_load(file)
+
+    # Set manual seed for reproducibility
+    torch.manual_seed(config["exp_params"]["manual_seed"])
+    random.seed(config["exp_params"]["manual_seed"])
+    np.random.seed(config["exp_params"]["manual_seed"])
+
+    pin_memory = len(config['trainer_params']['gpus']) != 0
+
+    df_test_path = os.path.join('data', f'df_test.csv')
+    df_test = pd.read_csv(df_test_path)
+
+    umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
+    os.makedirs(umap_folder, exist_ok=True)
+
+    insect_classes = ['wmv', 'c']
+
+    transform_ae = transforms.Compose([
+        transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
+    transform_cnn = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    for i in range(len(insect_classes)):
+        main_insect_class = insect_classes[i]
+        mislabeled_insect_class = insect_classes[1 - i]
+
+        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+        df_train = pd.read_csv(df_train_path)
+
+        # AE method
+        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{main_insect_class}_best.pth')
+        model_ae = VQVAE(
+            in_channels=config["model_params"]["in_channels"],
+            embedding_dim=config["model_params"]["embedding_dim"],
+            num_embeddings=config["model_params"]["num_embeddings"],
+            img_size=config["model_params"]["img_size"],
+            beta=config["model_params"]["beta"]
+        ).to(device)
+        model_ae.load_state_dict(torch.load(save_path_best))
+        model_ae.to(device)
+        print("Model correctly initialized")
+
+        process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, umap_folder, phase="train")
+        process_data_ae(df_test, model_ae, device, config, transform_ae, pin_memory, main_insect_class, umap_folder, phase="test")
+
+        # Resnet method
+        model_cnn = timm.create_model('resnet18', pretrained=True)
+        model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
+        model_cnn.eval()
+
+        process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, umap_folder, phase="train")     
+        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, umap_folder, phase="test")   
+
+        print('')
