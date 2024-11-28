@@ -143,3 +143,4 @@ wandb/*
 output/*
 data/*
 outputs/*
+logs/*
