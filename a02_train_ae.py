@@ -164,7 +164,7 @@ if __name__ == '__main__':
         os.makedirs(config["logging_params"]["save_dir"], exist_ok=True)
 
         if not os.path.exists(save_path_best):
-            print(f"{main_insect_class} start Training")
+            print(f"{main_insect_class} start training")
             train_vae(model, train_loader, device, epochs, optimizer, scheduler, patience, save_path_best)
         else:
             print(f"{main_insect_class} loading best model")    
