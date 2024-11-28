@@ -19,7 +19,7 @@ from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
 
-def process_data_ae(df, model, device, config, transform, pin_memory, main_insect_class, umap_folder, phase="train"):
+def process_data_ae(df, model, device, config, transform, pin_memory, main_insect_class, phase="train"):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -48,7 +48,7 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
         measurement_noise_encoding,
         mislabeled_encoding,
         filename=f'ae_{main_insect_class}_{phase}',
-        dirname=umap_folder
+        dirname=config["logging_params"]["save_dir"]
     )
     
     # Reduce dimensions to 512D for outlier detection
@@ -59,11 +59,12 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
         latents_raw_encoding_512d,
         measurement_noise_encoding.astype(int),
         mislabeled_encoding.astype(int),
-        f'ae_512d_{main_insect_class}_{phase}'
+        f'ae_512d_{main_insect_class}_{phase}',
+        dirname=config["logging_params"]["save_dir"]
     )
 
 
-def process_data_cnn(df, model, device, config, transform, main_insect_class, umap_folder, phase="train"):
+def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train"):
     loader = load_data_from_df(
         df,
         transform,
@@ -78,14 +79,15 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, um
         measurement_noise_cnn,
         mislabeled_cnn,
         filename=f'cnn_{main_insect_class}_{phase}',
-        dirname=umap_folder
+        dirname=config["logging_params"]["save_dir"]
     )
 
     get_outlier_methods_csv(
         latents_cnn,
         measurement_noise_cnn.astype(int),
         mislabeled_cnn.astype(int),
-        f'cnn_512d_{main_insect_class}_{phase}'
+        f'cnn_512d_{main_insect_class}_{phase}',
+        dirname=config["logging_params"]["save_dir"]
     )
 
 
@@ -136,6 +138,9 @@ def extract_features_from_encoding(model, dataloader, device):
 
 
 def visualize_latent_space(features, measurement_noises, label_noises, filename=None, dirname=None):
+    umap_folder = os.path.join(dirname, 'UMAPS')
+    os.makedirs(umap_folder, exist_ok=True)
+
     reducer_2d = umap.UMAP(n_components=2)
     latents_2d = reducer_2d.fit_transform(features)
 
@@ -153,10 +158,13 @@ def visualize_latent_space(features, measurement_noises, label_noises, filename=
     plt.title("Latent Space UMAP Visualization")
     plt.xlabel("UMAP dimension 1")
     plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join('logs', 'UMAPS', f'umap_plot_{filename}.png'), format='png')
-    plt.savefig(os.path.join('logs', 'UMAPS', f'umap_plot_{filename}.svg'), format='svg')
+    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
+    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
-def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, name=None):
+def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename=None, dirname=None):
+    csv_folder = os.path.join(dirname, 'OUTLIERS_CSVS')
+    os.makedirs(csv_folder, exist_ok=True)
+
     y_train = measurement_noises + label_noises
 
     metrics_list = []
@@ -173,7 +181,7 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, name=Non
 
         metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
         temp_metrics_df = pd.DataFrame(metrics_list)
-        temp_metrics_df.to_csv(f'temp_{name}_metrics.csv', index=False)
+        temp_metrics_df.to_csv(os.path.join(csv_folder, f'{filename}_outlier_metrics.csv'), index=False)
 
 
 def extract_features_from_dataloader(dataloader, model):
@@ -213,9 +221,6 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
-
     insect_classes = ['wmv', 'c']
 
     transform_ae = transforms.Compose([
@@ -252,15 +257,15 @@ if __name__ == '__main__':
         model_ae.to(device)
         print("Model correctly initialized")
 
-        process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, umap_folder, phase="train")
-        process_data_ae(df_test, model_ae, device, config, transform_ae, pin_memory, main_insect_class, umap_folder, phase="test")
+        process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train")
+        process_data_ae(df_test, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="test")
 
         # Resnet method
         model_cnn = timm.create_model('resnet18', pretrained=True)
         model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
         model_cnn.eval()
 
-        process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, umap_folder, phase="train")     
-        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, umap_folder, phase="test")   
+        process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, phase="train")     
+        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, phase="test")   
 
         print('')
