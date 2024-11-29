@@ -259,6 +259,7 @@ if __name__ == '__main__':
 
         process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train")
         process_data_ae(df_test, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="test")
+        print('Metrics for AE are available')
 
         # Resnet method
         model_cnn = timm.create_model('resnet18', pretrained=True)
@@ -266,6 +267,7 @@ if __name__ == '__main__':
         model_cnn.eval()
 
         process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, phase="train")     
-        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, phase="test")   
+        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, phase="test")
+        print('Metrics for CNN are available') 
 
         print('')
