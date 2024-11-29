@@ -178,10 +178,10 @@ if __name__ == '__main__':
         with torch.no_grad():
             recons, _, _ = model(test_images)
 
+        reconstructions_dir = os.path.join(config["logging_params"]["save_dir"] , "Reconstructions")
+        os.makedirs(reconstructions_dir, exist_ok=True)
         vutils.save_image(recons.data,
-                        os.path.join(config["logging_params"]["save_dir"] , 
-                                    "Reconstructions", 
-                                    f"recons{main_insect_class}.png"),
+                        os.path.join(reconstructions_dir, f"recons_{main_insect_class}.png"),
                         normalize=True,
                         nrow=12)
 
