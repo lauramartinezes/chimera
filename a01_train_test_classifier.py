@@ -66,13 +66,20 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################
     insect_classes = ['wmv', 'c']
+    clean_dataset = '' # '_clean'
     dfs_train = []
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}{clean_dataset}.csv')
         df_train_i = pd.read_csv(df_train_path)
+
+        # Correct labels for training a classifier instead of an outlier detector
+        if main_insect_class == 'wmv':
+            df_train_i.Label = 0
+        if main_insect_class == 'c':
+            df_train_i.Label = 1
         dfs_train.append(df_train_i)
     df_train = pd.concat(dfs_train, ignore_index=True)
     
@@ -81,7 +88,7 @@ if __name__ == '__main__':
 
     # Prepare Dataset
     transform = transforms.Compose([
-        transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
+        transforms.Resize((150, 150)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
