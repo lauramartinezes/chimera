@@ -91,6 +91,18 @@ def plot_original_vs_reconstructed_images(images, reconstructions, filename=None
     plt.savefig(os.path.join(dirname, f'original_vs_reconstruction_{filename}.png'), format='png')
 
 
+def get_train_test_umap(X_train, X_test, n_components=2):
+    umap_model = umap.UMAP(n_components=n_components)
+
+    # Fit UMAP on the training data with labels
+    X_train_embedding = umap_model.fit_transform(X_train)
+
+    # Transform the test data into the existing UMAP embedding
+    X_test_embedding = umap_model.transform(X_test)
+
+    return X_train_embedding, X_test_embedding
+
+
 if __name__ == '__main__':
     # Load the configuration
     with open("config.yaml", "r") as file:
@@ -201,39 +213,62 @@ if __name__ == '__main__':
                 filename=f'{main_insect_class}_{batch_counter}', 
                 dirname=os.path.join(config["logging_params"]["save_dir"], "Reconstructions")
             )
-
             batch_counter = batch_counter + 1
+
         # Extract features from encoding latents
         (
-            raw_features_encoding,
-            features_encoding,
-            labels_encoding,
-            real_labels_encoding,
-            measurement_noise_encoding,
-            mislabeled_encoding,
+            raw_features_encoding_test,
+            features_encoding_test,
+            labels_encoding_test,
+            real_labels_encoding_test,
+            measurement_noise_encoding_test,
+            mislabeled_encoding_test,
         ) = extract_features_from_encoding(model, test_loader, device)
+
+        (
+            raw_features_encoding_train,
+            features_encoding_train,
+            labels_encoding_train,
+            real_labels_encoding_train,
+            measurement_noise_encoding_train,
+            mislabeled_encoding_train,
+        ) = extract_features_from_encoding(model, train_loader, device)
         
         # Reduce dimensions to 2D for visualization
-        reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
+        reshaped_raw_features_encoding_test = raw_features_encoding_test.reshape(raw_features_encoding_test.shape[0], -1)
+        reshaped_raw_features_encoding_train = raw_features_encoding_train.reshape(raw_features_encoding_train.shape[0], -1)
 
         filename=f'ae_{main_insect_class}_test'
         umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
         os.makedirs(umap_folder, exist_ok=True)
 
-        reducer_2d = umap.UMAP(n_components=2)
-        latents_2d = reducer_2d.fit_transform(reshaped_raw_features_encoding)
+        latents_2d_train, latents_2d_test = get_train_test_umap(
+            reshaped_raw_features_encoding_train, 
+            reshaped_raw_features_encoding_test, 
+            n_components=2
+        )
         
         # Dictionary to map numbers to text labels
-        label_mapping = {0: "wmv", 1: "c"}
-        txt_labels = [label_mapping[label] for label in labels_encoding]
+        label_mapping_test = {0: "wmv_test", 1: "c_test"}
+        txt_labels_test = [label_mapping_test[label] for label in labels_encoding_test]
+
+        measurement_noise_encoding_train = measurement_noise_encoding_train.astype(int)*2
+        mislabeled_encoding_train = mislabeled_encoding_train.astype(int)
+        noises = measurement_noise_encoding_train + mislabeled_encoding_train
+        
+        # Dictionary to map numbers to text labels
+        label_mapping = {0: f"Normal Sample ({main_insect_class})", 1: f"Label Noise ({mislabeled_insect_class})", 2: "Measurement Noise"}
+        txt_labels_train = [label_mapping[label] for label in noises]
 
         # Plot UMAP results
         plt.figure(figsize=(10, 8))
-        sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_labels, palette=sns.color_palette("hsv", 2), legend='full')
+        sns.scatterplot(x=latents_2d_test[:, 0], y=latents_2d_test[:, 1], hue=txt_labels_test, palette=sns.color_palette("Set2", 2), marker='o', legend='full')
+        sns.scatterplot(x=latents_2d_train[:, 0], y=latents_2d_train[:, 1], hue=txt_labels_train, palette=sns.color_palette("hsv", 3), marker='x', s=15, legend='full')
         plt.title("Latent Space UMAP Visualization")
         plt.xlabel("UMAP dimension 1")
         plt.ylabel("UMAP dimension 2")
         plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
         plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
-        print()
+    print('')
+
 
