@@ -326,6 +326,10 @@ class PYOD():
     def predict_score(self, X):
         score = self.model.decision_function(X)
         return score
+    
+    def predict_binary_score(self, X):
+        score = self.model.predict(X)
+        return score
 
 
 if __name__ == '__main__':
