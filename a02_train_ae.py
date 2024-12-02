@@ -4,6 +4,7 @@ import random
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 import torchvision.utils as vutils
 
@@ -11,8 +12,10 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+import umap
 import yaml
 
+from a03_outliers_evaluation import extract_features_from_encoding, visualize_latent_space
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
@@ -132,7 +135,7 @@ if __name__ == '__main__':
         test_loader = DataLoader(
             test_dataset_vae, 
             batch_size=config["data_params"]["train_batch_size"], 
-            shuffle=True,
+            shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
         )
@@ -170,30 +173,67 @@ if __name__ == '__main__':
             print(f"{main_insect_class} loading best model")    
         model.load_state_dict(torch.load(save_path_best))
 
-        # # Visualization After Training
+        # Visualization After Training
         model.eval()
-        test_images, _, _, _, _, _ = next(iter(train_loader))
-        test_images = test_images.to(device)
+        batch_counter = 0
 
-        with torch.no_grad():
-            recons, _, _ = model(test_images)
+        for test_images, labels, _, _, _, _ in tqdm(test_loader):
+            test_images = test_images.to(device)
 
-        reconstructions_dir = os.path.join(config["logging_params"]["save_dir"] , "Reconstructions")
-        os.makedirs(reconstructions_dir, exist_ok=True)
-        vutils.save_image(recons.data,
-                        os.path.join(reconstructions_dir, f"recons_{main_insect_class}.png"),
-                        normalize=True,
-                        nrow=12)
+            with torch.no_grad():
+                recons, _, _ = model(test_images)
 
-        # # Denormalize and convert for visualization
-        test_images = test_images.cpu() * 0.5 + 0.5  # Undo normalization
-        recons = recons.cpu() * 0.5 + 0.5
+            reconstructions_dir = os.path.join(config["logging_params"]["save_dir"] , "Reconstructions")
+            os.makedirs(reconstructions_dir, exist_ok=True)
+            vutils.save_image(recons.data,
+                            os.path.join(reconstructions_dir, f"recons_{main_insect_class}_{batch_counter}.png"),
+                            normalize=True,
+                            nrow=12)
 
-        # Plot original and reconstructed images
-        plot_original_vs_reconstructed_images(
-            test_images, 
-            recons, 
-            filename=main_insect_class, 
-            dirname=os.path.join(config["logging_params"]["save_dir"], "Reconstructions")
-        )
+            # # Denormalize and convert for visualization
+            test_images = test_images.cpu() * 0.5 + 0.5  # Undo normalization
+            recons = recons.cpu() * 0.5 + 0.5
+
+            # Plot original and reconstructed images
+            plot_original_vs_reconstructed_images(
+                test_images, 
+                recons, 
+                filename=f'{main_insect_class}_{batch_counter}', 
+                dirname=os.path.join(config["logging_params"]["save_dir"], "Reconstructions")
+            )
+
+            batch_counter = batch_counter + 1
+        # Extract features from encoding latents
+        (
+            raw_features_encoding,
+            features_encoding,
+            labels_encoding,
+            real_labels_encoding,
+            measurement_noise_encoding,
+            mislabeled_encoding,
+        ) = extract_features_from_encoding(model, test_loader, device)
+        
+        # Reduce dimensions to 2D for visualization
+        reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
+
+        filename=f'ae_{main_insect_class}_test'
+        umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
+        os.makedirs(umap_folder, exist_ok=True)
+
+        reducer_2d = umap.UMAP(n_components=2)
+        latents_2d = reducer_2d.fit_transform(reshaped_raw_features_encoding)
+        
+        # Dictionary to map numbers to text labels
+        label_mapping = {0: "wmv", 1: "c"}
+        txt_labels = [label_mapping[label] for label in labels_encoding]
+
+        # Plot UMAP results
+        plt.figure(figsize=(10, 8))
+        sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_labels, palette=sns.color_palette("hsv", 2), legend='full')
+        plt.title("Latent Space UMAP Visualization")
+        plt.xlabel("UMAP dimension 1")
+        plt.ylabel("UMAP dimension 2")
+        plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
+        plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
+        print()
 
