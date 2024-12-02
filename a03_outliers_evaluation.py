@@ -168,8 +168,8 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
     y_train = measurement_noises + label_noises
 
     metrics_list = []
-    models = ['SOD', 'SOS', 'DeepSVDD', 'SOGAAL', 'MOGAAL','IForest', 'OCSVM', 
-              'ABOD', 'CBLOF', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 
+    models = ['SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
+              'ABOD', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', #, 'CBLOF'
               'KNN', 'LMDD', 'LODA', 'LOF', 'MCD', 'PCA']
     
     for model in models:
@@ -212,9 +212,10 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
+    seed = 20
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
@@ -258,7 +259,6 @@ if __name__ == '__main__':
         print("Model correctly initialized")
 
         process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train")
-        process_data_ae(df_test, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="test")
         print('Metrics for AE are available')
 
         # Resnet method
@@ -267,7 +267,6 @@ if __name__ == '__main__':
         model_cnn.eval()
 
         process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, phase="train")     
-        process_data_cnn(df_test, model_cnn, device, config, transform_cnn, main_insect_class, phase="test")
         print('Metrics for CNN are available') 
 
         print('')
