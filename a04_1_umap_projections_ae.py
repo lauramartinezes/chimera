@@ -106,10 +106,10 @@ if __name__ == '__main__':
 
         # Extract features from encoding latents
         umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-        umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_train.npy')
-        umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_test.npy')
-        labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_train.npy')
-        labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_test.npy')
+        umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_ae_train.npy')
+        umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_ae_test.npy')
+        labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_ae_train.npy')
+        labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_ae_test.npy')
 
 
         if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
