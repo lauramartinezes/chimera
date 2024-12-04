@@ -15,7 +15,7 @@ from tqdm import tqdm
 import umap
 import yaml
 
-from b03_outliers_evaluation import extract_features_from_encoding, visualize_latent_space
+from a06_outliers_evaluation import extract_features_from_encoding, visualize_latent_space
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
