@@ -43,7 +43,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
     # Reduce dimensions to 512D for outlier detection
     print('Starting UMAP 512D reduction')
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
-    reducer_512d = umap.UMAP(n_components=512)
+    reducer_512d = umap.UMAP(n_components=512, random_state=42)
     latents_raw_encoding_512d = reducer_512d.fit_transform(reshaped_raw_features_encoding)
     
     y_true = (measurement_noise_encoding + mislabeled_encoding).astype(int)
@@ -128,7 +128,7 @@ def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, 
 
     # UMAP transformation (shared latent space for both plots)
     print(f'Starting UMAP 2D reduction')
-    reducer_2d = umap.UMAP(n_components=2)
+    reducer_2d = umap.UMAP(n_components=2, random_state=42)
     latents_2d = reducer_2d.fit_transform(features)
 
     measurement_noises = measurement_noises.astype(int)*2

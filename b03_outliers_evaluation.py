@@ -52,7 +52,7 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     )
     
     # Reduce dimensions to 512D for outlier detection
-    reducer_512d = umap.UMAP(n_components=512)
+    reducer_512d = umap.UMAP(n_components=512, random_state=42)
     latents_raw_encoding_512d = reducer_512d.fit_transform(reshaped_raw_features_encoding)
     
     get_outlier_methods_csv(
@@ -141,7 +141,7 @@ def visualize_latent_space(features, measurement_noises, label_noises, filename=
     umap_folder = os.path.join(dirname, 'UMAPS')
     os.makedirs(umap_folder, exist_ok=True)
 
-    reducer_2d = umap.UMAP(n_components=2)
+    reducer_2d = umap.UMAP(n_components=2, random_state=42)
     latents_2d = reducer_2d.fit_transform(features)
 
     measurement_noises = measurement_noises.astype(int)*2
