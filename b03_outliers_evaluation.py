@@ -43,13 +43,13 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     
     # Reduce dimensions to 2D for visualization
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
-    visualize_latent_space(
-        reshaped_raw_features_encoding,
-        measurement_noise_encoding,
-        mislabeled_encoding,
-        filename=f'ae_{main_insect_class}_{phase}',
-        dirname=config["logging_params"]["save_dir"]
-    )
+    # visualize_latent_space(
+    #     reshaped_raw_features_encoding,
+    #     measurement_noise_encoding,
+    #     mislabeled_encoding,
+    #     filename=f'ae_{main_insect_class}_{phase}',
+    #     dirname=config["logging_params"]["save_dir"]
+    # )
     
     # Reduce dimensions to 512D for outlier detection
     reducer_512d = umap.UMAP(n_components=512, random_state=42)
@@ -74,13 +74,13 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         pin_memory,
     )
     latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features_from_dataloader(loader, model)
-    visualize_latent_space(
-        latents_cnn,
-        measurement_noise_cnn,
-        mislabeled_cnn,
-        filename=f'cnn_{main_insect_class}_{phase}',
-        dirname=config["logging_params"]["save_dir"]
-    )
+    # visualize_latent_space(
+    #     latents_cnn,
+    #     measurement_noise_cnn,
+    #     mislabeled_cnn,
+    #     filename=f'cnn_{main_insect_class}_{phase}',
+    #     dirname=config["logging_params"]["save_dir"]
+    # )
 
     get_outlier_methods_csv(
         latents_cnn,
