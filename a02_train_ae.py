@@ -379,7 +379,7 @@ if __name__ == '__main__':
         train_loader = DataLoader(
             train_dataset_vae, 
             batch_size=config["data_params"]["train_batch_size"], 
-            shuffle=False,
+            shuffle=True,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
         )
