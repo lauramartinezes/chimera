@@ -15,7 +15,7 @@ from tqdm import tqdm
 import umap
 import yaml
 
-from a03_outliers_evaluation import extract_features_from_encoding, visualize_latent_space
+from b03_outliers_evaluation import extract_features_from_encoding, visualize_latent_space
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
@@ -92,7 +92,7 @@ def plot_original_vs_reconstructed_images(images, reconstructions, filename=None
 
 
 def get_train_test_umap(X_train, X_test, n_components=2):
-    umap_model = umap.UMAP(n_components=n_components)
+    umap_model = umap.UMAP(n_components=n_components, random_state=42)
 
     # Fit UMAP on the training data with labels
     X_train_embedding = umap_model.fit_transform(X_train)
