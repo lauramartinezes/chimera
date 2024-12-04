@@ -176,6 +176,7 @@ if __name__ == '__main__':
 
     # Define the insect classes
     insect_classes = ['wmv', 'c']
+    feature_ext_methods = ['ae', 'cnn']
 
     # Prepare dictionaries for dropdown-based selection
     train_features_dict = {}
@@ -185,37 +186,38 @@ if __name__ == '__main__':
     df_train_dict = {}
     df_test_dict = {}
 
-    for main_insect_class in insect_classes:
-        mislabeled_insect_class = [cls for cls in insect_classes if cls != main_insect_class][0]
+    for feature_ext_method in feature_ext_methods:
+        for main_insect_class in insect_classes:
+            mislabeled_insect_class = [cls for cls in insect_classes if cls != main_insect_class][0]
 
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train = pd.read_csv(df_train_path)
+            df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+            df_train = pd.read_csv(df_train_path)
 
-        # UMAP file paths
-        umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-        umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_train.npy')
-        umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_test.npy')
-        labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_train.npy')
-        labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_test.npy')
+            # UMAP file paths
+            umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
+            umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{feature_ext_method}_train.npy')
+            umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{feature_ext_method}_test.npy')
+            labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_train.npy')
+            labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_test.npy')
 
-        # Check if files exist, then load
-        if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
-           os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name):
-            latents_2d_train = np.load(umap_train_file_name)
-            latents_2d_test = np.load(umap_test_file_name)
-            labels_noise_train = np.load(labels_umap_train_file_name)
-            labels_encoding_test = np.load(labels_umap_test_file_name)
+            # Check if files exist, then load
+            if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
+            os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name):
+                latents_2d_train = np.load(umap_train_file_name)
+                latents_2d_test = np.load(umap_test_file_name)
+                labels_noise_train = np.load(labels_umap_train_file_name)
+                labels_encoding_test = np.load(labels_umap_test_file_name)
 
-            # Populate dictionaries
-            train_features_dict[main_insect_class] = latents_2d_train
-            test_features_dict[main_insect_class] = latents_2d_test
-            labels_train_dict[main_insect_class] = labels_noise_train
-            labels_test_dict[main_insect_class] = labels_encoding_test
-            df_train_dict[main_insect_class] = df_train
-            df_test_dict[main_insect_class] = df_test
-        else:
-            print(f"UMAP files not found for {main_insect_class}. Skipping...")
-            continue
+                # Populate dictionaries
+                train_features_dict[f'{main_insect_class}_{feature_ext_method}'] = latents_2d_train
+                test_features_dict[f'{main_insect_class}_{feature_ext_method}'] = latents_2d_test
+                labels_train_dict[f'{main_insect_class}_{feature_ext_method}'] = labels_noise_train
+                labels_test_dict[f'{main_insect_class}_{feature_ext_method}'] = labels_encoding_test
+                df_train_dict[f'{main_insect_class}_{feature_ext_method}'] = df_train
+                df_test_dict[f'{main_insect_class}_{feature_ext_method}'] = df_test
+            else:
+                print(f"UMAP files not found for {main_insect_class}_{feature_ext_method}. Skipping...")
+                continue
 
     # Call the function with prepared data dictionaries
     plot_latent_space_with_tooltips(
