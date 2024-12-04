@@ -43,6 +43,12 @@ if __name__ == '__main__':
     df_test = pd.read_csv(df_test_path)
 
     insect_classes = ['wmv', 'c']
+
+    transform = transforms.Compose([
+            transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
@@ -50,13 +56,6 @@ if __name__ == '__main__':
 
         df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
         df_train = pd.read_csv(df_train_path)
-
-        # Prepare Dataset
-        transform = transforms.Compose([
-            transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
 
         train_dataset_vae = CustomBinaryInsectDF(df_train, transform = transform, seed=config["exp_params"]["manual_seed"])
         test_dataset_vae = CustomBinaryInsectDF(df_test, transform = transform, seed=config["exp_params"]["manual_seed"])
@@ -145,8 +144,6 @@ if __name__ == '__main__':
             # Reduce dimensions to 2D for visualization
             reshaped_raw_features_encoding_test = raw_features_encoding_test.reshape(raw_features_encoding_test.shape[0], -1)
             reshaped_raw_features_encoding_train = raw_features_encoding_train.reshape(raw_features_encoding_train.shape[0], -1)
-
-            filename=f'ae_{main_insect_class}_test'
 
             latents_2d_train, latents_2d_test = get_train_test_umap(
                 reshaped_raw_features_encoding_train, 
