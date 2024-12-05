@@ -11,7 +11,7 @@ import yaml
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from a04_1_umap_projections_ae import get_train_test_umap
+from a04_1_umap_projections_ae import get_train_test_umap, visualize_test_latent_space_wrt_train, visualize_train_latent_space
 from mnist_dataset import CustomBinaryInsectDF
 
 
@@ -158,5 +158,23 @@ if __name__ == '__main__':
             np.save(umap_test_file_name, latents_2d_test)
             np.save(labels_umap_train_file_name, labels_noise_train)
             np.save(labels_umap_test_file_name, labels_cnn_test)
+
+        visualize_test_latent_space_wrt_train(
+            main_insect_class, 
+            mislabeled_insect_class, 
+            latents_2d_train,
+            latents_2d_test, 
+            labels_noise_train, 
+            labels_cnn_test, 
+            f'cnn_{main_insect_class}_test', 
+            config["logging_params"]["save_dir"]
+        )
+
+        visualize_train_latent_space(
+            latents_2d_train, 
+            labels_noise_train, 
+            f'cnn_{main_insect_class}_train', 
+            config["logging_params"]["save_dir"]
+        )
 
         print('')
