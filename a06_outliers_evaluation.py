@@ -1,4 +1,3 @@
-
 import os
 import random
 from matplotlib import pyplot as plt
@@ -43,13 +42,6 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     
     # Reduce dimensions to 2D for visualization
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
-    # visualize_latent_space(
-    #     reshaped_raw_features_encoding,
-    #     measurement_noise_encoding,
-    #     mislabeled_encoding,
-    #     filename=f'ae_{main_insect_class}_{phase}',
-    #     dirname=config["logging_params"]["save_dir"]
-    # )
     
     # Reduce dimensions to 512D for outlier detection
     reducer_512d = umap.UMAP(n_components=512, random_state=42)
@@ -74,13 +66,6 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         pin_memory,
     )
     latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features_from_dataloader(loader, model)
-    # visualize_latent_space(
-    #     latents_cnn,
-    #     measurement_noise_cnn,
-    #     mislabeled_cnn,
-    #     filename=f'cnn_{main_insect_class}_{phase}',
-    #     dirname=config["logging_params"]["save_dir"]
-    # )
 
     get_outlier_methods_csv(
         latents_cnn,
@@ -137,30 +122,6 @@ def extract_features_from_encoding(model, dataloader, device):
     return np.vstack(all_encodings), np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
 
 
-def visualize_latent_space(features, measurement_noises, label_noises, filename=None, dirname=None):
-    umap_folder = os.path.join(dirname, 'UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
-
-    reducer_2d = umap.UMAP(n_components=2, random_state=42)
-    latents_2d = reducer_2d.fit_transform(features)
-
-    measurement_noises = measurement_noises.astype(int)*2
-    label_noises = label_noises.astype(int)
-    noises = measurement_noises + label_noises
-    
-    # Dictionary to map numbers to text labels
-    label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
-    txt_noise_labels = [label_mapping[label] for label in noises]
-
-    # Plot UMAP results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_noise_labels, palette=sns.color_palette("hsv", 3), legend='full')
-    plt.title("Latent Space UMAP Visualization")
-    plt.xlabel("UMAP dimension 1")
-    plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
-
 def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename=None, dirname=None):
     csv_folder = os.path.join(dirname, 'OUTLIERS_CSVS')
     os.makedirs(csv_folder, exist_ok=True)
@@ -212,10 +173,9 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    seed = 20
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
+    torch.manual_seed(config["exp_params"]["manual_seed"])
+    random.seed(config["exp_params"]["manual_seed"])
+    np.random.seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
