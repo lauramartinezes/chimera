@@ -91,7 +91,7 @@ if __name__ == '__main__':
             dfs_train_val.append(df_train_i)
         
         df_train_val = pd.concat(dfs_train_val, ignore_index=True)
-        df_train, df_val = train_test_split(df_train_val, test_size=0.2, random_state=42, stratify=df_train_val['Label'])
+        df_train, df_val = train_test_split(df_train_val, test_size=0.2, random_state=42, stratify=df_train_val['label'])
 
         df_test_path = os.path.join('data', f'df_test.csv')
         df_test = pd.read_csv(df_test_path)
@@ -172,14 +172,14 @@ if __name__ == '__main__':
             with torch.set_grad_enabled(False): # save memory during inference
                 train_accuracy = compute_accuracy(model, train_loader, device=DEVICE)
                 val_accuracy = compute_accuracy(model, val_loader, device=DEVICE)
-                print('Epoch: %03d/%03d | Train: %.3f%% | Test: %.3f%%' % (
+                print('Epoch: %03d/%03d | Train: %.3f%% | Validation: %.3f%%' % (
                     epoch+1, NUM_EPOCHS, 
                     train_accuracy,
                     val_accuracy))
                 if best_val_accuracy < val_accuracy:
                     best_val_accuracy = val_accuracy
                     torch.save(model.state_dict(), save_path_best)
-                    print(f"New best model saved at {save_path_best} with Test Accuracy: {best_val_accuracy:.4f}")
+                    print(f"New best model saved at {save_path_best} with Validation Accuracy: {best_val_accuracy:.3f}%")
                 
             print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
             # Step the scheduler
