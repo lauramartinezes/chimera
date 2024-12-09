@@ -169,10 +169,9 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    seed = 20
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
+    torch.manual_seed(config["exp_params"]["manual_seed"])
+    random.seed(config["exp_params"]["manual_seed"])
+    np.random.seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
