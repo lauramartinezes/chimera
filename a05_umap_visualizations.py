@@ -21,12 +21,21 @@ def plot_latent_space_with_tooltips(
     # Initialize the app
     app = Dash(__name__)
 
-    # App layout with dropdown
+    # App layout with dropdown and checklist
     app.layout = html.Div([
         dcc.Dropdown(
             id="insect-class-dropdown",
             options=[{"label": insect, "value": insect} for insect in train_features_dict.keys()],
             value=list(train_features_dict.keys())[0],  # Default selection
+        ),
+        dcc.Checklist(
+            id="train-test-checkbox",
+            options=[
+                {"label": "Train", "value": "train"},
+                {"label": "Test", "value": "test"},
+            ],
+            value=["train", "test"],  # Default to show both
+            inline=True,
         ),
         dcc.Graph(id="graph-latent-space", clear_on_unhover=True),
         dcc.Tooltip(id="graph-tooltip"),
@@ -37,9 +46,10 @@ def plot_latent_space_with_tooltips(
 
     @app.callback(
         Output("graph-latent-space", "figure"),
-        Input("insect-class-dropdown", "value")
+        Input("insect-class-dropdown", "value"),
+        Input("train-test-checkbox", "value")
     )
-    def update_graph(selected_class):
+    def update_graph(selected_class, show_data):
         # Retrieve data for the selected class
         train_features = train_features_dict[selected_class]
         test_features = test_features_dict[selected_class]
@@ -72,41 +82,43 @@ def plot_latent_space_with_tooltips(
         global curve_indices
         curve_indices = {"train": {}, "test": {}}
 
-        # Add train points with label mappings in the legend
-        for label in set(labels_train):
-            label_indices = [i for i, l in enumerate(labels_train) if l == label]
-            trace = go.Scatter(
-                x=train_features[label_indices, 0],
-                y=train_features[label_indices, 1],
-                mode="markers",
-                marker=dict(
-                    symbol="x",
-                    size=10,
-                    color=train_color_map[label],
-                ),
-                name=label_mapping_train[label],
-                hoverinfo="none",
-            )
-            fig.add_trace(trace)
-            curve_indices["train"][len(fig.data) - 1] = label_indices
+        # Add train points if selected
+        if "train" in show_data:
+            for label in set(labels_train):
+                label_indices = [i for i, l in enumerate(labels_train) if l == label]
+                trace = go.Scatter(
+                    x=train_features[label_indices, 0],
+                    y=train_features[label_indices, 1],
+                    mode="markers",
+                    marker=dict(
+                        symbol="x",
+                        size=10,
+                        color=train_color_map[label],
+                    ),
+                    name=label_mapping_train[label],
+                    hoverinfo="none",
+                )
+                fig.add_trace(trace)
+                curve_indices["train"][len(fig.data) - 1] = label_indices
 
-        # Add test points with label mappings in the legend
-        for label in set(labels_test):
-            label_indices = [i for i, l in enumerate(labels_test) if l == label]
-            trace = go.Scatter(
-                x=test_features[label_indices, 0],
-                y=test_features[label_indices, 1],
-                mode="markers",
-                marker=dict(
-                    symbol="circle",
-                    size=10,
-                    color=test_color_map[label],
-                ),
-                name=label_mapping_test[label],
-                hoverinfo="none",
-            )
-            fig.add_trace(trace)
-            curve_indices["test"][len(fig.data) - 1] = label_indices
+        # Add test points if selected
+        if "test" in show_data:
+            for label in set(labels_test):
+                label_indices = [i for i, l in enumerate(labels_test) if l == label]
+                trace = go.Scatter(
+                    x=test_features[label_indices, 0],
+                    y=test_features[label_indices, 1],
+                    mode="markers",
+                    marker=dict(
+                        symbol="circle",
+                        size=10,
+                        color=test_color_map[label],
+                    ),
+                    name=label_mapping_test[label],
+                    hoverinfo="none",
+                )
+                fig.add_trace(trace)
+                curve_indices["test"][len(fig.data) - 1] = label_indices
 
         fig.update_layout(
             title="Latent Space UMAP Visualization",
@@ -176,7 +188,7 @@ if __name__ == '__main__':
 
     # Define the insect classes
     insect_classes = ['wmv', 'c']
-    feature_ext_methods = ['ae', 'cnn']
+    feature_ext_methods = ['ae', 'ae_512', 'cnn']
 
     # Prepare dictionaries for dropdown-based selection
     train_features_dict = {}
