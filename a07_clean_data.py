@@ -14,11 +14,12 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from PyOD import PYOD, metric
+from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
 
-def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train"):
+def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae'):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -30,34 +31,45 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
     )
     print(f"{phase.capitalize()} dataset correctly loaded")
     
-    # Extract features from encoding latents
-    (
-        raw_features_encoding,
-        features_encoding,
-        labels_encoding,
-        real_labels_encoding,
-        measurement_noise_encoding,
-        mislabeled_encoding,
-    ) = extract_features_from_encoding(model, loader, device)
-    
-    # Reduce dimensions to 512D for outlier detection
-    print('Starting UMAP 512D reduction')
-    reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
-    reducer_512d = umap.UMAP(n_components=512, random_state=42)
-    latents_raw_encoding_512d = reducer_512d.fit_transform(reshaped_raw_features_encoding)
-    
-    y_true = (measurement_noise_encoding + mislabeled_encoding).astype(int)
+    if method == 'ae':
+        # Extract features from encoding latents
+        (
+            raw_latents,
+            features_encoding,
+            labels_encoding,
+            real_labels_encoding,
+            measurement_noise,
+            mislabel_noise,
+        ) = extract_features_from_encoding(model, loader, device)
+
+        # Reduce dimensions to 512D for outlier detection
+        print('Starting UMAP 512D reduction')
+        latents = raw_latents.reshape(raw_latents.shape[0], -1)
+        reducer_512d = umap.UMAP(n_components=512, random_state=42)
+        latents_512d = reducer_512d.fit_transform(latents)
+        
+    elif method == 'cnn':
+        (
+            latents, 
+            labels_cnn, 
+            real_labels_cnn, 
+            measurement_noise, 
+            mislabel_noise 
+        ) = extract_features_from_dataloader(loader, model)
+        latents_512d = latents
+
+    y_true = (measurement_noise + mislabel_noise).astype(int)
     y_pred = get_outlier_predictions(
-        latents_raw_encoding_512d,
+        latents_512d,
         model='HBOS'
     )
 
     visualize_y_true_vs_y_pred_umap(
-        reshaped_raw_features_encoding, 
-        measurement_noise_encoding, 
-        mislabeled_encoding,
+        latents, 
+        measurement_noise, 
+        mislabel_noise,
         y_pred, 
-        filename=f'ae_{main_insect_class}_{phase}',
+        filename=f'{method}_{main_insect_class}_{phase}',
         dirname=config["logging_params"]["save_dir"]
     )
 
