@@ -55,11 +55,11 @@ class Discriminator(nn.Module):
 
 def fetch_hard_negatives_batch(hard_neg_loader_iter, hard_neg_loader):
     try:
-        return next(hard_neg_loader_iter)
+        return next(hard_neg_loader_iter)[0]
     except StopIteration:
         # Reinitialize the hard_neg_loader if exhausted
         hard_neg_loader_iter = iter(hard_neg_loader)
-        return next(hard_neg_loader_iter)
+        return next(hard_neg_loader_iter)[0]
     
 
 def train_discriminator(discriminator, discriminator_optimizer, model, images, device):
@@ -116,6 +116,10 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
         train_loss = 0.0
         train_recons_loss = 0.0
         train_vq_loss = 0.0
+        total_disc_loss = 0.0
+        hard_neg_loss = 0.0
+        adv_fake_loss = 0.0
+
         for images, _, _, _, _, _ in tqdm(train_vae_loader, desc=f"Epoch {epoch+1}/{epochs}"):
             images = images.to(device)
             hard_neg_images = fetch_hard_negatives_batch(
@@ -268,7 +272,7 @@ if __name__ == '__main__':
             beta=config["model_params"]["beta"]
         ).to(device)
 
-        discriminator = Discriminator(in_channels=3, img_size=148)
+        discriminator = Discriminator(in_channels=3, img_size=148).to(device)
 
         print(f"{main_insect_class} model correctly initialized")
 
