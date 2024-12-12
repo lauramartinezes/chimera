@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
@@ -32,6 +32,28 @@ def compute_accuracy(model, data_loader, device):
         num_examples += labels.size(0)
         correct_pred += (predicted_labels == labels).sum()
     return correct_pred.float()/num_examples * 100
+
+
+def augment_train_data(num_augmentations, df_train, transform, seed):
+    # Define the original dataset
+    train_dataset = CustomBinaryInsectDF(
+        df_train, transform=transform, seed=seed
+    )
+
+    # Wrap the dataset with data augmentation applied multiple times
+    augmented_datasets = [train_dataset]  # Start with the original dataset
+
+    # Append augmented copies of the dataset
+    for _ in range(num_augmentations):  # Add 4 additional copies with transformations
+        augmented_datasets.append(CustomBinaryInsectDF(
+            df_train, transform=transform, seed=seed
+        ))
+
+    # Concatenate datasets to effectively increase size
+    augmented_train_dataset = ConcatDataset(augmented_datasets)
+
+    return augmented_train_dataset
+
 
 ##########################
 ### SETTINGS
@@ -68,6 +90,28 @@ if __name__ == '__main__':
     ##########################
     insect_classes = ['wmv', 'c']
     clean_datasets = ['', '_clean']
+    
+    # transform_train = transforms.Compose([
+    #     transforms.Resize((150, 150)),
+    #     transforms.RandomVerticalFlip(p=0.5),
+    #     transforms.RandomHorizontalFlip(p=0.5),
+    #     transforms.RandomAutocontrast(p=0.5),
+    #     transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.5),
+    #     transforms.RandomRotation(degrees=(-5, 5)),
+    #     transforms.RandomPosterize(bits=7, p=0.1),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    # ])
+
+    transform_train = transforms.Compose([
+        transforms.Resize((150, 150)),
+        transforms.ToTensor(),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=(-15, 15)),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
         transforms.ToTensor(),
@@ -85,9 +129,9 @@ if __name__ == '__main__':
             df_train_i = pd.read_csv(df_train_path)
             # Correct labels for training a classifier instead of an outlier detector
             if main_insect_class == 'wmv':
-                df_train_i.Label = 0
+                df_train_i.label = 0
             if main_insect_class == 'c':
-                df_train_i.Label = 1
+                df_train_i.label = 1
             dfs_train_val.append(df_train_i)
         
         df_train_val = pd.concat(dfs_train_val, ignore_index=True)
@@ -97,7 +141,8 @@ if __name__ == '__main__':
         df_test = pd.read_csv(df_test_path)
 
         # Prepare Dataset
-        train_dataset = CustomBinaryInsectDF(df_train, transform = transform, seed=config["exp_params"]["manual_seed"])
+        train_dataset = CustomBinaryInsectDF(df_train, transform = transform_train, seed=config["exp_params"]["manual_seed"])
+        # train_dataset = augment_train_data(4, df_train, transform = transform_train, seed=config["exp_params"]["manual_seed"])
         val_dataset = CustomBinaryInsectDF(df_val, transform = transform, seed=config["exp_params"]["manual_seed"])
         test_dataset = CustomBinaryInsectDF(df_test, transform = transform, seed=config["exp_params"]["manual_seed"])
 
