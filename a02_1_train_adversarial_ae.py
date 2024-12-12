@@ -104,7 +104,7 @@ def train_discriminator(discriminator, discriminator_optimizer, model, images, d
 
 
 def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_negatives_loader, device, epochs, optimizer, discriminator_optimizer, \
-              scheduler, patience, save_path_best):
+              scheduler, discriminator_scheduler, patience, save_path_best):
     best_loss = float('inf')  # Initialize the best loss as infinity
     patience_counter = 0  # Counter for epochs without improvement
 
@@ -180,7 +180,9 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
         
         # Step the scheduler
         scheduler.step()
-        print(f"Learning Rate: {scheduler.get_last_lr()[0]:.6f}")
+        discriminator_scheduler.step()
+        print(f"VAE Learning Rate: {scheduler.get_last_lr()[0]:.6f}, "
+              f"Disc Learning Rate: {discriminator_scheduler.get_last_lr()[0]:.6f}")
 
         # Early stopping
         if patience_counter >= patience:
@@ -274,6 +276,7 @@ if __name__ == '__main__':
         optimizer = optim.Adam(model.parameters(), lr=config["exp_params"]["LR"], weight_decay=config["exp_params"]["weight_decay"])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])
         discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=config["exp_params"]["LR"])
+        discriminator_scheduler = torch.optim.lr_scheduler.ExponentialLR(discriminator_optimizer, gamma=config["exp_params"]["scheduler_gamma"])
 
         # Training Loop
         epochs = config["trainer_params"]["max_epochs"]
@@ -294,6 +297,7 @@ if __name__ == '__main__':
                 optimizer,
                 discriminator_optimizer, 
                 scheduler, 
+                discriminator_scheduler,
                 patience, 
                 save_path_best
             )
