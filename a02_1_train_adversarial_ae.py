@@ -108,11 +108,16 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
     best_loss = float('inf')  # Initialize the best loss as infinity
     patience_counter = 0  # Counter for epochs without improvement
 
+    hard_neg_weight = 0 #1e-8
+    adv_fake_weight = 7e-1
+    pretrain_epochs = 0
+
     # Initialize iterator for hard negatives
     train_hard_negatives_loader_iter = iter(train_hard_negatives_loader)
 
     for epoch in range(epochs):
         model.train()
+        vae_loss = 0.0
         train_loss = 0.0
         train_recons_loss = 0.0
         train_vq_loss = 0.0
@@ -128,25 +133,26 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
             )
             hard_neg_images = hard_neg_images.to(device)
 
-            # Train discriminator
-            total_disc_loss += train_discriminator(
-                discriminator,
-                discriminator_optimizer,
-                model,
-                images,
-                device
-            )
-
             # Forward pass
             recons, inputs, vq_loss = model(images)
             loss_dict = model.loss_function(recons, inputs, vq_loss)
             loss = loss_dict['loss']
-            
-            real_labels = torch.ones((images.size(0), 1), device=device)
-            adv_fake_loss_ = F.binary_cross_entropy(discriminator(recons), real_labels)
 
-            hard_neg_recons, _, _ = model(hard_neg_images)
-            hard_neg_loss_ = F.mse_loss(hard_neg_recons, hard_neg_images, reduction='sum')
+            adv_fake_loss_ = 0.0
+            if epoch >= pretrain_epochs:
+                # Train discriminator
+                total_disc_loss += train_discriminator(
+                    discriminator,
+                    discriminator_optimizer,
+                    model,
+                    images,
+                    device
+                )
+                real_labels = torch.ones((images.size(0), 1), device=device)
+                adv_fake_loss_ = adv_fake_weight * F.binary_cross_entropy(discriminator(recons), real_labels)
+
+            hard_neg_recons, _, hard_neg_vq_loss = model(hard_neg_images)
+            hard_neg_loss_ = hard_neg_weight * (F.mse_loss(hard_neg_recons, hard_neg_images, reduction='sum'))# + hard_neg_vq_loss)
 
             total_loss = loss + adv_fake_loss_ - hard_neg_loss_
 
@@ -155,6 +161,7 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
             total_loss.backward()
             optimizer.step()
 
+            vae_loss += loss.item()
             train_loss += total_loss.item()
             train_recons_loss += loss_dict['Reconstruction_Loss'].item()
             train_vq_loss += loss_dict['VQ_Loss'].item()
@@ -162,6 +169,7 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
             adv_fake_loss += adv_fake_loss_
 
         # Compute average losses for logging
+        avg_vae_loss = vae_loss / len(train_vae_loader)
         avg_train_loss = train_loss / len(train_vae_loader)
         avg_recons_loss = train_recons_loss / len(train_vae_loader)
         avg_vq_loss = train_vq_loss / len(train_vae_loader)
@@ -173,18 +181,21 @@ def train_adversarial_vae(model, discriminator, train_vae_loader, train_hard_neg
             f"Hard Negatives Loss: {avg_hard_neg_loss:.4f}, Adv Fake Loss: {avg_adv_fake_loss:.4f}")
 
         # Check for improvement in training loss
-        if avg_train_loss < best_loss:
-            best_loss = avg_train_loss
+        if avg_vae_loss < best_loss and epoch >= pretrain_epochs:
+            best_loss = avg_vae_loss
             patience_counter = 0
             torch.save(model.state_dict(), save_path_best)  # Save the best model
             print(f"New best model saved at {save_path_best} with Train Loss: {best_loss:.4f}")
+        elif epoch < pretrain_epochs:
+            print("No best model, pretraining phase")
         else:
             patience_counter += 1
             print(f"No improvement. Patience counter: {patience_counter}/{patience}")
         
         # Step the scheduler
         scheduler.step()
-        discriminator_scheduler.step()
+        if epoch >= pretrain_epochs:
+            discriminator_scheduler.step()
         print(f"VAE Learning Rate: {scheduler.get_last_lr()[0]:.6f}, "
               f"Disc Learning Rate: {discriminator_scheduler.get_last_lr()[0]:.6f}")
 
@@ -279,7 +290,7 @@ if __name__ == '__main__':
         # Optimizer and Scheduler
         optimizer = optim.Adam(model.parameters(), lr=config["exp_params"]["LR"], weight_decay=config["exp_params"]["weight_decay"])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])
-        discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=config["exp_params"]["LR"])
+        discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=0.0001)
         discriminator_scheduler = torch.optim.lr_scheduler.ExponentialLR(discriminator_optimizer, gamma=config["exp_params"]["scheduler_gamma"])
 
         # Training Loop
