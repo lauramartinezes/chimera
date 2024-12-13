@@ -175,7 +175,7 @@ if __name__ == '__main__':
         ##########################
         torch.manual_seed(RANDOM_SEED)
         model_name = 'mobilenetv3_small_100' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
-        model = timm.create_model(model_name, pretrained=True, num_classes=NUM_CLASSES)
+        model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)  
@@ -243,8 +243,8 @@ if __name__ == '__main__':
         
         results.append({
             "clean_dataset": not(clean_dataset==''),
-            "best_val_accuracy": best_val_accuracy,
-            "test_accuracy": test_accuracy
+            "best_val_accuracy": best_val_accuracy.item(),
+            "test_accuracy": test_accuracy.item()
         })
         df_results = pd.DataFrame(results)
         df_results.to_csv(os.path.join(config["logging_params"]["save_dir"],f'df_{model_name}_results.csv'), index=False)
