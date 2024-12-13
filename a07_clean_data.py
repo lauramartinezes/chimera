@@ -61,7 +61,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
     y_true = (measurement_noise + mislabel_noise).astype(int)
     y_pred = get_outlier_predictions(
         latents_512d,
-        model='HBOS'
+        model='MCD'
     )
 
     visualize_y_true_vs_y_pred_umap(
