@@ -55,5 +55,9 @@ if __name__ == '__main__':
         print("Model correctly initialized")
 
         df_train_clean = clean_df(df_train, model_cnn, device, config, transform_cnn, pin_memory, main_insect_class, phase="train", method='cnn')
+        df_train_clean_path = os.path.join('data', f'df_train_cnn_{main_insect_class}_clean.csv')
+        df_train_clean.to_csv(df_train_clean_path, index=False)
+
+        print(f'Clean {main_insect_class} training dataset available')
 
         print('')
