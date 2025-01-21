@@ -31,7 +31,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
     )
     print(f"{phase.capitalize()} dataset correctly loaded")
     
-    if method == 'ae':
+    if 'ae' in method:
         # Extract features from encoding latents
         (
             raw_latents,
@@ -188,6 +188,7 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
     insect_classes = ['wmv', 'c']
+    ae_types = ['', 'adv_']
 
     transform_ae = transforms.Compose([
         transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
@@ -197,30 +198,31 @@ if __name__ == '__main__':
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    for i in range(len(insect_classes)):
-        main_insect_class = insect_classes[i]
-        mislabeled_insect_class = insect_classes[1 - i]
+    for ae_type in ae_types:
+        for i in range(len(insect_classes)):
+            main_insect_class = insect_classes[i]
+            mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train = pd.read_csv(df_train_path)
+            df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+            df_train = pd.read_csv(df_train_path)
 
-        # AE method
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{main_insect_class}_best.pth')
-        model_ae = VQVAE(
-            in_channels=config["model_params"]["in_channels"],
-            embedding_dim=config["model_params"]["embedding_dim"],
-            num_embeddings=config["model_params"]["num_embeddings"],
-            img_size=config["model_params"]["img_size"],
-            beta=config["model_params"]["beta"]
-        ).to(device)
-        model_ae.load_state_dict(torch.load(save_path_best))
-        model_ae.to(device)
-        print("Model correctly initialized")
+            # AE method
+            save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
+            model_ae = VQVAE(
+                in_channels=config["model_params"]["in_channels"],
+                embedding_dim=config["model_params"]["embedding_dim"],
+                num_embeddings=config["model_params"]["num_embeddings"],
+                img_size=config["model_params"]["img_size"],
+                beta=config["model_params"]["beta"]
+            ).to(device)
+            model_ae.load_state_dict(torch.load(save_path_best))
+            model_ae.to(device)
+            print("Model correctly initialized")
 
-        df_train_clean = clean_df(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train")
-        df_train_clean_path = os.path.join('data', f'df_train_ae_{main_insect_class}_clean.csv')
-        df_train_clean.to_csv(df_train_clean_path, index=False)
+            df_train_clean = clean_df(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train", method=f'{ae_type}ae')
+            df_train_clean_path = os.path.join('data', f'df_train_{ae_type}ae_{main_insect_class}_clean.csv')
+            df_train_clean.to_csv(df_train_clean_path, index=False)
 
-        print(f'Clean {main_insect_class} training dataset available')
+            print(f'Clean {main_insect_class} training dataset available')
 
-        print('')
+            print('')

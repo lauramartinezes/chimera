@@ -16,7 +16,7 @@ from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
 
-def process_data_ae(df, model, device, config, transform, pin_memory, main_insect_class, phase="train"):
+def process_data_ae(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", n_dim_reduction=512, ae_type=''):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -42,14 +42,14 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
     
     # Reduce dimensions to 512D for outlier detection
-    reducer_512d = umap.UMAP(n_components=512, random_state=42)
-    latents_raw_encoding_512d = reducer_512d.fit_transform(reshaped_raw_features_encoding)
+    reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42)
+    latents_raw_encoding_n_d = reducer_n_d.fit_transform(reshaped_raw_features_encoding)
     
     get_outlier_methods_csv(
-        latents_raw_encoding_512d,
+        latents_raw_encoding_n_d,
         measurement_noise_encoding.astype(int),
         mislabeled_encoding.astype(int),
-        f'ae_512d_{main_insect_class}_{phase}',
+        f'{ae_type}ae_{n_dim_reduction}d_{main_insect_class}_{phase}',
         dirname=config["logging_params"]["save_dir"]
     )
 
@@ -129,7 +129,7 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
     metrics_list = []
     models = ['SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
               'ABOD', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', #, 'CBLOF'
-              'KNN', 'LMDD', 'LODA', 'LOF', 'MCD', 'PCA']
+              'KNN', 'LMDD', 'LODA', 'LOF', 'MCD']#, 'PCA']
     
     for model in models:
         pyod_model = PYOD(seed=42, model_name=model)
@@ -204,20 +204,33 @@ if __name__ == '__main__':
         df_train = pd.read_csv(df_train_path)
 
         # AE method
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{main_insect_class}_best.pth')
-        model_ae = VQVAE(
-            in_channels=config["model_params"]["in_channels"],
-            embedding_dim=config["model_params"]["embedding_dim"],
-            num_embeddings=config["model_params"]["num_embeddings"],
-            img_size=config["model_params"]["img_size"],
-            beta=config["model_params"]["beta"]
-        ).to(device)
-        model_ae.load_state_dict(torch.load(save_path_best))
-        model_ae.to(device)
-        print("Model correctly initialized")
+        ae_types = ['', 'adv_']
+        for ae_type in ae_types:
+            save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
+            model_ae = VQVAE(
+                in_channels=config["model_params"]["in_channels"],
+                embedding_dim=config["model_params"]["embedding_dim"],
+                num_embeddings=config["model_params"]["num_embeddings"],
+                img_size=config["model_params"]["img_size"],
+                beta=config["model_params"]["beta"]
+            ).to(device)
+            model_ae.load_state_dict(torch.load(save_path_best))
+            model_ae.to(device)
+            print("Model correctly initialized")
 
-        process_data_ae(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train")
-        print('Metrics for AE are available')
+            process_data_ae(
+                df_train, 
+                model_ae, 
+                device, 
+                config, 
+                transform_ae, 
+                pin_memory, 
+                main_insect_class, 
+                phase="train", 
+                n_dim_reduction=512, 
+                ae_type=ae_type
+            )
+            print(f'Metrics for AE {ae_type} are available')
 
         # Resnet method
         model_cnn = timm.create_model('resnet18', pretrained=True)
