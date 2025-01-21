@@ -322,6 +322,8 @@ class PYOD():
                 self.model.fit(X_train)
             elif self.model_name == 'DeepSVDD':
                 self.model = self.model_dict[self.model_name](n_features=X_train.shape[1]).fit(X_train)
+            elif self.model_name == 'MCD':
+               self.model = self.model_dict[self.model_name](contamination=0.3).fit(X_train, y_train)
             else:
                 self.model = self.model_dict[self.model_name]().fit(X_train, y_train)
 
