@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -63,7 +64,7 @@ def augment_train_data(num_augmentations, df_train, transform, seed):
 RANDOM_SEED = 1
 LEARNING_RATE = 0.001
 BATCH_SIZE = 512
-NUM_EPOCHS = 20
+NUM_EPOCHS = 100
 
 # Architecture
 NUM_CLASSES = 2
@@ -90,7 +91,7 @@ if __name__ == '__main__':
     ##########################
     insect_classes = ['wmv', 'c']
     clean_datasets = ['', '_clean']
-    method_datasets = ['adv_ae'] #['ae', 'adv_ae', 'cnn']
+    method_datasets = ['cleaning_benchmark', 'ae', 'adv_ae', 'cnn']
     
     # transform_train = transforms.Compose([
     #     transforms.Resize((150, 150)),
@@ -124,13 +125,17 @@ if __name__ == '__main__':
         for method in method_datasets:
             if clean_dataset=='' and (method=='cnn' or method=='adv_ae'):
                 continue
+            if clean_dataset=='_clean' and method=='cleaning_benchmark':
+                continue
             dfs_train_val = []
             for i in range(len(insect_classes)):
                 main_insect_class = insect_classes[i]
                 mislabeled_insect_class = insect_classes[1 - i]
 
-                df_train_path = os.path.join('data', f'df_train_{method}_{main_insect_class}{clean_dataset}.csv')
+                df_train_path = os.path.join('data', f'df_train_{method if method != "cleaning_benchmark" else "ae"}_{main_insect_class}{clean_dataset}.csv')
                 df_train_i = pd.read_csv(df_train_path)
+                if method == 'cleaning_benchmark':
+                    df_train_i = df_train_i[df_train_i['label'] == 0]
                 # Correct labels for training a classifier instead of an outlier detector
                 if main_insect_class == 'wmv':
                     df_train_i.label = 0
@@ -192,6 +197,8 @@ if __name__ == '__main__':
             ### TRAIN
             ##########################
             best_val_accuracy = 0
+            train_accuracies = []
+            val_accuracies = []
             start_time = time.time()
             for epoch in range(NUM_EPOCHS):
                 model.train()
@@ -225,6 +232,9 @@ if __name__ == '__main__':
                 with torch.set_grad_enabled(False): # save memory during inference
                     train_accuracy = compute_accuracy(model, train_loader, device=DEVICE)
                     val_accuracy = compute_accuracy(model, val_loader, device=DEVICE)
+                    train_accuracies.append(train_accuracy.item())
+                    val_accuracies.append(val_accuracy.item())
+
                     print('Epoch: %03d/%03d | Train: %.3f%% | Validation: %.3f%%' % (
                         epoch+1, NUM_EPOCHS, 
                         train_accuracy,
@@ -242,9 +252,21 @@ if __name__ == '__main__':
             print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))
             torch.save(model.state_dict(), save_path)
 
+            # Plot the training and validation accuracy
+            plt.figure(figsize=(10, 5))
+            plt.plot(range(1, NUM_EPOCHS + 1), train_accuracies, label='Train Accuracy')
+            plt.plot(range(1, NUM_EPOCHS + 1), val_accuracies, label='Validation Accuracy')
+            plt.xlabel('Epochs')
+            plt.ylabel('Accuracy')
+            plt.title('Training and Validation Accuracy')
+            plt.legend()
+            plt.show()
+            plt.savefig(f'zz_train_val_acc_cleaning_{clean_dataset}_{method}_100_epochs.png')
+
             ##########################
             ### TEST
             ##########################
+            model.eval()
             with torch.set_grad_enabled(False): # save memory during inference
                 test_accuracy = compute_accuracy(model, test_loader, device=DEVICE)
                 print('Test accuracy: %.2f%%' % test_accuracy)
