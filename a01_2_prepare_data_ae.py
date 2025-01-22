@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
+from a01_1_train_test_classifier import compute_accuracy
 
 
 if torch.cuda.is_available():
@@ -126,7 +127,7 @@ if __name__ == '__main__':
     loader = DataLoader(
         dataset, 
         batch_size=config["data_params"]["train_batch_size"], 
-        shuffle=True,
+        shuffle=False,
         num_workers=config["data_params"]["num_workers"],
         pin_memory=pin_memory
     )
@@ -140,8 +141,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], 'mobilenetv3_small_100_classifier_clean_adv_ae_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -153,9 +153,12 @@ if __name__ == '__main__':
     ##########################
     ### INFERENCE
     ##########################
+    model.eval()
     with torch.set_grad_enabled(False): # save memory during inference
         all_predictions, all_actuals, all_probs = compute_predictions(model, loader, device=DEVICE)
+        accuracy = compute_accuracy(model, loader, device=DEVICE)
         print(f"Prediction: {all_predictions[0]}\nActual: {all_actuals[0]}\nProbabilities: {all_probs[0]}")
+        print(f"Accuracy: {accuracy}")
 
     df_train_val['pred_label'] = all_predictions
     df_train_val['pred_probas'] = all_probs
@@ -166,19 +169,77 @@ if __name__ == '__main__':
     value_counts_good_samples_wmv = ((df_wmv['label'] == df_wmv['pred_label']) & 
     (df_wmv['measurement_noise'] == False) & 
     (df_wmv['mislabeled'] == False)).value_counts()
-    print(f'value_counts_good_samples_wmv: \n', value_counts_good_samples_wmv)
 
     value_counts_good_samples_c = ((df_c['label'] == df_c['pred_label']) & 
     (df_c['measurement_noise'] == False) & 
     (df_c['mislabeled'] == False)).value_counts()
-    print(f'value_counts_good_samples_c: \n', value_counts_good_samples_c)
-
-    print(f'c mislabeled wmv: \n', df_c.mislabeled_wmv.value_counts())
-    print(f'c mislabeled c: \n', df_c.mislabeled_c.value_counts())
-    print(f'c measurement noise: \n', df_c.measurement_noise.value_counts())
     
-    print(f'wmv mislabeled wmv: \n', df_wmv.mislabeled_wmv.value_counts()) 
-    print(f'wmv mislabeled c: \n', df_wmv.mislabeled_c.value_counts()) 
-    print(f'wmv measurement noise: \n', df_wmv.measurement_noise.value_counts())
+    value_counts_new_mislabels_wmv = ((df_wmv['label'] != df_wmv['pred_label']) & 
+    (df_wmv['measurement_noise'] == False) & 
+    (df_wmv['mislabeled'] == False)).value_counts()
 
+    value_counts_new_mislabels_c = ((df_c['label'] != df_c['pred_label']) & 
+    (df_c['measurement_noise'] == False) & 
+    (df_c['mislabeled'] == False)).value_counts()
+
+    good_samples_wmv = value_counts_good_samples_wmv[True] if True in value_counts_good_samples_wmv else 0
+    good_samples_c = value_counts_good_samples_c[True] if True in value_counts_good_samples_c else 0
+    
+    new_mislabels_wmv = value_counts_new_mislabels_wmv[True] if True in value_counts_new_mislabels_wmv else 0
+    new_mislabels_c = value_counts_new_mislabels_c[True] if True in value_counts_new_mislabels_c else 0
+
+    wmv_mislabeled_wmv = df_wmv.mislabeled_wmv.value_counts()[True] if True in df_wmv.mislabeled_wmv.value_counts() else 0
+    wmv_mislabeled_c = df_wmv.mislabeled_c.value_counts()[True] if True in df_wmv.mislabeled_c.value_counts() else 0
+    wmv_measurement_noise = df_wmv.measurement_noise.value_counts()[True] if True in df_wmv.measurement_noise.value_counts() else 0
+
+    c_mislabeled_wmv = df_c.mislabeled_wmv.value_counts()[True] if True in df_c.mislabeled_wmv.value_counts() else 0
+    c_mislabeled_c = df_c.mislabeled_c.value_counts()[True] if True in df_c.mislabeled_c.value_counts() else 0
+    c_measurement_noise = df_c.measurement_noise.value_counts()[True] if True in df_c.measurement_noise.value_counts() else 0
+
+    pred_good_samples_wmv = good_samples_wmv + wmv_mislabeled_wmv
+    pred_mislabels_wmv = new_mislabels_wmv + wmv_mislabeled_c
+    pred_measurement_noise_wmv = wmv_measurement_noise
+
+    pred_good_samples_c = good_samples_c + c_mislabeled_c
+    pred_mislabels_c = new_mislabels_c + c_mislabeled_wmv
+    pred_measurement_noise_c = c_measurement_noise
+
+    # Generate df with rows good samples, mislabels and measurement noise and columns wmv and c
+    df_pred_counts = pd.DataFrame({
+        'good_samples': [pred_good_samples_wmv, pred_good_samples_c],
+        'mislabels': [pred_mislabels_wmv, pred_mislabels_c],
+        'measurement_noise': [pred_measurement_noise_wmv, pred_measurement_noise_c]
+    }, index=['wmv', 'c'])
+
+    print(df_pred_counts)
+
+
+    df_new_mislabels_wmv = df_wmv[((df_wmv['label'] != df_wmv['pred_label']) & 
+    (df_wmv['measurement_noise'] == False) & 
+    (df_wmv['mislabeled'] == False))]
+    rounded_new_mislabels_wmv_pred_probas = df_new_mislabels_wmv.pred_probas.apply(lambda x: np.round(x, 1))
+    new_mislabels_wmv_counts_probas = rounded_new_mislabels_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
+
+    df_new_good_samples_wmv = df_wmv[((df_wmv['label'] == df_wmv['pred_label']) &
+    (df_wmv['measurement_noise'] == False) & 
+    (df_wmv['mislabeled'] == False))]
+    rounded_new_good_samples_wmv_pred_probas = df_new_good_samples_wmv.pred_probas.apply(lambda x: np.round(x, 1))
+    new_good_samples_wmv_counts_probas = rounded_new_good_samples_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
+
+    df_new_mislabels_c = df_c[((df_c['label'] != df_c['pred_label']) &
+    (df_c['measurement_noise'] == False) &
+    (df_c['mislabeled'] == False))]
+    rounded_new_mislabels_c_pred_probas = df_new_mislabels_c.pred_probas.apply(lambda x: np.round(x, 1))
+    new_mislabels_c_counts_probas = rounded_new_mislabels_c_pred_probas.apply(lambda x: list(x)).value_counts()
+
+    df_new_good_samples_c = df_c[((df_c['label'] == df_c['pred_label']) &
+    (df_c['measurement_noise'] == False) &
+    (df_c['mislabeled'] == False))]
+    rounded_new_good_samples_c_pred_probas = df_new_good_samples_c.pred_probas.apply(lambda x: np.round(x, 1))
+    new_good_samples_c_counts_probas = rounded_new_good_samples_c_pred_probas.apply(lambda x: list(x)).value_counts()
+
+    # print(f'new_mislabels_wmv_counts_probas: \n', new_mislabels_wmv_counts_probas)
+    # print(f'new_good_samples_wmv_counts_probas: \n', new_good_samples_wmv_counts_probas)
+    # print(f'new_mislabels_c_counts_probas: \n', new_mislabels_c_counts_probas)
+    # print(f'new_good_samples_c_counts_probas: \n', new_good_samples_c_counts_probas)
     print('')
