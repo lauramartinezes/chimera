@@ -108,8 +108,9 @@ if __name__ == '__main__':
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_path = os.path.join('data', f'df_train_{method}_{main_insect_class}{clean_dataset}.csv')
+        df_train_path = os.path.join('data', f'df_train_raw_{main_insect_class}.csv')
         df_train_i = pd.read_csv(df_train_path)
+        df_train_i['noisy_outlier_label_original'] = df_train_i.label
         # Correct labels for training a classifier instead of an outlier detector
         if main_insect_class == 'wmv':
             df_train_i.label = 0
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], 'mobilenetv3_small_100_classifier_clean_adv_ae_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], 'mobilenetv3_small_100_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -242,4 +243,45 @@ if __name__ == '__main__':
     # print(f'new_good_samples_wmv_counts_probas: \n', new_good_samples_wmv_counts_probas)
     # print(f'new_mislabels_c_counts_probas: \n', new_mislabels_c_counts_probas)
     # print(f'new_good_samples_c_counts_probas: \n', new_good_samples_c_counts_probas)
+
+    # update mislabeled column
+    df_wmv['mislabeled'] = ((((df_wmv['label'] != df_wmv['pred_label']) & 
+    (df_wmv['measurement_noise'] == False) & 
+    (df_wmv['mislabeled'] == False))) | df_wmv.mislabeled_c)
+
+    df_c['mislabeled'] = ((((df_c['label'] != df_c['pred_label']) &
+    (df_c['measurement_noise'] == False) &
+    (df_c['mislabeled'] == False))) | df_c.mislabeled_wmv)
+
+    # add Best Alternative Class (BAC) column
+    df_wmv['bac'] = 1 - df_wmv.label
+    df_c['bac'] = 1 - df_c.label
+
+    # add Probability of Alternative Class (PAC) column
+    df_wmv['pac'] = df_wmv.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
+    df_c['pac'] = df_c.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
+
+    # update labels column to be outlier or inlier
+    df_wmv['noisy_label_classification'] = df_wmv['label']
+    df_c['noisy_label_classification'] = df_c['label']
+
+    outlier_labels_wmv = (~(((df_wmv['label'] == df_wmv['pred_label']) & 
+    (df_wmv['measurement_noise'] == False) & 
+    (df_wmv['mislabeled'] == False)) | df_wmv.mislabeled_wmv)).astype(int)
+
+    outlier_labels_c = (~(((df_c['label'] == df_c['pred_label']) &
+    (df_c['measurement_noise'] == False) &
+    (df_c['mislabeled'] == False)) | df_c.mislabeled_c)).astype(int)
+
+    df_wmv['label'] = outlier_labels_wmv
+    df_c['label'] = outlier_labels_c
+
+    df_wmv_path = os.path.join('data', f'df_train_ae_wmv.csv')
+    if not os.path.exists(df_wmv_path):
+        df_wmv.to_csv(df_wmv_path)
+
+    df_c_path = os.path.join('data', f'df_train_ae_c.csv')
+    if not os.path.exists(df_c_path):
+        df_c.to_csv(df_c_path)
+
     print('')
