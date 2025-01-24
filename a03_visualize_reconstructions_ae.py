@@ -3,15 +3,12 @@ import random
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import torch
 import torchvision.utils as vutils
 
-from torch import optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
-import umap
 import yaml
 
 from mnist_dataset import CustomBinaryInsectDF
