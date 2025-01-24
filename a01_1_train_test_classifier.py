@@ -124,7 +124,7 @@ if __name__ == '__main__':
         if method=='cnn' or method=='adv_ae' or method=='ae':
             clean_dataset='_clean'
         elif method=='cleaning_benchmark' or method=='raw': 
-            clean_dataset==''
+            clean_dataset=''
         dfs_train_val = []
         for i in range(len(insect_classes)):
             main_insect_class = insect_classes[i]
