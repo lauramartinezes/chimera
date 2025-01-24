@@ -78,7 +78,7 @@ if __name__ == '__main__':
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
         
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}_raw.csv')
         if not os.path.exists(df_train_path):
             df_train = get_df_train(main_insect_class, mislabeled_insect_class)
             df_train.to_csv(df_train_path)
