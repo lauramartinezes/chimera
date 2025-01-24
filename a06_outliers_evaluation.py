@@ -42,7 +42,7 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
     
     # Reduce dimensions to 512D for outlier detection
-    reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42)
+    reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42, n_jobs=1)
     latents_raw_encoding_n_d = reducer_n_d.fit_transform(reshaped_raw_features_encoding)
     
     get_outlier_methods_csv(
