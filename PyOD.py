@@ -66,7 +66,7 @@ def metric(y_true, y_score, pos_label=1):
     return {'aucroc':aucroc, 'aucpr':aucpr}
 
 class PYOD():
-    def __init__(self, seed, model_name, tune=False):
+    def __init__(self, seed, model_name, tune=False, contamination=0.1):
         '''
         :param seed: seed for reproducible results
         :param model_name: model name
@@ -82,6 +82,7 @@ class PYOD():
                            'AutoEncoder': AutoEncoder, 'SOGAAL': SO_GAAL, 'MOGAAL': MO_GAAL,'XGBOD': XGBOD, 'DetMCD': DetMCD}
 
         self.tune = tune
+        self.contamination = contamination
 
     def grid_hp(self, model_name):
         '''
@@ -323,7 +324,7 @@ class PYOD():
             elif self.model_name == 'DeepSVDD':
                 self.model = self.model_dict[self.model_name](n_features=X_train.shape[1]).fit(X_train)
             elif self.model_name == 'MCD':
-               self.model = self.model_dict[self.model_name](contamination=0.3).fit(X_train, y_train)
+                self.model = self.model_dict[self.model_name](contamination=self.contamination).fit(X_train, y_train)
             else:
                 self.model = self.model_dict[self.model_name]().fit(X_train, y_train)
 
