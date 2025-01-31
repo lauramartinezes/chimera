@@ -223,13 +223,9 @@ if __name__ == '__main__':
     # print(f'new_good_samples_c_counts_probas: \n', new_good_samples_c_counts_probas)
 
     # update mislabeled column
-    df_wmv['mislabeled'] = ((((df_wmv['label'] != df_wmv['pred_label']) & 
-    (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False))) | df_wmv.mislabeled_c)
+    df_wmv['mislabeled'] = df_wmv["directory"].isin(["data/train/wmv/c_for_wmv", "data/train/c/c_good"])
 
-    df_c['mislabeled'] = ((((df_c['label'] != df_c['pred_label']) &
-    (df_c['measurement_noise'] == False) &
-    (df_c['mislabeled'] == False))) | df_c.mislabeled_wmv)
+    df_c['mislabeled'] = df_c["directory"].isin(["data/train/c/wmv_for_c", "data/train/wmv/wmv_good"])
 
     # add Best Alternative Class (BAC) column
     df_wmv['bac'] = 1 - df_wmv.label
