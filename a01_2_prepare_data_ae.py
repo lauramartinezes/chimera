@@ -192,28 +192,28 @@ if __name__ == '__main__':
 
     print(df_pred_counts)
 
-
+    # This is useless code that counts the mislabels and good samples that have been transferred to the other class
     df_new_mislabels_wmv = df_wmv[((df_wmv['label'] != df_wmv['pred_label']) & 
     (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False))]
+    (df_wmv['mislabeled'] == False))] # here is only c_good, c_for_wmv is missing
     rounded_new_mislabels_wmv_pred_probas = df_new_mislabels_wmv.pred_probas.apply(lambda x: np.round(x, 1))
     new_mislabels_wmv_counts_probas = rounded_new_mislabels_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
 
     df_new_good_samples_wmv = df_wmv[((df_wmv['label'] == df_wmv['pred_label']) &
     (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False))]
+    (df_wmv['mislabeled'] == False))] # here is only wmv_good, wmv_for_c is missing
     rounded_new_good_samples_wmv_pred_probas = df_new_good_samples_wmv.pred_probas.apply(lambda x: np.round(x, 1))
     new_good_samples_wmv_counts_probas = rounded_new_good_samples_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
 
     df_new_mislabels_c = df_c[((df_c['label'] != df_c['pred_label']) &
     (df_c['measurement_noise'] == False) &
-    (df_c['mislabeled'] == False))]
+    (df_c['mislabeled'] == False))] # here is only wmv_good, wmv_for_c is missing
     rounded_new_mislabels_c_pred_probas = df_new_mislabels_c.pred_probas.apply(lambda x: np.round(x, 1))
     new_mislabels_c_counts_probas = rounded_new_mislabels_c_pred_probas.apply(lambda x: list(x)).value_counts()
 
     df_new_good_samples_c = df_c[((df_c['label'] == df_c['pred_label']) &
     (df_c['measurement_noise'] == False) &
-    (df_c['mislabeled'] == False))]
+    (df_c['mislabeled'] == False))] # here is only c_good, c_for_wmv is missing
     rounded_new_good_samples_c_pred_probas = df_new_good_samples_c.pred_probas.apply(lambda x: np.round(x, 1))
     new_good_samples_c_counts_probas = rounded_new_good_samples_c_pred_probas.apply(lambda x: list(x)).value_counts()
 
