@@ -239,13 +239,8 @@ if __name__ == '__main__':
     df_wmv['noisy_label_classification'] = df_wmv['label']
     df_c['noisy_label_classification'] = df_c['label']
 
-    outlier_labels_wmv = (~(((df_wmv['label'] == df_wmv['pred_label']) & 
-    (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False)) | df_wmv.mislabeled_wmv)).astype(int)
-
-    outlier_labels_c = (~(((df_c['label'] == df_c['pred_label']) &
-    (df_c['measurement_noise'] == False) &
-    (df_c['mislabeled'] == False)) | df_c.mislabeled_c)).astype(int)
+    outlier_labels_wmv = ((df_wmv['measurement_noise']==True) | (df_wmv['mislabeled'])).astype(int)
+    outlier_labels_c = ((df_c['measurement_noise']==True) | (df_c['mislabeled'])).astype(int)
 
     df_wmv['label'] = outlier_labels_wmv
     df_c['label'] = outlier_labels_c
