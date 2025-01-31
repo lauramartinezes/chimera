@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
-from a01_1_train_test_classifier import compute_accuracy
+from a01_1_train_test_classifier import SimpleCNN, compute_accuracy
 
 
 if torch.cuda.is_available():
@@ -114,13 +114,17 @@ if __name__ == '__main__':
         # Correct labels for training a classifier instead of an outlier detector
         if main_insect_class == 'wmv':
             df_train_i.label = 0
-            df_train_i = df_train_i.apply(update_mislabeled_flags, axis=1, args=('mislabeled', True, False))
+            df_train_i['mislabeled_wmv'] = df_train_i['mislabeled']
+            df_train_i['mislabeled_c'] = False
         if main_insect_class == 'c':
             df_train_i.label = 1
-            df_train_i = df_train_i.apply(update_mislabeled_flags, axis=1, args=('mislabeled', False, True))
+            df_train_i['mislabeled_c'] = df_train_i['mislabeled']
+            df_train_i['mislabeled_wmv'] = False
         dfs_train_val.append(df_train_i)
     
     df_train_val = pd.concat(dfs_train_val, ignore_index=True)
+
+    df_train_val['directory'] = df_train_val['filepath'].apply(os.path.dirname)
 
     # Prepare Dataset
     dataset = CustomBinaryInsectDF(df_train_val, transform = transform, seed=config["exp_params"]["manual_seed"])
@@ -138,11 +142,12 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'mobilenetv3_small_100' 
+    model_name = 'mobilenetv3_small_100' #'mobilenetv3_small_100' 
+    #model = SimpleCNN()
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], 'mobilenetv3_small_100_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -167,43 +172,16 @@ if __name__ == '__main__':
     df_wmv = df_train_val[df_train_val['pred_label'] == 0]
     df_c = df_train_val[df_train_val['pred_label'] == 1]
 
-    value_counts_good_samples_wmv = ((df_wmv['label'] == df_wmv['pred_label']) & 
-    (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False)).value_counts()
+    df_wmv_directory_counts = df_wmv.directory.value_counts()
+    pred_good_samples_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('wmv_good|wmv_for_c')].sum()
+    pred_measurement_noise_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
+    pred_mislabels_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('c_good|c_for_wmv')].sum()
 
-    value_counts_good_samples_c = ((df_c['label'] == df_c['pred_label']) & 
-    (df_c['measurement_noise'] == False) & 
-    (df_c['mislabeled'] == False)).value_counts()
-    
-    value_counts_new_mislabels_wmv = ((df_wmv['label'] != df_wmv['pred_label']) & 
-    (df_wmv['measurement_noise'] == False) & 
-    (df_wmv['mislabeled'] == False)).value_counts()
-
-    value_counts_new_mislabels_c = ((df_c['label'] != df_c['pred_label']) & 
-    (df_c['measurement_noise'] == False) & 
-    (df_c['mislabeled'] == False)).value_counts()
-
-    good_samples_wmv = value_counts_good_samples_wmv[True] if True in value_counts_good_samples_wmv else 0
-    good_samples_c = value_counts_good_samples_c[True] if True in value_counts_good_samples_c else 0
-    
-    new_mislabels_wmv = value_counts_new_mislabels_wmv[True] if True in value_counts_new_mislabels_wmv else 0
-    new_mislabels_c = value_counts_new_mislabels_c[True] if True in value_counts_new_mislabels_c else 0
-
-    wmv_mislabeled_wmv = df_wmv.mislabeled_wmv.value_counts()[True] if True in df_wmv.mislabeled_wmv.value_counts() else 0
-    wmv_mislabeled_c = df_wmv.mislabeled_c.value_counts()[True] if True in df_wmv.mislabeled_c.value_counts() else 0
-    wmv_measurement_noise = df_wmv.measurement_noise.value_counts()[True] if True in df_wmv.measurement_noise.value_counts() else 0
-
-    c_mislabeled_wmv = df_c.mislabeled_wmv.value_counts()[True] if True in df_c.mislabeled_wmv.value_counts() else 0
-    c_mislabeled_c = df_c.mislabeled_c.value_counts()[True] if True in df_c.mislabeled_c.value_counts() else 0
-    c_measurement_noise = df_c.measurement_noise.value_counts()[True] if True in df_c.measurement_noise.value_counts() else 0
-
-    pred_good_samples_wmv = good_samples_wmv + wmv_mislabeled_wmv
-    pred_mislabels_wmv = new_mislabels_wmv + wmv_mislabeled_c
-    pred_measurement_noise_wmv = wmv_measurement_noise
-
-    pred_good_samples_c = good_samples_c + c_mislabeled_c
-    pred_mislabels_c = new_mislabels_c + c_mislabeled_wmv
-    pred_measurement_noise_c = c_measurement_noise
+    df_c_directory_counts = df_c.directory.value_counts()
+    pred_good_samples_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('c_good|c_for_wmv')].sum()
+    pred_measurement_noise_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
+    pred_mislabels_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('wmv_good|wmv_for_c')].sum()
+  
 
     # Generate df with rows good samples, mislabels and measurement noise and columns wmv and c
     df_pred_counts = pd.DataFrame({
@@ -277,11 +255,9 @@ if __name__ == '__main__':
     df_c['label'] = outlier_labels_c
 
     df_wmv_path = os.path.join('data', f'df_train_ae_wmv.csv')
-    if not os.path.exists(df_wmv_path):
-        df_wmv.to_csv(df_wmv_path)
+    df_wmv.to_csv(df_wmv_path)
 
     df_c_path = os.path.join('data', f'df_train_ae_c.csv')
-    if not os.path.exists(df_c_path):
-        df_c.to_csv(df_c_path)
+    df_c.to_csv(df_c_path)
 
     print('')
