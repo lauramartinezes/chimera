@@ -142,12 +142,12 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'mobilenetv3_small_100' #'mobilenetv3_small_100' 
+    model_name = 'vgg16' #'mobilenetv3_small_100' 
     #model = SimpleCNN()
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
