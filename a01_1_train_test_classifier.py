@@ -1,5 +1,6 @@
 import os
 import random
+import shutil
 import time
 from matplotlib import pyplot as plt
 import numpy as np
@@ -46,23 +47,68 @@ def compute_accuracy(model, data_loader, device):
     correct_pred, num_examples = 0, 0
     correct_pred_class_0, correct_pred_class_1 = 0, 0
     num_examples_class_0, num_examples_class_1 = 0, 0
-    for i, (images, labels, _, _, _, _) in enumerate(data_loader):
+    num_examples_measurement_noise_class_0, num_examples_measurement_noise_class_1 = 0, 0
+    num_examples_label_noise_class_0, num_examples_label_noise_class_1 = 0, 0
+    num_examples_good_class_0, num_examples_good_class_1 = 0, 0
+    correct_pred_measurement_noise_class_0, correct_pred_measurement_noise_class_1 = 0, 0
+    correct_pred_label_noise_class_0, correct_pred_label_noise_class_1 = 0, 0
+    correct_pred_good_class_0, correct_pred_good_class_1 = 0, 0
+
+    for i, (images, labels, _, measurement_noise, label_noise, _) in enumerate(data_loader):
             
         images = images.to(device)
         labels = labels.to(device)
+        measurement_noise = measurement_noise.to(device)
+        label_noise = label_noise.to(device)
 
         logits = model(images)
         probas = F.softmax(logits, dim=1)
         _, predicted_labels = torch.max(probas, 1)
+
         num_examples += labels.size(0)
         num_examples_class_0 += (labels == 0).sum()
         num_examples_class_1 += (labels == 1).sum()
+        num_examples_measurement_noise_class_0 += ((measurement_noise == True) & (labels == 0)).sum()
+        num_examples_measurement_noise_class_1 += ((measurement_noise == True) & (labels == 1)).sum()
+        num_examples_label_noise_class_0 += ((label_noise == True) & (labels == 0)).sum()
+        num_examples_label_noise_class_1 += ((label_noise == True) & (labels == 1)).sum()
+        num_examples_good_class_0 += ((label_noise == False) & (measurement_noise == False) & (labels == 0)).sum()
+        num_examples_good_class_1 += ((label_noise == False) & (measurement_noise == False) & (labels == 1)).sum()
+
         correct_pred += (predicted_labels == labels).sum()
         correct_pred_class_0 += ((predicted_labels == labels) & (labels == 0)).sum()
         correct_pred_class_1 += ((predicted_labels == labels) & (labels == 1)).sum()
+        correct_pred_measurement_noise_class_0 += ((predicted_labels == labels) & (measurement_noise == True) & (labels == 0)).sum()
+        correct_pred_measurement_noise_class_1 += ((predicted_labels == labels) & (measurement_noise == True) & (labels == 1)).sum()
+        correct_pred_label_noise_class_0 += ((predicted_labels == labels) & (label_noise == True) & (labels == 0)).sum()
+        correct_pred_label_noise_class_1 += ((predicted_labels == labels) & (label_noise == True) & (labels == 1)).sum()
+        correct_pred_good_class_0 += ((predicted_labels == labels) & (measurement_noise == False) & (label_noise == False) & (labels == 0)).sum()
+        correct_pred_good_class_1 += ((predicted_labels == labels) & (measurement_noise == False) & (label_noise == False) & (labels == 1)).sum()
+    
+    correct_pred_percent = correct_pred.float() / num_examples * 100
+    correct_pred_class_0_percent = correct_pred_class_0.float() / num_examples_class_0 * 100
+    correct_pred_class_1_percent = correct_pred_class_1.float() / num_examples_class_1 * 100
+    correct_pred_measurement_noise_class_0_percent = correct_pred_measurement_noise_class_0.float() / num_examples_measurement_noise_class_0 * 100
+    correct_pred_measurement_noise_class_1_percent = correct_pred_measurement_noise_class_1.float() / num_examples_measurement_noise_class_1 * 100
+    correct_pred_label_noise_class_0_percent = correct_pred_label_noise_class_0.float() / num_examples_label_noise_class_0 * 100
+    correct_pred_label_noise_class_1_percent = correct_pred_label_noise_class_1.float() / num_examples_label_noise_class_1 * 100
+    correct_pred_good_class_0_percent = correct_pred_good_class_0.float() / num_examples_good_class_0 * 100
+    correct_pred_good_class_1_percent = correct_pred_good_class_1.float() / num_examples_good_class_1 * 100
 
-    return correct_pred.float()/num_examples * 100, correct_pred_class_0.float()/num_examples_class_0 * 100, correct_pred_class_1.float()/num_examples_class_1 * 100
+    return correct_pred_percent, correct_pred_class_0_percent, correct_pred_class_1_percent, correct_pred_measurement_noise_class_0_percent, correct_pred_measurement_noise_class_1_percent, correct_pred_label_noise_class_0_percent, correct_pred_label_noise_class_1_percent, correct_pred_good_class_0_percent, correct_pred_good_class_1_percent
 
+def compute_loss(model, data_loader, device):
+    epoch_loss = 0
+    for batch_idx, (images, labels, _, _, _, _) in enumerate(data_loader):
+        images = images.to(device)
+        labels = labels.to(device)
+        
+        logits = model(images)
+        loss = F.cross_entropy(logits, labels, weight=class_weights_tensor)  # Compute validation loss
+        epoch_loss += loss.item()
+
+    epoch_loss /= (batch_idx + 1)  # Compute average validation loss
+    return epoch_loss
 
 def augment_train_data(num_augmentations, df_train, transform, seed):
     # Define the original dataset
@@ -85,6 +131,35 @@ def augment_train_data(num_augmentations, df_train, transform, seed):
     return augmented_train_dataset
 
 
+def split_data(df_train_val, test_size=0.2):
+    """
+    Splits the dataset into train and validation sets, ensuring no location overlap and class balance.
+    
+    Parameters:
+    - df_train_val: pandas DataFrame containing the dataset with 'location' and 'label' columns.
+    - test_size: Proportion of the dataset to include in the validation set (default is 0.2).
+    
+    Returns:
+    - train_data: pandas DataFrame for the training set.
+    - val_data: pandas DataFrame for the validation set.
+    """
+    # Step 1: Get unique locations
+    locations = df_train_val['location'].unique()
+
+    # Step 2: Split the locations into train/val, stratifying by the most frequent label per location
+    train_locations, val_locations = train_test_split(
+        locations, 
+        test_size=test_size, 
+        stratify=df_train_val.groupby('location')['label'].apply(lambda x: x.mode()[0])
+    )
+
+    # Step 3: Filter the original dataset based on the location split
+    train_data = df_train_val[df_train_val['location'].isin(train_locations)]
+    val_data = df_train_val[df_train_val['location'].isin(val_locations)]
+
+    return train_data, val_data
+
+
 ##########################
 ### SETTINGS
 ##########################
@@ -93,7 +168,7 @@ def augment_train_data(num_augmentations, df_train, transform, seed):
 RANDOM_SEED = 1
 LEARNING_RATE = 0.0001 #0.0001
 BATCH_SIZE = 512
-NUM_EPOCHS = 100
+NUM_EPOCHS = 10 #1
 
 # Architecture
 NUM_CLASSES = 2
@@ -112,6 +187,8 @@ if __name__ == '__main__':
     torch.manual_seed(config["exp_params"]["manual_seed"])
     random.seed(config["exp_params"]["manual_seed"])
     np.random.seed(config["exp_params"]["manual_seed"])
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
@@ -119,7 +196,7 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################
     insect_classes = ['wmv', 'c']
-    method_datasets = ['raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
+    method_datasets = ['raw', 'cleaning_benchmark'] #, 'ae', 'adbench']#'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
     retrain_models = True
     
     # transform_train = transforms.Compose([
@@ -155,7 +232,7 @@ if __name__ == '__main__':
             clean_dataset='_clean'
         elif method=='cleaning_benchmark' or method=='raw': 
             clean_dataset=''
-        dfs_train_val = []
+        dfs_train_ = []
         for i in range(len(insect_classes)):
             main_insect_class = insect_classes[i]
             mislabeled_insect_class = insect_classes[1 - i]
@@ -173,10 +250,48 @@ if __name__ == '__main__':
                 df_train_i.label = 0
             if main_insect_class == 'c':
                 df_train_i.label = 1
-            dfs_train_val.append(df_train_i)
+            dfs_train_.append(df_train_i)
         
-        df_train_val = pd.concat(dfs_train_val, ignore_index=True)
-        df_train, df_val = train_test_split(df_train_val, test_size=0.2, random_state=42, stratify=df_train_val['label'])
+        df_train = pd.concat(dfs_train_, ignore_index=True)
+
+        dfs_val = []
+        for i in range(len(insect_classes)):
+            main_insect_class = insect_classes[i]
+            mislabeled_insect_class = insect_classes[1 - i]
+
+            df_val_path = os.path.join(
+                'data', 
+                'clean' if clean_dataset=='_clean' else '', 
+                f'df_val_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{clean_dataset}.csv'
+                #f'df_val_vgg16_{main_insect_class}_{method if method != "cleaning_benchmark" else "raw"}{clean_dataset}.csv'
+            )
+            df_val_i = pd.read_csv(df_val_path)
+            if method == 'cleaning_benchmark':
+                df_val_i = df_val_i[df_val_i['label'] == 0]
+            # Correct labels for training a classifier instead of an outlier detector
+            if main_insect_class == 'wmv':
+                df_val_i.label = 0
+            if main_insect_class == 'c':
+                df_val_i.label = 1
+            dfs_val.append(df_val_i)
+        
+        df_val = pd.concat(dfs_val, ignore_index=True)
+
+
+        # df_train_val['location'] = df_train_val['filepath'].apply(lambda x: os.path.basename(x).split('_')[1])
+        # df_train_val['plate'] = df_train_val['filepath'].apply(lambda x: '_'.join(os.path.basename(x).split('.')[0].split('_')[:-1]))
+        # df_train, df_val = train_test_split(df_train_val, test_size=0.2, random_state=42, stratify=df_train_val['label'])
+        
+        # df_val_good = df_val[(df_val.measurement_noise==False) & (df_val.mislabeled==False)]
+        # df_train, df_val = split_data(df_train_val, test_size=0.2)
+        
+        # copy images into a train and val folders
+        # os.makedirs(os.path.join('data', 'df_train'), exist_ok=True)
+        # os.makedirs(os.path.join('data', 'df_val'), exist_ok=True)
+        # df_train.filepath.apply(lambda x: os.makedirs(os.path.dirname(x).replace('train', 'df_train'), exist_ok=True))
+        # df_val.filepath.apply(lambda x: os.makedirs(os.path.dirname(x).replace('train', 'df_val'), exist_ok=True))
+        # df_train.filepath.apply(lambda x: shutil.copy(x, os.path.dirname(x).replace('train', 'df_train')))
+        # df_val.filepath.apply(lambda x: shutil.copy(x, os.path.dirname(x).replace('train', 'df_val')))
 
         df_test_path = os.path.join('data', f'df_test.csv')
         df_test = pd.read_csv(df_test_path)
@@ -217,8 +332,8 @@ if __name__ == '__main__':
         ##########################
         ### RESNET-18 MODEL
         ##########################
-        torch.manual_seed(RANDOM_SEED)
-        model_name = 'mobilenetv3_small_100' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
+        torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
+        model_name = 'vgg16' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
         model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
@@ -236,9 +351,14 @@ if __name__ == '__main__':
             best_lowest_val_class_accuracy = 0
             train_accuracies = []
             val_accuracies = []
+            test_accuracies = []
+            train_losses = []
+            val_losses = []
+            test_losses = []
             start_time = time.time()
             for epoch in range(NUM_EPOCHS):
                 model.train()
+                epoch_loss = 0
                 for batch_idx, (images, labels, _, _, _, _) in enumerate(train_loader):
                     
                     images = images.to(DEVICE)
@@ -265,15 +385,34 @@ if __name__ == '__main__':
                             case = f'{method} cleaned'
                         print (f'Case {case} dataset: '+'Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f' 
                             %(epoch+1, NUM_EPOCHS, batch_idx, 
-                                len(train_loader), loss))        
+                                len(train_loader), loss))  
+                    epoch_loss += loss.item()
+                epoch_loss /= batch_idx + 1
+                train_losses.append(epoch_loss)
+
 
                 model.eval()
                 with torch.set_grad_enabled(False): # save memory during inference
-                    train_accuracy, train_wmv_accuracy, train_c_accuracy = compute_accuracy(model, train_loader, device=DEVICE)
-                    val_accuracy, val_wmv_accuracy, val_c_accuracy = compute_accuracy(model, val_loader, device=DEVICE)
+                    val_epoch_loss = compute_loss(model, val_loader, DEVICE)
+                    test_epoch_loss = compute_loss(model, test_loader, DEVICE)
+                    val_losses.append(val_epoch_loss)
+                    test_losses.append(test_epoch_loss)
+                                
+                    (train_accuracy, train_wmv_accuracy, train_c_accuracy, 
+                     train_wmv_meas_noise_accuracy, train_c_meas_noise_accuracy, 
+                     train_wmv_milabel_accuracy, train_c_milabel_accuracy, 
+                     train_wmv_good_accuracy, train_c_good_accuracy) = compute_accuracy(model, train_loader, device=DEVICE)
+                    (val_accuracy, val_wmv_accuracy, val_c_accuracy, 
+                     val_wmv_meas_noise_accuracy, val_c_meas_noise_accuracy, 
+                     val_wmv_milabel_accuracy, val_c_milabel_accuracy,
+                     val_wmv_good_accuracy, val_c_good_accuracy) = compute_accuracy(model, val_loader, device=DEVICE)
+                    (test_accuracy, test_wmv_accuracy, test_c_accuracy, 
+                     test_wmv_meas_noise_accuracy, test_c_meas_noise_accuracy, 
+                     test_wmv_milabel_accuracy, test_c_milabel_accuracy,
+                     test_wmv_good_accuracy, test_c_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
                     train_accuracies.append(train_accuracy.item())
                     val_accuracies.append(val_accuracy.item())
-                    test_accuracy, test_wmv_accuracy, test_c_accuracy = compute_accuracy(model, test_loader, device=DEVICE)
+                    test_accuracies.append(test_accuracy.item())
 
 
                     print('Epoch: %03d/%03d | Train: %.3f%% | Validation: %.3f%% | Test: %.3f%%' % (
@@ -283,10 +422,30 @@ if __name__ == '__main__':
                         test_accuracy))
                     print('Train WMV Accuracy: %.2f%%' % train_wmv_accuracy)
                     print('Train C Accuracy: %.2f%%' % train_c_accuracy)
+                    print('Train WMV Meas. Noise Accuracy: %.2f%%' % train_wmv_meas_noise_accuracy)
+                    print('Train C Meas. Noise Accuracy: %.2f%%' % train_c_meas_noise_accuracy)
+                    print('Train WMV Mislabel Accuracy: %.2f%%' % train_wmv_milabel_accuracy)
+                    print('Train C Mislabel Accuracy: %.2f%%' % train_c_milabel_accuracy)
+                    print('Train WMV Good Accuracy: %.2f%%' % train_wmv_good_accuracy)
+                    print('Train C Good Accuracy: %.2f%%' % train_c_good_accuracy)
+
                     print('Validation WMV Accuracy: %.2f%%' % val_wmv_accuracy)
                     print('Validation C Accuracy: %.2f%%' % val_c_accuracy)
+                    print('Validation WMV Meas. Noise Accuracy: %.2f%%' % val_wmv_meas_noise_accuracy)
+                    print('Validation C Meas. Noise Accuracy: %.2f%%' % val_c_meas_noise_accuracy)
+                    print('Validation WMV Mislabel Accuracy: %.2f%%' % val_wmv_milabel_accuracy)
+                    print('Validation C Mislabel Accuracy: %.2f%%' % val_c_milabel_accuracy)
+                    print('Validation WMV Good Accuracy: %.2f%%' % val_wmv_good_accuracy)
+                    print('Validation C Good Accuracy: %.2f%%' % val_c_good_accuracy)
+
                     print('Test WMV Accuracy: %.2f%%' % test_wmv_accuracy)
                     print('Test C Accuracy: %.2f%%' % test_c_accuracy)
+                    # print('Test WMV Meas. Noise Accuracy: %.2f%%' % test_wmv_meas_noise_accuracy)
+                    # print('Test C Meas. Noise Accuracy: %.2f%%' % test_c_meas_noise_accuracy)
+                    # print('Test WMV Mislabel Accuracy: %.2f%%' % test_wmv_milabel_accuracy)
+                    # print('Test C Mislabel Accuracy: %.2f%%' % test_c_milabel_accuracy)
+                    # print('Test WMV Good Accuracy: %.2f%%' % test_wmv_good_accuracy)
+                    # print('Test C Good Accuracy: %.2f%%' % test_c_good_accuracy)
 
                     lowest_val_class_accuracy = min(val_wmv_accuracy, val_c_accuracy)
 
@@ -308,12 +467,29 @@ if __name__ == '__main__':
             plt.figure(figsize=(10, 5))
             plt.plot(range(1, NUM_EPOCHS + 1), train_accuracies, label='Train Accuracy')
             plt.plot(range(1, NUM_EPOCHS + 1), val_accuracies, label='Validation Accuracy')
+            plt.plot(range(1, NUM_EPOCHS + 1), test_accuracies, label='Test Accuracy')
             plt.xlabel('Epochs')
             plt.ylabel('Accuracy')
             plt.title('Training and Validation Accuracy')
             plt.legend()
             # plt.show()
-            plt.savefig(f'zz_train_val_acc_cleaning_{clean_dataset}_{method}_100_epochs.png')
+            train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves')
+            os.makedirs(train_curves_path, exist_ok=True)
+            plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.png'))
+            plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.svg'))
+
+            # Plot the training and validation loss
+            plt.figure(figsize=(10, 5))
+            plt.plot(range(1, NUM_EPOCHS + 1), train_losses, label='Train Loss')
+            plt.plot(range(1, NUM_EPOCHS + 1), val_losses, label='Validation Loss')
+            plt.plot(range(1, NUM_EPOCHS + 1), test_losses, label='Test Loss')
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.title('Training and Validation Loss')
+            plt.legend()
+            # plt.show()
+            plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.png'))
+            plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.svg'))
 
         ##########################
         ### TEST
@@ -323,7 +499,10 @@ if __name__ == '__main__':
         
         model.eval()
         with torch.set_grad_enabled(False): # save memory during inference
-            test_accuracy, test_wmv_accuracy, test_c_accuracy = compute_accuracy(model, test_loader, device=DEVICE)
+            (test_accuracy, test_wmv_accuracy, test_c_accuracy, 
+            test_wmv_meas_noise_accuracy, test_c_meas_noise_accuracy, 
+            test_wmv_milabel_accuracy, test_c_milabel_accuracy,
+            test_wmv_good_accuracy, test_c_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
             print('Test accuracy: %.2f%%' % test_accuracy)
             print('Test WMV Accuracy: %.2f%%' % test_wmv_accuracy)
             print('Test C Accuracy: %.2f%%' % test_c_accuracy)
