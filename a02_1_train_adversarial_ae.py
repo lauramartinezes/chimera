@@ -231,7 +231,12 @@ if __name__ == '__main__':
         mislabeled_insect_class = insect_classes[1 - i]
 
         df_train_vae_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train_vae = pd.read_csv(df_train_vae_path)
+        df_val_vae_path = os.path.join('data', f'df_val_ae_{main_insect_class}.csv')
+        df_train_vae_ = pd.read_csv(df_train_vae_path)
+        df_val_vae_ = pd.read_csv(df_val_vae_path)
+
+        # Combine the training and validation dataframes
+        df_train_vae = pd.concat([df_train_vae_, df_val_vae_], ignore_index=True)
 
         df_train_hard_negatives_path = os.path.join('data', f'df_train_ae_{mislabeled_insect_class}.csv')
         df_train_hard_negatives_dirty = pd.read_csv(df_train_hard_negatives_path)

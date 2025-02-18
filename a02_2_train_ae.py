@@ -363,7 +363,12 @@ if __name__ == '__main__':
         mislabeled_insect_class = insect_classes[1 - i]
 
         df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train = pd.read_csv(df_train_path)
+        df_val_path = os.path.join('data', f'df_val_ae_{main_insect_class}.csv')
+        df_train_ = pd.read_csv(df_train_path)
+        df_val_ = pd.read_csv(df_val_path)
+
+        # Combine the training and validation dataframes
+        df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
         # Prepare Dataset
         transform = transforms.Compose([
