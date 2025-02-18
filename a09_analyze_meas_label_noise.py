@@ -34,58 +34,89 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     insect_classes = ['wmv', 'c']
-    method_datasets = ['ae', 'adv_ae', 'cnn']
+    method_datasets = ['ae', 'adbench']
+    subsets = ['train', 'val']
 
 
     for method in method_datasets:
-        # Generate a df with rows for each insect class
-        # df_analysis = pd.DataFrame({'insect_class': insect_classes})
-        df_analysis = pd.DataFrame(index=insect_classes)
+        for subset in subsets:
+            # Generate a df with rows for each insect class
+            # df_analysis = pd.DataFrame({'insect_class': insect_classes})
+            df_analysis = pd.DataFrame(index=insect_classes)
 
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
-            mislabeled_insect_class = insect_classes[1 - i]
+            for i in range(len(insect_classes)):
+                main_insect_class = insect_classes[i]
+                mislabeled_insect_class = insect_classes[1 - i]
 
-            df_path = os.path.join('data', 'outliers', f'df_train_{method}_{main_insect_class}_outliers.csv')
-            df = pd.read_csv(df_path)
+                df_path = os.path.join('data', 'outliers', f'df_{subset}_{method}_{main_insect_class}_outliers.csv')
+                df = pd.read_csv(df_path)
 
+                if 'directory' not in df.columns:
+                    df['directory'] = df['filepath'].apply(os.path.dirname)
+
+                good_original = df[df['directory'].str.contains(f'{main_insect_class}_good', case=False, na=False)]
+                good_pred_good = good_original[good_original['outlier_detected'] == False].shape[0]
+                good_pred_meas_noise = good_original[good_original['outlier_detected'] == True].shape[0]
+                good_pred_mislabels = 0 #these moved to the other class
+
+                meas_noise_all = df[df['directory'].str.contains(f'trash', case=False, na=False)]
+                meas_noise_switched_label = df[df['directory'].str.contains(f'{mislabeled_insect_class}_trash', case=False, na=False)]
+                meas_noise_correct_label = df[df['directory'].str.contains(f'{main_insect_class}_trash', case=False, na=False)]
+
+                meas_noise_pred_mislabels = meas_noise_switched_label[meas_noise_switched_label['outlier_detected'] == False].shape[0]
+                meas_noise_pred_good = meas_noise_correct_label[meas_noise_correct_label['outlier_detected'] == False].shape[0]
+                meas_noise_detected = meas_noise_all[meas_noise_all['outlier_detected'] == True].shape[0]
+
+                mislabels_original = df[df['directory'].str.contains(f'{mislabeled_insect_class}_for_{main_insect_class}', case=False, na=False)]
+                mislabels_pred_good = mislabels_original[mislabels_original['outlier_detected'] == False].shape[0]
+                mislabels_pred_meas_noise = mislabels_original[mislabels_original['outlier_detected'] == True].shape[0]
+                mislabels_pred_mislabels = 0 #these moved to the other class
+
+                df_analysis.loc[main_insect_class, 'good_pred_good'] = good_pred_good
+                df_analysis.loc[main_insect_class, 'good_pred_mislabels'] = good_pred_mislabels #these moved to the other class
+                df_analysis.loc[main_insect_class, 'good_pred_meas_noise'] = good_pred_meas_noise #these moved to the other class
+                df_analysis.loc[main_insect_class, 'meas_noise_detected'] = meas_noise_detected
+                df_analysis.loc[main_insect_class, 'meas_noise_pred_good'] = meas_noise_pred_good
+                df_analysis.loc[main_insect_class, 'meas_noise_pred_mislabels'] = meas_noise_pred_mislabels
+                df_analysis.loc[main_insect_class, 'mislabels_pred_mislabels'] = mislabels_pred_mislabels
+                df_analysis.loc[main_insect_class, 'mislabels_pred_good'] = mislabels_pred_good
+                df_analysis.loc[main_insect_class, 'mislabels_pred_meas_noise'] = mislabels_pred_meas_noise
             
-            mislabels_pred_mislabels = len(df[df[f'mislabeled_{main_insect_class}'] == True])
-            mislabels_pred_good = len(df[(df['outlier_detected'] == False) & (df[f'mislabeled_{mislabeled_insect_class}'] == True) & (df[f'measurement_noise'] == False)])
-            mislabels_pred_meas_noise = len(df[(df['outlier_detected'] == True) & (df[f'mislabeled_{mislabeled_insect_class}'] == True) & (df[f'measurement_noise'] == False)])
+            for i in range(len(insect_classes)):
+                main_insect_class = insect_classes[i]
+                mislabeled_insect_class = insect_classes[1 - i]  
+                df_path = os.path.join('data', 'outliers', f'df_train_{method}_{main_insect_class}_outliers.csv')
+                df = pd.read_csv(df_path)
+
+                if 'directory' not in df.columns:
+                    df['directory'] = df['filepath'].apply(os.path.dirname)
+
+                mislabels_transferred = df[df['directory'].str.contains(f'{main_insect_class}_for_{mislabeled_insect_class}', case=False, na=False)]
+                mislabels_transferred_pred_mislabels = mislabels_transferred[mislabels_transferred['outlier_detected'] == False].shape[0]
+                mislabels_transferred_pred_meas_noise = mislabels_transferred[mislabels_transferred['outlier_detected'] == True].shape[0]
+
+                good_transferred = df[df['directory'].str.contains(f'{mislabeled_insect_class}_good', case=False, na=False)]
+                good_transferred_pred_mislabels = good_transferred[good_transferred['outlier_detected'] == False].shape[0]
+                good_transferred_pred_meas_noise = good_transferred[good_transferred['outlier_detected'] == True].shape[0]
+
+                df_analysis.loc[mislabeled_insect_class, 'mislabels_pred_mislabels'] += mislabels_transferred_pred_mislabels
+                df_analysis.loc[mislabeled_insect_class, 'mislabels_pred_meas_noise'] += mislabels_transferred_pred_meas_noise
+                df_analysis.loc[mislabeled_insect_class, 'good_pred_mislabels'] += good_transferred_pred_mislabels
+                df_analysis.loc[mislabeled_insect_class, 'good_pred_meas_noise'] += good_transferred_pred_meas_noise
+
+            data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'data_analysis')
+            os.makedirs(data_analysis_path, exist_ok=True)
+            df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{method}_{subset}.csv'))
+
+            for index, row in df_analysis.iterrows():
+                plot_conf_matrix(row, index + f' - {subset}', method, data_analysis_path)
             
-            good_pred_good = ((df['noisy_label_classification']==i) & (df.noisy_outlier_label_original==0) & (df.outlier_detected==False)).value_counts().get(True, 0)
-            good_pred_meas_noise = ((df['noisy_label_classification']==i) & (df.noisy_outlier_label_original==0)& (df.outlier_detected==True)).value_counts().get(True, 0)
-            good_pred_mislabels = 4200 - good_pred_good - good_pred_meas_noise
+            # Sum both rows to create an overall confusion matrix
+            df_analysis_overall = df_analysis.sum()
 
-            meas_noise_detected = ((df['noisy_label_classification']==i) & (df.noisy_outlier_label_original==1) & (df.measurement_noise==True) & (df['outlier_detected'] == True)).value_counts().get(True, 0)
-            meas_noise_pred_good = ((df['noisy_label_classification']==i) & (df.noisy_outlier_label_original==1) & (df.measurement_noise==True) & (df['outlier_detected'] == False)).value_counts().get(True, 0)
-            meas_noise_pred_mislabels = ((df['noisy_label_classification']==1-i) & (df.noisy_outlier_label_original==1) & (df.measurement_noise==True)).value_counts().get(True, 0)
+            # Plot the confusion matrix for the summed data
+            plot_conf_matrix(df_analysis_overall, f"all_data - {subset}", method, data_analysis_path)
+            print('')
 
-            df_analysis.loc[main_insect_class, 'good_pred_good'] = good_pred_good
-            df_analysis.loc[main_insect_class, 'good_pred_mislabels'] = good_pred_mislabels #these moved to the other class
-            df_analysis.loc[main_insect_class, 'good_pred_meas_noise'] = good_pred_meas_noise #these moved to the other class
-            df_analysis.loc[main_insect_class, 'meas_noise_detected'] = meas_noise_detected
-            df_analysis.loc[main_insect_class, 'meas_noise_pred_good'] = meas_noise_pred_good
-            df_analysis.loc[main_insect_class, 'meas_noise_pred_mislabels'] = meas_noise_pred_mislabels
-            df_analysis.loc[mislabeled_insect_class, 'mislabels_pred_mislabels'] = mislabels_pred_mislabels
-            df_analysis.loc[main_insect_class, 'mislabels_pred_good'] = mislabels_pred_good
-            df_analysis.loc[main_insect_class, 'mislabels_pred_meas_noise'] = mislabels_pred_meas_noise
 
-        data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'data_analysis')
-        os.makedirs(data_analysis_path, exist_ok=True)
-        df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{method}.csv'))
-
-        for index, row in df_analysis.iterrows():
-            plot_conf_matrix(row, index, method, data_analysis_path)
-        
-        # Sum both rows to create an overall confusion matrix
-        df_analysis_overall = df_analysis.sum()
-
-        # Plot the confusion matrix for the summed data
-        plot_conf_matrix(df_analysis_overall, "all_data", method, data_analysis_path)
-        print('')
-
-# P
-
-            
+                

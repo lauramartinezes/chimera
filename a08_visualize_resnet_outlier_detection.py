@@ -41,24 +41,46 @@ if __name__ == '__main__':
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    for i in range(len(insect_classes)):
-        main_insect_class = insect_classes[i]
-        mislabeled_insect_class = insect_classes[1 - i]
+    subsets = ['train', 'val']
 
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train = pd.read_csv(df_train_path)
+    results = []
 
-        # CNN method
-        model_cnn = timm.create_model('resnet18', pretrained=True)
-        model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-        model_cnn.eval()
-        print("Model correctly initialized")
+    for subset in subsets:
+        for i in range(len(insect_classes)):
+            main_insect_class = insect_classes[i]
+            mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_clean, metrics = clean_df(df_train, model_cnn, device, config, transform_cnn, pin_memory, main_insect_class, phase="train", method='cnn')
-        df_train_clean_path = os.path.join('data', f'df_train_cnn_{main_insect_class}_clean.csv')
-        df_train_clean.to_csv(df_train_clean_path, index=False)
+            # df_train_path = os.path.join('/home/u0159868/Documents/repos/stickybugs-outliers/data/02 before adding class maps', f'df_train_ae_{main_insect_class}.csv')
+            # df_train = pd.read_csv(df_train_path)
+            df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv') 
+            df_subset = pd.read_csv(df_subset_path)
 
-        print(f'Clean {main_insect_class} cnn training dataset available')
-        print('metrics: ', metrics)
+            # CNN method
+            model_cnn = timm.create_model('resnet18', pretrained=True)
+            model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
+            model_cnn.eval()
+            print("Model correctly initialized")
 
-        print('')
+            df_subset_clean, df_outliers, metrics = clean_df(df_subset, model_cnn, device, config, transform_cnn, pin_memory, main_insect_class, phase=subset, method='adbench')
+            
+            os.makedirs(os.path.join('data', 'clean'), exist_ok=True)
+            os.makedirs(os.path.join('data', 'outliers'), exist_ok=True)
+            
+            df_subset_clean_path = os.path.join('data', 'clean', f'df_{subset}_adbench_{main_insect_class}_clean.csv')
+            df_subset_clean.to_csv(df_subset_clean_path, index=False)
+            print(f'Clean {main_insect_class} cnn {subset} dataset available')
+
+            df_outliers_path = os.path.join('data', 'outliers', f'df_{subset}_adbench_{main_insect_class}_outliers.csv')
+            df_outliers.to_csv(df_outliers_path, index=False)
+            print(f'Outliers {main_insect_class} cnn {subset} dataset available')
+
+            # Add more information to the metrics dictionary
+            metrics['method'] = 'adbench'
+            metrics['od_method'] = 'ocsvm'
+            metrics['main_insect_class'] = main_insect_class
+
+            results.append(metrics)
+            df_results = pd.DataFrame(results)
+            df_results.to_csv(os.path.join(config["logging_params"]["save_dir"],f'df_best_od_evaluation.csv'), mode='a', index=False, header=False)
+            print('metrics: ', metrics)
+            print('')

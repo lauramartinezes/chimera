@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.metrics import confusion_matrix
 import timm
 import torch
 from tqdm import tqdm
@@ -15,6 +16,7 @@ from torchvision import transforms
 
 from PyOD import PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
+from a06_2_dbscan_evaluation import DBSCAN_OD
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
@@ -48,7 +50,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
         latents_512d = reducer_512d.fit_transform(latents)
         
-    elif method == 'cnn':
+    elif method == 'cnn' or method == 'adbench':
         (
             latents, 
             labels_cnn, 
@@ -59,12 +61,17 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         latents_512d = latents
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
-    y_pred, metrics = get_outlier_predictions(
-        latents_512d,
-        y_true,
-        model='MCD',
-        contamination= 0.21 if main_insect_class == 'c' else 0.11
-    )
+
+    if 'ae' not in method:
+        y_pred, metrics = get_outlier_predictions(
+            latents_512d,
+            y_true,
+            model='OCSVM',
+            #contamination= 0.2
+        )
+    else:
+        y_pred = DBSCAN_OD(latents_512d, eps=0.5)
+        metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)
 
     visualize_y_true_vs_y_pred_umap(
         latents, 
@@ -75,10 +82,24 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         dirname=config["logging_params"]["save_dir"]
     )
 
+    get_confusion_matrix(
+        y_true, 
+        y_pred, 
+        filename=f'{method}_{main_insect_class}_{phase}', 
+        dirname=config["logging_params"]["save_dir"]
+    )
+
+    # Mark outliers in the dataframe and transform them from integer to boolean
+    df['outlier_detected'] = y_pred
+    df['outlier_detected'] = df['outlier_detected'].astype(bool)
+
+    # Filter the dataframe to have only the clean samples
     df_clean = df[y_pred == 0]
-    if f'mislabeled_{main_insect_class}' in df_clean.columns:
-        df_clean = df_clean[df_clean[f'mislabeled_{main_insect_class}'] == False]
-    return df_clean, metrics
+    if f'noisy_label_classification' in df_clean.columns:
+        reference_label = 0 if main_insect_class == 'wmv' else 1
+        df_clean = df_clean[df_clean[f'noisy_label_classification'] == reference_label]
+    
+    return df_clean, df, metrics
 
 
 def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
@@ -180,6 +201,33 @@ def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, 
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
 
 
+def get_confusion_matrix(y_true, y_pred, filename=None, dirname=None):
+    matrices_folder = os.path.join(dirname, 'True vs Pred Confusion Matrices')
+    os.makedirs(matrices_folder, exist_ok=True)
+
+    class_names = ['Inlier', 'Outlier']  # 0: Inlier, 1: Outlier
+    cm = confusion_matrix(y_true, y_pred)
+
+    # Normalize by row (true class)
+    cm_normalized = cm.astype('float') / cm.sum(axis=1, keepdims=True)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # Set consistent color scale
+    sns.heatmap(cm_normalized, annot=cm, fmt='d', cmap='Blues', ax=ax, xticklabels=class_names, 
+                yticklabels=class_names, vmin=0, vmax=1)
+
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title('Confusion Matrix (Normalized Colors)')
+    
+    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.png'), format='png')
+    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.svg'), format='svg')
+    # plt.show()
+
+    # Save the confusion matrix as a numpy array
+    np.save(os.path.join(matrices_folder, f"{filename}_confusion_matrix.npy"), cm)
+
 if __name__ == '__main__':
     # Load the configuration
     with open("config.yaml", "r") as file:
@@ -194,6 +242,7 @@ if __name__ == '__main__':
 
     insect_classes = ['wmv', 'c']
     ae_types = ['', 'adv_']
+    subsets = ['train', 'val']
 
     transform_ae = transforms.Compose([
         transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
@@ -202,33 +251,51 @@ if __name__ == '__main__':
     ])
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    results = []
     
     for ae_type in ae_types:
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
-            mislabeled_insect_class = insect_classes[1 - i]
+        for subset in subsets:
+            for i in range(len(insect_classes)):
+                main_insect_class = insect_classes[i]
+                mislabeled_insect_class = insect_classes[1 - i]
 
-            df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-            df_train = pd.read_csv(df_train_path)
+                df_subset_path = os.path.join('data', f'df_{subset}_ae_{main_insect_class}.csv')
+                df_subset = pd.read_csv(df_subset_path)
 
-            # AE method
-            save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
-            model_ae = VQVAE(
-                in_channels=config["model_params"]["in_channels"],
-                embedding_dim=config["model_params"]["embedding_dim"],
-                num_embeddings=config["model_params"]["num_embeddings"],
-                img_size=config["model_params"]["img_size"],
-                beta=config["model_params"]["beta"]
-            ).to(device)
-            model_ae.load_state_dict(torch.load(save_path_best))
-            model_ae.to(device)
-            print("Model correctly initialized")
+                # AE method
+                save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
+                model_ae = VQVAE(
+                    in_channels=config["model_params"]["in_channels"],
+                    embedding_dim=config["model_params"]["embedding_dim"],
+                    num_embeddings=config["model_params"]["num_embeddings"],
+                    img_size=config["model_params"]["img_size"],
+                    beta=config["model_params"]["beta"]
+                ).to(device)
+                model_ae.load_state_dict(torch.load(save_path_best))
+                model_ae.to(device)
+                print("Model correctly initialized")
 
-            df_train_clean, metrics = clean_df(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train", method=f'{ae_type}ae')
-            df_train_clean_path = os.path.join('data', f'df_train_{ae_type}ae_{main_insect_class}_clean.csv')
-            df_train_clean.to_csv(df_train_clean_path, index=False)
+                df_subset_clean, df_outliers, metrics = clean_df(df_subset, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase=subset, method=f'{ae_type}ae')
+                
+                os.makedirs(os.path.join('data', 'clean'), exist_ok=True)
+                os.makedirs(os.path.join('data', 'outliers'), exist_ok=True)
+                
+                df_subset_clean_path = os.path.join('data', 'clean', f'df_{subset}_{ae_type}ae_{main_insect_class}_clean.csv')
+                df_subset_clean.to_csv(df_subset_clean_path, index=False)
+                print(f'Clean {main_insect_class} {ae_type} {subset} dataset available')
+                
+                df_outliers_path = os.path.join('data', 'outliers', f'df_{subset}_{ae_type}ae_{main_insect_class}_outliers.csv')
+                df_outliers.to_csv(df_outliers_path, index=False)
+                print(f'Outliers {main_insect_class} {ae_type} {subset} dataset available')
+                
+                # Add more information to the metrics dictionary
+                metrics['method'] = ae_type + 'ae'
+                metrics['od_method'] = 'dbscan'
+                metrics['main_insect_class'] = main_insect_class
 
-            print(f'Clean {main_insect_class} {ae_type} training dataset available')
-            print('metrics: ', metrics)
-
-            print('')
+                results.append(metrics)
+                df_results = pd.DataFrame(results)
+                df_results.to_csv(os.path.join(config["logging_params"]["save_dir"],f'df_best_od_evaluation.csv'), index=False)
+                print('metrics: ', metrics)
+                print('')
