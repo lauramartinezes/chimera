@@ -27,6 +27,7 @@ def plot_original_vs_reconstructed_images(images, reconstructions, filename=None
     axes[0, 0].set_title("Original")
     axes[1, 0].set_title("Reconstructed")
     plt.savefig(os.path.join(dirname, f'original_vs_reconstruction_{filename}.png'), format='png')
+    plt.savefig(os.path.join(dirname, f'original_vs_reconstruction_{filename}.svg'), format='svg')
 
 
 if __name__ == '__main__':
@@ -53,7 +54,12 @@ if __name__ == '__main__':
             mislabeled_insect_class = insect_classes[1 - i]
 
             df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-            df_train = pd.read_csv(df_train_path)
+            df_val_path = os.path.join('data', f'df_val_ae_{main_insect_class}.csv')
+            df_train_ = pd.read_csv(df_train_path)
+            df_val_ = pd.read_csv(df_val_path)
+
+            # Combine the training and validation dataframes
+            df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
             # Prepare Dataset
             transform = transforms.Compose([
