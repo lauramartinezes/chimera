@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from PyOD import PYOD, metric
+from a06_2_dbscan_evaluation import DBSCAN_OD
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
@@ -54,7 +55,7 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     )
 
 
-def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train"):
+def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train", cnn_type='cnn'):
     loader = load_data_from_df(
         df,
         transform,
@@ -69,7 +70,7 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         latents_cnn,
         measurement_noise_cnn.astype(int),
         mislabeled_cnn.astype(int),
-        f'cnn_512d_{main_insect_class}_{phase}',
+        f'{cnn_type}_512d_{main_insect_class}_{phase}',
         dirname=config["logging_params"]["save_dir"]
     )
 
@@ -127,14 +128,17 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
     y_train = measurement_noises + label_noises
 
     metrics_list = []
-    models = ['SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
+    models = ['DBSCAN_OD','SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
               'ABOD', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', #, 'CBLOF'
               'KNN', 'LMDD', 'LODA', 'LOF', 'MCD']#, 'PCA']
     
     for model in models:
-        pyod_model = PYOD(seed=42, model_name=model)
-        pyod_model.fit(X_train, [])
-        anomaly_scores = pyod_model.predict_score(X_train)
+        if model!='DBSCAN_OD':
+            pyod_model = PYOD(seed=42, model_name=model)
+            pyod_model.fit(X_train, [])
+            anomaly_scores = pyod_model.predict_score(X_train)
+        else:
+            anomaly_scores = DBSCAN_OD(X_train, eps=0.5)
         metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
         print(f'{model}: {metrics}')
 
@@ -201,7 +205,12 @@ if __name__ == '__main__':
         mislabeled_insect_class = insect_classes[1 - i]
 
         df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_train = pd.read_csv(df_train_path)
+        df_val_path = os.path.join('data', f'df_val_ae_{main_insect_class}.csv')
+        df_train_ = pd.read_csv(df_train_path)
+        df_val_ = pd.read_csv(df_val_path)
+
+        # Combine the training and validation dataframes
+        df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
         # AE method
         ae_types = ['', 'adv_']
@@ -237,7 +246,35 @@ if __name__ == '__main__':
         model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
         model_cnn.eval()
 
-        process_data_cnn(df_train, model_cnn, device, config, transform_cnn, main_insect_class, phase="train")     
+        process_data_cnn(
+            df_train, 
+            model_cnn, 
+            device, 
+            config, 
+            transform_cnn, 
+            main_insect_class, 
+            phase="train", 
+            cnn_type='cnn'
+        )     
         print('Metrics for CNN are available') 
+
+        # Adbench method
+        df_train_path = os.path.join('data', f'df_train_raw_{main_insect_class}.csv') 
+        df_val_path = os.path.join('data', f'df_val_raw_{main_insect_class}.csv')
+        df_train_ = pd.read_csv(df_train_path)
+        df_val_ = pd.read_csv(df_val_path)
+        df_train = pd.concat([df_train_, df_val_], ignore_index=True)
+
+        process_data_cnn(
+            df_train, 
+            model_cnn, 
+            device, 
+            config, 
+            transform_cnn, 
+            main_insect_class, 
+            phase="train", 
+            cnn_type='adbench'
+        )     
+        print('Metrics for AdBench are available') 
 
         print('')
