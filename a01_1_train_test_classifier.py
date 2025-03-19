@@ -167,7 +167,7 @@ def split_data(df_train_val, test_size=0.2):
 # Hyperparameters
 RANDOM_SEED = 1
 LEARNING_RATE = 0.0001 #0.0001
-BATCH_SIZE = 512
+BATCH_SIZE = 64
 NUM_EPOCHS = 10 #1
 
 # Architecture
@@ -196,7 +196,7 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################
     insect_classes = ['wmv', 'c']
-    method_datasets = ['raw', 'cleaning_benchmark'] #, 'ae', 'adbench']#'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
+    method_datasets = ['raw', 'cleaning_benchmark', 'ae', 'adv_ae', 'adbench']#['adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
     retrain_models = True
     
     # transform_train = transforms.Compose([
@@ -232,6 +232,13 @@ if __name__ == '__main__':
             clean_dataset='_clean'
         elif method=='cleaning_benchmark' or method=='raw': 
             clean_dataset=''
+
+        if 'ae' in method:
+            od_method = '_DBSCAN'
+        elif method == 'adbench':
+            od_method = '_LODA'
+        else:   
+            od_method = ''
         dfs_train_ = []
         for i in range(len(insect_classes)):
             main_insect_class = insect_classes[i]
@@ -240,7 +247,7 @@ if __name__ == '__main__':
             df_train_path = os.path.join(
                 'data', 
                 'clean' if clean_dataset=='_clean' else '', 
-                f'df_train_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{clean_dataset}.csv'
+                f'df_train_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
             )
             df_train_i = pd.read_csv(df_train_path)
             if method == 'cleaning_benchmark':
@@ -262,7 +269,7 @@ if __name__ == '__main__':
             df_val_path = os.path.join(
                 'data', 
                 'clean' if clean_dataset=='_clean' else '', 
-                f'df_val_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{clean_dataset}.csv'
+                f'df_val_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
                 #f'df_val_vgg16_{main_insect_class}_{method if method != "cleaning_benchmark" else "raw"}{clean_dataset}.csv'
             )
             df_val_i = pd.read_csv(df_val_path)
@@ -307,7 +314,7 @@ if __name__ == '__main__':
 
         train_loader = DataLoader(
             train_dataset, 
-            batch_size=config["data_params"]["train_batch_size"], 
+            batch_size=BATCH_SIZE, 
             shuffle=True,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
@@ -315,7 +322,7 @@ if __name__ == '__main__':
 
         val_loader = DataLoader(
             val_dataset, 
-            batch_size=config["data_params"]["train_batch_size"], 
+            batch_size=BATCH_SIZE, 
             shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
@@ -323,7 +330,7 @@ if __name__ == '__main__':
 
         test_loader = DataLoader(
             test_dataset, 
-            batch_size=config["data_params"]["train_batch_size"], 
+            batch_size=BATCH_SIZE, 
             shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
@@ -333,7 +340,7 @@ if __name__ == '__main__':
         ### RESNET-18 MODEL
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model_name = 'vgg16' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
+        model_name = 'resnet18' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
         model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
@@ -341,13 +348,14 @@ if __name__ == '__main__':
         save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
 
         if not os.path.exists(save_path_best) or retrain_models==True:
-            optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)  
+            optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
             scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])
 
             ##########################
             ### TRAIN
             ##########################
             best_val_accuracy = 0
+            best_val_loss = 100
             best_lowest_val_class_accuracy = 0
             train_accuracies = []
             val_accuracies = []
@@ -449,7 +457,14 @@ if __name__ == '__main__':
 
                     lowest_val_class_accuracy = min(val_wmv_accuracy, val_c_accuracy)
 
+                        # Check if the validation accuracy improved
+                    valid_accuracy_improved = val_accuracy > best_val_accuracy
+
+                    # Check if the validation loss improved or if it is in the 10% percentile of the validation losses and the validation accuracy improved
+                    model_improved = (val_epoch_loss < best_val_loss) or (val_epoch_loss < np.percentile(val_losses, 20) and valid_accuracy_improved)
+
                     if best_val_accuracy < val_accuracy:
+                        best_val_loss = val_epoch_loss
                         best_val_accuracy = val_accuracy
                         best_lowest_val_class_accuracy = lowest_val_class_accuracy
                         torch.save(model.state_dict(), save_path_best)
@@ -490,6 +505,12 @@ if __name__ == '__main__':
             # plt.show()
             plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.png'))
             plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.svg'))
+        else:
+            model.load_state_dict(torch.load(save_path_best))
+            model.eval()
+            with torch.set_grad_enabled(False): # save memory during inference
+                (best_val_accuracy, _, _, _, _, _, _, _, _) = compute_accuracy(model, val_loader, device=DEVICE)
+                print('Best Validation accuracy: %.2f%%' % best_val_accuracy)
 
         ##########################
         ### TEST
@@ -509,7 +530,7 @@ if __name__ == '__main__':
         
         results.append({
             "clean_dataset": not(clean_dataset==''),
-            "best_val_accuracy": best_val_accuracy.item() if retrain_models==True else None,
+            "best_val_accuracy": best_val_accuracy.item(),# if retrain_models==True else None,
             "test_accuracy": test_accuracy.item(),
             "test_wmv_accuracy": test_wmv_accuracy.item(),
             "test_c_accuracy": test_c_accuracy.item(),
