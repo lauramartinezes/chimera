@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import torch
 
-def get_df_train(main_insect_class, mislabeled_insect_class):
-    good_samples_folder_train = os.path.join('data', 'train', main_insect_class, f'{main_insect_class}_good')
-    mismeasure_samples_folder_train = os.path.join('data', 'train', main_insect_class, f'{main_insect_class}_trash')
-    mislabel_samples_folder_train = os.path.join('data', 'train', main_insect_class, f'{mislabeled_insect_class}_for_{main_insect_class}')
+def get_df_subset(main_insect_class, mislabeled_insect_class, subset):
+    good_samples_folder_train = os.path.join('data', subset, main_insect_class, f'{main_insect_class}_good')
+    mismeasure_samples_folder_train = os.path.join('data', subset, main_insect_class, f'{main_insect_class}_trash')
+    mislabel_samples_folder_train = os.path.join('data', subset, main_insect_class, f'{mislabeled_insect_class}_for_{main_insect_class}')
 
     good_samples_train = glob.glob(os.path.join(good_samples_folder_train, '*.png'))
     mismeasure_samples_train = glob.glob(os.path.join(mismeasure_samples_folder_train, '*.png'))
@@ -36,9 +36,9 @@ def get_df_train(main_insect_class, mislabeled_insect_class):
         'filepath': mislabel_samples_train
     })
 
-    df_train = pd.concat([df_good_samples_train, df_mismeasure_samples_train, df_mislabel_samples_train], ignore_index=True)
+    df_subset = pd.concat([df_good_samples_train, df_mismeasure_samples_train, df_mislabel_samples_train], ignore_index=True)
 
-    return df_train
+    return df_subset
 
 
 def get_df_test(class_1, class_2):
@@ -73,15 +73,17 @@ if __name__ == '__main__':
     np.random.seed(42)
 
     insect_classes = ['wmv', 'c']
+    subsets = ['train', 'val']
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
         
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}_raw.csv')
-        if not os.path.exists(df_train_path):
-            df_train = get_df_train(main_insect_class, mislabeled_insect_class)
-            df_train.to_csv(df_train_path)
+        for subset in subsets:
+            df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv')
+            if not os.path.exists(df_subset_path):
+                df_subset = get_df_subset(main_insect_class, mislabeled_insect_class, subset)
+                df_subset.to_csv(df_subset_path)
     
     df_test_path = os.path.join('data', f'df_test.csv')
     if not os.path.exists(df_test_path):
