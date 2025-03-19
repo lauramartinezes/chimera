@@ -10,6 +10,7 @@ import torch
 from tqdm import tqdm
 import umap
 import yaml
+import cuml
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -21,7 +22,7 @@ from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
 
 
-def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae'):
+def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='DBSCAN'):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -47,10 +48,11 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         # Reduce dimensions to 512D for outlier detection
         print('Starting UMAP 512D reduction')
         latents = raw_latents.reshape(raw_latents.shape[0], -1)
-        reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
+        # reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
+        reducer_512d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=512, random_state=42)
         latents_512d = reducer_512d.fit_transform(latents)
         
-    elif method == 'cnn' or method == 'adbench':
+    elif method == 'cnn' or method == 'adbench' or method == 'resnet18':
         (
             latents, 
             labels_cnn, 
@@ -61,31 +63,31 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         latents_512d = latents
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
-
-    if 'ae' not in method:
+    metrics = {}
+    if od_method != 'DBSCAN':
         y_pred, metrics = get_outlier_predictions(
             latents_512d,
             y_true,
-            model='OCSVM',
-            #contamination= 0.2
+            model=od_method,
+            # contamination= 0.2
         )
-    else:
+    elif od_method == 'DBSCAN':
         y_pred = DBSCAN_OD(latents_512d, eps=0.5)
-        metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)
+        metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
     visualize_y_true_vs_y_pred_umap(
         latents, 
         measurement_noise, 
         mislabel_noise,
         y_pred, 
-        filename=f'{method}_{main_insect_class}_{phase}',
+        filename=f'{method}_{main_insect_class}_{phase}_{od_method}',
         dirname=config["logging_params"]["save_dir"]
     )
 
     get_confusion_matrix(
         y_true, 
         y_pred, 
-        filename=f'{method}_{main_insect_class}_{phase}', 
+        filename=f'{method}_{main_insect_class}_{phase}_{od_method}', 
         dirname=config["logging_params"]["save_dir"]
     )
 
@@ -166,7 +168,8 @@ def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, 
 
     # UMAP transformation (shared latent space for both plots)
     print(f'Starting UMAP 2D reduction')
-    reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+    # reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+    reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
     latents_2d = reducer_2d.fit_transform(features)
 
     measurement_noises = measurement_noises.astype(int)*2
@@ -255,47 +258,70 @@ if __name__ == '__main__':
     results = []
     
     for ae_type in ae_types:
-        for subset in subsets:
-            for i in range(len(insect_classes)):
-                main_insect_class = insect_classes[i]
-                mislabeled_insect_class = insect_classes[1 - i]
+        for i in range(len(insect_classes)):
+            main_insect_class = insect_classes[i]
+            mislabeled_insect_class = insect_classes[1 - i]
 
+            df_subsets = []
+            for subset in subsets:
                 df_subset_path = os.path.join('data', f'df_{subset}_ae_{main_insect_class}.csv')
                 df_subset = pd.read_csv(df_subset_path)
+                df_subsets.append(df_subset)
+            df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-                # AE method
-                save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
-                model_ae = VQVAE(
-                    in_channels=config["model_params"]["in_channels"],
-                    embedding_dim=config["model_params"]["embedding_dim"],
-                    num_embeddings=config["model_params"]["num_embeddings"],
-                    img_size=config["model_params"]["img_size"],
-                    beta=config["model_params"]["beta"]
-                ).to(device)
-                model_ae.load_state_dict(torch.load(save_path_best))
-                model_ae.to(device)
-                print("Model correctly initialized")
+            # AE method
+            save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
+            model_ae = VQVAE(
+                in_channels=config["model_params"]["in_channels"],
+                embedding_dim=config["model_params"]["embedding_dim"],
+                num_embeddings=config["model_params"]["num_embeddings"],
+                img_size=config["model_params"]["img_size"],
+                beta=config["model_params"]["beta"]
+            ).to(device)
+            model_ae.load_state_dict(torch.load(save_path_best))
+            model_ae.to(device)
+            print("Model correctly initialized")
 
-                df_subset_clean, df_outliers, metrics = clean_df(df_subset, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase=subset, method=f'{ae_type}ae')
+            od_methods = ['DBSCAN', 'MCD']
+            for od_method in od_methods:
+                df_train_val_clean, df_train_val_outliers, metrics = clean_df(
+                    df_train_val, 
+                    model_ae, 
+                    device, 
+                    config, 
+                    transform_ae, 
+                    pin_memory, 
+                    main_insect_class, 
+                    phase='train_val', 
+                    method=f'{ae_type}ae',
+                    od_method=od_method
+                )
                 
                 os.makedirs(os.path.join('data', 'clean'), exist_ok=True)
                 os.makedirs(os.path.join('data', 'outliers'), exist_ok=True)
                 
-                df_subset_clean_path = os.path.join('data', 'clean', f'df_{subset}_{ae_type}ae_{main_insect_class}_clean.csv')
-                df_subset_clean.to_csv(df_subset_clean_path, index=False)
-                print(f'Clean {main_insect_class} {ae_type} {subset} dataset available')
-                
-                df_outliers_path = os.path.join('data', 'outliers', f'df_{subset}_{ae_type}ae_{main_insect_class}_outliers.csv')
-                df_outliers.to_csv(df_outliers_path, index=False)
-                print(f'Outliers {main_insect_class} {ae_type} {subset} dataset available')
+                for subset in subsets:
+                    if subset == 'train':
+                        df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains('train')]
+                        df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains('train')]
+                    elif subset == 'val':
+                        df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains('val')]
+                        df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains('val')]
+                    df_subset_clean_path = os.path.join('data', 'clean', f'df_{subset}_{ae_type}ae_{main_insect_class}_{od_method}_clean.csv')
+                    df_subset_clean.to_csv(df_subset_clean_path, index=False)
+                    print(f'Clean {main_insect_class} {ae_type} {subset} dataset available')
+                    
+                    df_subset_outliers_path = os.path.join('data', 'outliers', f'df_{subset}_{ae_type}ae_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_outliers.to_csv(df_subset_outliers_path, index=False)
+                    print(f'Outliers {main_insect_class} {ae_type} {subset} dataset available')
                 
                 # Add more information to the metrics dictionary
                 metrics['method'] = ae_type + 'ae'
-                metrics['od_method'] = 'dbscan'
+                metrics['od_method'] = od_method
                 metrics['main_insect_class'] = main_insect_class
 
                 results.append(metrics)
                 df_results = pd.DataFrame(results)
                 df_results.to_csv(os.path.join(config["logging_params"]["save_dir"],f'df_best_od_evaluation.csv'), index=False)
                 print('metrics: ', metrics)
-                print('')
+            print('')
