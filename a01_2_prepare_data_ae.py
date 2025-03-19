@@ -98,12 +98,12 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'vgg16' #'mobilenetv3_small_100' 
+    model_name = 'resnet18' #'mobilenetv3_small_100' 
     #model = SimpleCNN()
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -112,6 +112,7 @@ if __name__ == '__main__':
     else:
         print("Model not found")
 
+    all_pred_counts = []
     for subset in subsets:
         dfs_subset = []
 
@@ -158,6 +159,11 @@ if __name__ == '__main__':
             print(f"Prediction: {all_predictions[0]}\nActual: {all_actuals[0]}\nProbabilities: {all_probs[0]}")
             print(f"Accuracy: {accuracy}")
 
+        thresholded_predictions = np.array([
+            1 - pred if max(probs) < 0.7 else pred
+            for pred, probs in zip(all_predictions, all_probs)
+        ])
+
         df_subset['pred_label'] = all_predictions
         df_subset['pred_probas'] = all_probs
 
@@ -183,36 +189,29 @@ if __name__ == '__main__':
         }, index=['wmv', 'c'])
 
         print(df_pred_counts)
+        all_pred_counts.append(df_pred_counts)
 
-        # This is useless code that counts the mislabels and good samples that have been transferred to the other class
-        df_new_mislabels_wmv = df_wmv[((df_wmv['label'] != df_wmv['pred_label']) & 
-        (df_wmv['measurement_noise'] == False) & 
-        (df_wmv['mislabeled'] == False))] # here is only c_good, c_for_wmv is missing
-        rounded_new_mislabels_wmv_pred_probas = df_new_mislabels_wmv.pred_probas.apply(lambda x: np.round(x, 1))
-        new_mislabels_wmv_counts_probas = rounded_new_mislabels_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
+        ########################## Probas counts
+        df_wmv_pred_good_samples = df_wmv[df_wmv['directory'].str.contains('wmv_good|wmv_for_c', case=False, na=False)]
+        wmv_pred_good_probas = df_wmv_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        wmv_pred_good_probas_counts = wmv_pred_good_probas.apply(lambda x: list(x)).value_counts()
 
-        df_new_good_samples_wmv = df_wmv[((df_wmv['label'] == df_wmv['pred_label']) &
-        (df_wmv['measurement_noise'] == False) & 
-        (df_wmv['mislabeled'] == False))] # here is only wmv_good, wmv_for_c is missing
-        rounded_new_good_samples_wmv_pred_probas = df_new_good_samples_wmv.pred_probas.apply(lambda x: np.round(x, 1))
-        new_good_samples_wmv_counts_probas = rounded_new_good_samples_wmv_pred_probas.apply(lambda x: list(x)).value_counts()
+        df_wmv_pred_mislabels = df_wmv[df_wmv['directory'].str.contains('c_good|c_for_wmv', case=False, na=False)]
+        wmv_pred_mislabels_probas = df_wmv_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        wmv_pred_mislabels_probas_counts = wmv_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        df_new_mislabels_c = df_c[((df_c['label'] != df_c['pred_label']) &
-        (df_c['measurement_noise'] == False) &
-        (df_c['mislabeled'] == False))] # here is only wmv_good, wmv_for_c is missing
-        rounded_new_mislabels_c_pred_probas = df_new_mislabels_c.pred_probas.apply(lambda x: np.round(x, 1))
-        new_mislabels_c_counts_probas = rounded_new_mislabels_c_pred_probas.apply(lambda x: list(x)).value_counts()
+        df_c_pred_good_samples = df_c[df_c['directory'].str.contains('c_good|c_for_wmv', case=False, na=False)]
+        c_pred_good_probas = df_c_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        c_pred_good_probas_counts = c_pred_good_probas.apply(lambda x: list(x)).value_counts()
 
-        df_new_good_samples_c = df_c[((df_c['label'] == df_c['pred_label']) &
-        (df_c['measurement_noise'] == False) &
-        (df_c['mislabeled'] == False))] # here is only c_good, c_for_wmv is missing
-        rounded_new_good_samples_c_pred_probas = df_new_good_samples_c.pred_probas.apply(lambda x: np.round(x, 1))
-        new_good_samples_c_counts_probas = rounded_new_good_samples_c_pred_probas.apply(lambda x: list(x)).value_counts()
+        df_c_pred_mislabels = df_c[df_c['directory'].str.contains('wmv_good|wmv_for_c', case=False, na=False)]
+        c_pred_mislabels_probas = df_c_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        c_pred_mislabels_probas_counts = c_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        # print(f'new_mislabels_wmv_counts_probas: \n', new_mislabels_wmv_counts_probas)
-        # print(f'new_good_samples_wmv_counts_probas: \n', new_good_samples_wmv_counts_probas)
-        # print(f'new_mislabels_c_counts_probas: \n', new_mislabels_c_counts_probas)
-        # print(f'new_good_samples_c_counts_probas: \n', new_good_samples_c_counts_probas)
+        print("wmv_pred_good_probas_counts: \n", wmv_pred_good_probas_counts)
+        print("wmv_pred_mislabels_probas_counts: \n", wmv_pred_mislabels_probas_counts)
+        print("c_pred_good_probas_counts: \n", c_pred_good_probas_counts)
+        print("c_pred_mislabels_probas_counts: \n", c_pred_mislabels_probas_counts)
 
         # update mislabeled column
         df_wmv['mislabeled'] = df_wmv["directory"].isin([f"data/{subset}/wmv/c_for_wmv", f"data/{subset}/c/c_good"])
@@ -237,10 +236,14 @@ if __name__ == '__main__':
         df_wmv['label'] = outlier_labels_wmv
         df_c['label'] = outlier_labels_c
 
-        # df_wmv_path = os.path.join('data', f'df_{subset}_ae_wmv.csv')
-        # df_wmv.to_csv(df_wmv_path)
+        df_wmv_path = os.path.join('data', f'df_{subset}_ae_wmv.csv')
+        df_wmv.to_csv(df_wmv_path)
 
-        # df_c_path = os.path.join('data', f'df_{subset}_ae_c.csv')
-        # df_c.to_csv(df_c_path)
+        df_c_path = os.path.join('data', f'df_{subset}_ae_c.csv')
+        df_c.to_csv(df_c_path)
 
         print('')
+    
+    df_all_pred_counts = all_pred_counts[0] + all_pred_counts[1]
+    print(df_all_pred_counts)
+    print('')
