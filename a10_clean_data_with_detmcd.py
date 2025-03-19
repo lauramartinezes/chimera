@@ -45,7 +45,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         # Reduce dimensions to 512D for outlier detection
         print('Starting UMAP 512D reduction')
         latents = raw_latents.reshape(raw_latents.shape[0], -1)
-        reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
+        reducer_512d = umap.UMAP(n_components=5, random_state=42, n_jobs=1)
         latents_512d = reducer_512d.fit_transform(latents)
         
     elif method == 'cnn':
@@ -59,11 +59,9 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         latents_512d = latents
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
-    y_pred, metrics = get_outlier_predictions(
+    y_pred = get_outlier_predictions(
         latents_512d,
-        y_true,
-        model='MCD',
-        contamination= 0.21 if main_insect_class == 'c' else 0.11
+        model='DetMCD'
     )
 
     visualize_y_true_vs_y_pred_umap(
@@ -71,14 +69,12 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         measurement_noise, 
         mislabel_noise,
         y_pred, 
-        filename=f'{method}_{main_insect_class}_{phase}',
+        filename=f'detmcd_{method}_{main_insect_class}_{phase}',
         dirname=config["logging_params"]["save_dir"]
     )
 
     df_clean = df[y_pred == 0]
-    if f'mislabeled_{main_insect_class}' in df_clean.columns:
-        df_clean = df_clean[df_clean[f'mislabeled_{main_insect_class}'] == False]
-    return df_clean, metrics
+    return df_clean
 
 
 def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
@@ -128,15 +124,14 @@ def extract_features_from_encoding(model, dataloader, device):
 
 
 
-def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
+def get_outlier_predictions(X_train, model='HBOS'):
     print(f'{model} outlier extraction')
-    pyod_model = PYOD(seed=42, model_name=model, contamination=contamination)
+    pyod_model = PYOD(seed=42, model_name=model)
     pyod_model.fit(X_train, [])
     anomaly_scores = pyod_model.predict_score(X_train)
-    metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
     anomaly_binary_scores = pyod_model.predict_binary_score(X_train)
 
-    return anomaly_binary_scores, metrics
+    return anomaly_binary_scores
 
 
 def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None):
@@ -193,7 +188,7 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
     insect_classes = ['wmv', 'c']
-    ae_types = ['', 'adv_']
+    ae_types = ['adv_']
 
     transform_ae = transforms.Compose([
         transforms.Resize((config["data_params"]["patch_size"], config["data_params"]["patch_size"])),
@@ -224,11 +219,10 @@ if __name__ == '__main__':
             model_ae.to(device)
             print("Model correctly initialized")
 
-            df_train_clean, metrics = clean_df(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train", method=f'{ae_type}ae')
-            df_train_clean_path = os.path.join('data', f'df_train_{ae_type}ae_{main_insect_class}_clean.csv')
+            df_train_clean = clean_df(df_train, model_ae, device, config, transform_ae, pin_memory, main_insect_class, phase="train", method=f'{ae_type}ae')
+            df_train_clean_path = os.path.join('data', f'df_train_detmcd_{ae_type}ae_{main_insect_class}_clean.csv')
             df_train_clean.to_csv(df_train_clean_path, index=False)
 
-            print(f'Clean {main_insect_class} {ae_type} training dataset available')
-            print('metrics: ', metrics)
+            print(f'Clean {main_insect_class} training dataset available')
 
             print('')

@@ -296,8 +296,8 @@ if __name__ == '__main__':
         # Training Loop
         epochs = config["trainer_params"]["max_epochs"]
         patience = config["trainer_params"]["patience"]
-        save_path = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{main_insect_class}.pth')
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{main_insect_class}_best.pth')
+        save_path = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_adv_{main_insect_class}.pth')
+        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_adv_{main_insect_class}_best.pth')
         os.makedirs(config["logging_params"]["save_dir"], exist_ok=True)
 
         if not os.path.exists(save_path_best):
