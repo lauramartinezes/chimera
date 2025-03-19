@@ -258,14 +258,16 @@ if __name__ == '__main__':
             batch_size=config["data_params"]["train_batch_size"], 
             shuffle=True,
             num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+            pin_memory=pin_memory,
+            drop_last=True
         )
         train_hard_negatives_loader = DataLoader(
             train_dataset_hard_negatives, 
             batch_size=config["data_params"]["train_batch_size"], 
             shuffle=True,
             num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+            pin_memory=pin_memory,
+            drop_last=True
         )
         test_loader = DataLoader(
             test_dataset_vae, 
