@@ -36,6 +36,13 @@
 #     exit 1
 # fi
 
+# echo "a04_3_umap_projections_vgg16.py"
+# python "a04_3_umap_projections_vgg16.py"
+# if [ $? -ne 0 ]; then
+#     echo "a04_3_umap_projections_vgg16.py failed. Exiting."
+#     exit 1
+# fi
+
 # echo "Running a06_outliers_evaluation.py"
 # python "a06_outliers_evaluation.py"
 # if [ $? -ne 0 ]; then
@@ -50,15 +57,22 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# echo "Running a08_visualize_resnet_outlier_detection.py"
-# python "a08_visualize_resnet_outlier_detection.py"
-# if [ $? -ne 0 ]; then
-#     echo "a08_visualize_resnet_outlier_detection.py failed. Exiting."
-#     exit 1
-# fi
+echo "Running a08_visualize_resnet_outlier_detection.py"
+python "a08_visualize_resnet_outlier_detection.py"
+if [ $? -ne 0 ]; then
+    echo "a08_visualize_resnet_outlier_detection.py failed. Exiting."
+    exit 1
+fi
+
+echo "Running a09_analyze_meas_label_noise.py"
+python "a09_analyze_meas_label_noise.py"
+if [ $? -ne 0 ]; then
+    echo "a09_analyze_meas_label_noise.py failed. Exiting."
+    exit 1
+fi
 
 echo "Running a01_train_test_classifier.py"
-python "a01_train_test_classifier.py"
+python "a01_1_train_test_classifier.py"
 if [ $? -ne 0 ]; then
     echo "a01_train_test_classifier.py failed. Exiting."
     exit 1
