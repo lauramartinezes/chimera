@@ -1,5 +1,6 @@
 import os
 import random
+import cuml
 import numpy as np
 import pandas as pd
 import timm
@@ -43,7 +44,9 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
     
     # Reduce dimensions to 512D for outlier detection
-    reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42, n_jobs=1)
+    #reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42, n_jobs=1)
+    reducer_n_d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=n_dim_reduction, random_state=42)
+
     latents_raw_encoding_n_d = reducer_n_d.fit_transform(reshaped_raw_features_encoding)
     
     get_outlier_methods_csv(
@@ -275,6 +278,32 @@ if __name__ == '__main__':
             phase="train", 
             cnn_type='adbench'
         )     
-        print('Metrics for AdBench are available') 
+        print('Metrics for AdBench are available')
+
+        # VGG16 method
+        model_name = 'resnet18'
+        model_vgg16 = timm.create_model(model_name, pretrained=False, num_classes=2)
+        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    
+        # Load the model
+        if os.path.exists(save_path_best):
+            model_vgg16.load_state_dict(torch.load(save_path_best))
+            print("Model correctly loaded")
+        else:
+            print("Model not found")
+        model_vgg16 = torch.nn.Sequential(*(list(model_vgg16.children())[:-1]))
+        model_vgg16.eval()
+
+        process_data_cnn(
+            df_train, 
+            model_vgg16, 
+            device, 
+            config, 
+            transform_cnn, 
+            main_insect_class, 
+            phase="train", 
+            cnn_type=model_name
+        ) 
+        print('Metrics for VGG16 are available')
 
         print('')
