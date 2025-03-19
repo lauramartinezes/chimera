@@ -1,5 +1,6 @@
 import os
 import random
+import cuml
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -56,7 +57,8 @@ def visualize_y_pred_umap(features, y_pred):
     # UMAP transformation (shared latent space for both plots)
     if features.shape[1] > 2:
         print(f'Starting UMAP 2D reduction')
-        reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        #reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
         latents_2d = reducer_2d.fit_transform(features)
     else:
         latents_2d = features
