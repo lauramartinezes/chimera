@@ -21,13 +21,13 @@ from a01_1_train_test_classifier import SimpleCNN, compute_accuracy
 if torch.cuda.is_available():
     torch.backends.cudnn.deterministic = True
 
-def update_mislabeled_flags(row, mislabeled_col, wmv_value, c_value):
+def update_mislabeled_flags(row, mislabeled_col, insect_0_value, insect_classes):
     if row[mislabeled_col]:
-        row['mislabeled_wmv'] = wmv_value
-        row['mislabeled_c'] = not wmv_value
+        row[f'mislabeled_{insect_classes[0]}'] = insect_0_value
+        row[f'mislabeled_{insect_classes[1]}'] = not insect_0_value
     else:
-        row['mislabeled_wmv'] = False
-        row['mislabeled_c'] = False
+        row[f'mislabeled_{insect_classes[0]}'] = False
+        row[f'mislabeled_{insect_classes[1]}'] = False
     return row
 
 def compute_predictions(model, data_loader, device):
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     
-    insect_classes = ['wmv', 'c']
+    insect_classes = ['wmv', 'm']
     clean_dataset = ''
     method = 'ae' 
     subsets = ['train', 'val']
@@ -123,15 +123,12 @@ if __name__ == '__main__':
             df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv')
             df_subset_i = pd.read_csv(df_subset_path)
             df_subset_i['noisy_outlier_label_original'] = df_subset_i.label
+            
             # Correct labels for training a classifier instead of an outlier detector
-            if main_insect_class == 'wmv':
-                df_subset_i.label = 0
-                df_subset_i['mislabeled_wmv'] = df_subset_i['mislabeled']
-                df_subset_i['mislabeled_c'] = False
-            if main_insect_class == 'c':
-                df_subset_i.label = 1
-                df_subset_i['mislabeled_c'] = df_subset_i['mislabeled']
-                df_subset_i['mislabeled_wmv'] = False
+            df_subset_i.label = i
+            df_subset_i[f'mislabeled_{main_insect_class}'] = df_subset_i['mislabeled']
+            df_subset_i[f'mislabeled_{mislabeled_insect_class}'] = False
+
             dfs_subset.append(df_subset_i)
         
         df_subset = pd.concat(dfs_subset, ignore_index=True)
@@ -167,80 +164,80 @@ if __name__ == '__main__':
         df_subset['pred_label'] = all_predictions
         df_subset['pred_probas'] = all_probs
 
-        df_wmv = df_subset[df_subset['pred_label'] == 0]
-        df_c = df_subset[df_subset['pred_label'] == 1]
+        df_insect_0 = df_subset[df_subset['pred_label'] == 0]
+        df_insect_1 = df_subset[df_subset['pred_label'] == 1]
 
-        df_wmv_directory_counts = df_wmv.directory.value_counts()
-        pred_good_samples_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('wmv_good|wmv_for_c')].sum()
-        pred_measurement_noise_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
-        pred_mislabels_wmv = df_wmv_directory_counts.loc[lambda x: x.index.str.contains('c_good|c_for_wmv')].sum()
+        df_insect_0_directory_counts = df_insect_0.directory.value_counts()
+        pred_good_samples_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{insect_classes[0]}_good|{insect_classes[0]}_for_{insect_classes[1]}')].sum()
+        pred_measurement_noise_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
+        pred_mislabels_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{insect_classes[1]}_good|{insect_classes[1]}_for_{insect_classes[0]}')].sum()
 
-        df_c_directory_counts = df_c.directory.value_counts()
-        pred_good_samples_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('c_good|c_for_wmv')].sum()
-        pred_measurement_noise_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
-        pred_mislabels_c = df_c_directory_counts.loc[lambda x: x.index.str.contains('wmv_good|wmv_for_c')].sum()
+        df_insect_1_directory_counts = df_insect_1.directory.value_counts()
+        pred_good_samples_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{insect_classes[1]}_good|{insect_classes[1]}_for_{insect_classes[0]}')].sum()
+        pred_measurement_noise_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
+        pred_mislabels_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{insect_classes[0]}_good|{insect_classes[0]}_for_{insect_classes[1]}')].sum()
     
 
         # Generate df with rows good samples, mislabels and measurement noise and columns wmv and c
         df_pred_counts = pd.DataFrame({
-            'good_samples': [pred_good_samples_wmv, pred_good_samples_c],
-            'mislabels': [pred_mislabels_wmv, pred_mislabels_c],
-            'measurement_noise': [pred_measurement_noise_wmv, pred_measurement_noise_c]
-        }, index=['wmv', 'c'])
+            'good_samples': [pred_good_samples_insect_0, pred_good_samples_insect_1],
+            'mislabels': [pred_mislabels_insect_0, pred_mislabels_insect_1],
+            'measurement_noise': [pred_measurement_noise_insect_0, pred_measurement_noise_insect_1]
+        }, index=[insect_classes[0], insect_classes[1]])
 
         print(df_pred_counts)
         all_pred_counts.append(df_pred_counts)
 
         ########################## Probas counts
-        df_wmv_pred_good_samples = df_wmv[df_wmv['directory'].str.contains('wmv_good|wmv_for_c', case=False, na=False)]
-        wmv_pred_good_probas = df_wmv_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        wmv_pred_good_probas_counts = wmv_pred_good_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_0_pred_good_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{insect_classes[0]}_good|{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
+        insect_0_pred_good_probas = df_insect_0_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_good_probas_counts = insect_0_pred_good_probas.apply(lambda x: list(x)).value_counts()
 
-        df_wmv_pred_mislabels = df_wmv[df_wmv['directory'].str.contains('c_good|c_for_wmv', case=False, na=False)]
-        wmv_pred_mislabels_probas = df_wmv_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        wmv_pred_mislabels_probas_counts = wmv_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_0_pred_mislabels = df_insect_0[df_insect_0['directory'].str.contains(f'{insect_classes[1]}_good|{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
+        insect_0_pred_mislabels_probas = df_insect_0_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_mislabels_probas_counts = insect_0_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        df_c_pred_good_samples = df_c[df_c['directory'].str.contains('c_good|c_for_wmv', case=False, na=False)]
-        c_pred_good_probas = df_c_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        c_pred_good_probas_counts = c_pred_good_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_1_pred_good_samples = df_insect_1[df_insect_1['directory'].str.contains(f'{insect_classes[1]}_good|{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
+        insect_1_pred_good_probas = df_insect_1_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_good_probas_counts = insect_1_pred_good_probas.apply(lambda x: list(x)).value_counts()
 
-        df_c_pred_mislabels = df_c[df_c['directory'].str.contains('wmv_good|wmv_for_c', case=False, na=False)]
-        c_pred_mislabels_probas = df_c_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        c_pred_mislabels_probas_counts = c_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_1_pred_mislabels = df_insect_1[df_insect_1['directory'].str.contains(f'{insect_classes[0]}_good|{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
+        insect_1_pred_mislabels_probas = df_insect_1_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_mislabels_probas_counts = insect_1_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        print("wmv_pred_good_probas_counts: \n", wmv_pred_good_probas_counts)
-        print("wmv_pred_mislabels_probas_counts: \n", wmv_pred_mislabels_probas_counts)
-        print("c_pred_good_probas_counts: \n", c_pred_good_probas_counts)
-        print("c_pred_mislabels_probas_counts: \n", c_pred_mislabels_probas_counts)
+        print(f"{insect_classes[0]}_pred_good_probas_counts: \n", insect_0_pred_good_probas_counts)
+        print(f"{insect_classes[0]}_pred_mislabels_probas_counts: \n", insect_0_pred_mislabels_probas_counts)
+        print(f"{insect_classes[1]}_pred_good_probas_counts: \n", insect_1_pred_good_probas_counts)
+        print(f"{insect_classes[1]}_pred_mislabels_probas_counts: \n", insect_1_pred_mislabels_probas_counts)
 
         # update mislabeled column
-        df_wmv['mislabeled'] = df_wmv["directory"].isin([f"data/{subset}/wmv/c_for_wmv", f"data/{subset}/c/c_good"])
+        df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"data/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"data/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
 
-        df_c['mislabeled'] = df_c["directory"].isin([f"data/{subset}/c/wmv_for_c", f"data/{subset}/wmv/wmv_good"])
+        df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"data/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"data/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
 
         # add Best Alternative Class (BAC) column
-        df_wmv['bac'] = 1 - df_wmv.label
-        df_c['bac'] = 1 - df_c.label
+        df_insect_0['bac'] = 1 - df_insect_0.label
+        df_insect_1['bac'] = 1 - df_insect_1.label
 
         # add Probability of Alternative Class (PAC) column
-        df_wmv['pac'] = df_wmv.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
-        df_c['pac'] = df_c.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
+        df_insect_0['pac'] = df_insect_0.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
+        df_insect_1['pac'] = df_insect_1.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
 
         # update labels column to be outlier or inlier
-        df_wmv['noisy_label_classification'] = df_wmv['label']
-        df_c['noisy_label_classification'] = df_c['label']
+        df_insect_0['noisy_label_classification'] = df_insect_0['label']
+        df_insect_1['noisy_label_classification'] = df_insect_1['label']
 
-        outlier_labels_wmv = ((df_wmv['measurement_noise']==True) | (df_wmv['mislabeled'])).astype(int)
-        outlier_labels_c = ((df_c['measurement_noise']==True) | (df_c['mislabeled'])).astype(int)
+        outlier_labels_insect_0 = ((df_insect_0['measurement_noise']==True) | (df_insect_0['mislabeled'])).astype(int)
+        outlier_labels_insect_1 = ((df_insect_1['measurement_noise']==True) | (df_insect_1['mislabeled'])).astype(int)
 
-        df_wmv['label'] = outlier_labels_wmv
-        df_c['label'] = outlier_labels_c
+        df_insect_0['label'] = outlier_labels_insect_0
+        df_insect_1['label'] = outlier_labels_insect_1
 
-        df_wmv_path = os.path.join('data', f'df_{subset}_ae_wmv.csv')
-        df_wmv.to_csv(df_wmv_path)
+        df_insect_0_path = os.path.join('data', f'df_{subset}_ae_{insect_classes[0]}.csv')
+        df_insect_0.to_csv(df_insect_0_path)
 
-        df_c_path = os.path.join('data', f'df_{subset}_ae_c.csv')
-        df_c.to_csv(df_c_path)
+        df_insect_1_path = os.path.join('data', f'df_{subset}_ae_{insect_classes[1]}.csv')
+        df_insect_1.to_csv(df_insect_1_path)
 
         print('')
     
