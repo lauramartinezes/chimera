@@ -224,7 +224,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]

@@ -243,7 +243,7 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     ae_types = ['', 'adv_']
     subsets = ['train', 'val']
 
@@ -282,7 +282,7 @@ if __name__ == '__main__':
             model_ae.to(device)
             print("Model correctly initialized")
 
-            od_methods = ['DBSCAN', 'MCD']
+            od_methods = ['DBSCAN', 'DeepSVDD']
             for od_method in od_methods:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
                     df_train_val, 

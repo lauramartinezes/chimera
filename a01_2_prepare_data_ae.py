@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
-from a01_1_train_test_classifier import SimpleCNN, compute_accuracy
+from a01_1_train_test_classifier import OverfittingCNN, SimpleCNN, compute_accuracy
 
 
 if torch.cuda.is_available():
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     
-    insect_classes = ['wmv', 'm']
+    insect_classes = config["data_params"]["data_classes"]
     clean_dataset = ''
     method = 'ae' 
     subsets = ['train', 'val']
@@ -98,8 +98,9 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'resnet18' #'mobilenetv3_small_100' 
+    model_name = 'resnet18' #'mobilenetv3_small_100' #overfittingcnn
     #model = SimpleCNN()
+    #model = OverfittingCNN()
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 

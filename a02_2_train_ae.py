@@ -321,26 +321,26 @@ def plot_latent_space_with_tooltips(train_features, test_features, labels_train,
     app.run_server(debug=True)
 
 
-def visualize_test_latent_space_wrt_train(train_features, test_features, labels_train, labels_test, filename='', dirname=''):
-    umap_folder = os.path.join(dirname, 'UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
+# def visualize_test_latent_space_wrt_train(train_features, test_features, labels_train, labels_test, filename='', dirname=''):
+#     umap_folder = os.path.join(dirname, 'UMAPS')
+#     os.makedirs(umap_folder, exist_ok=True)
     
-    # Dictionary to map numbers to text labels
-    label_mapping_train = {0: f"Normal Sample ({main_insect_class})", 1: f"Label Noise ({mislabeled_insect_class})", 2: "Measurement Noise"}
-    txt_labels_train = [label_mapping_train[label] for label in labels_train]
+#     # Dictionary to map numbers to text labels
+#     label_mapping_train = {0: f"Normal Sample ({main_insect_class})", 1: f"Label Noise ({mislabeled_insect_class})", 2: "Measurement Noise"}
+#     txt_labels_train = [label_mapping_train[label] for label in labels_train]
     
-    label_mapping_test = {0: "wmv_test", 1: "c_test"}
-    txt_labels_test = [label_mapping_test[label] for label in labels_test]
+#     label_mapping_test = {0: "wmv_test", 1: "c_test"}
+#     txt_labels_test = [label_mapping_test[label] for label in labels_test]
 
-    # Plot UMAP results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=test_features[:, 0], y=test_features[:, 1], hue=txt_labels_test, palette=sns.color_palette("Set2", len(label_mapping_test)), marker='o', legend='full')
-    sns.scatterplot(x=train_features[:, 0], y=train_features[:, 1], hue=txt_labels_train, palette=sns.color_palette("hsv", len(label_mapping_train)), marker='x', s=15, legend='full')
-    plt.title("Latent Space UMAP Visualization")
-    plt.xlabel("UMAP dimension 1")
-    plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
+#     # Plot UMAP results
+#     plt.figure(figsize=(10, 8))
+#     sns.scatterplot(x=test_features[:, 0], y=test_features[:, 1], hue=txt_labels_test, palette=sns.color_palette("Set2", len(label_mapping_test)), marker='o', legend='full')
+#     sns.scatterplot(x=train_features[:, 0], y=train_features[:, 1], hue=txt_labels_train, palette=sns.color_palette("hsv", len(label_mapping_train)), marker='x', s=15, legend='full')
+#     plt.title("Latent Space UMAP Visualization")
+#     plt.xlabel("UMAP dimension 1")
+#     plt.ylabel("UMAP dimension 2")
+#     plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
+#     plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
 
 if __name__ == '__main__':
@@ -358,7 +358,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]

@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     model_name = 'resnet18'
     cnn_types = ['cnn', 'adbench', model_name]
 
@@ -73,7 +73,7 @@ if __name__ == '__main__':
             if cnn_type == 'cnn' or cnn_type == 'adbench':
                 model_cnn = timm.create_model('resnet18', pretrained=True)
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['LODA']
+                od_methods = ['OCSVM']
             elif cnn_type == model_name:
                 model_cnn = timm.create_model(model_name, pretrained=False, num_classes=2)
                 save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')

@@ -33,7 +33,7 @@ if __name__ == '__main__':
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     method_datasets = ['ae', 'adv_ae', 'adbench', 'cnn', 'resnet18']
     subsets = ['train', 'val']
 
@@ -44,9 +44,9 @@ if __name__ == '__main__':
         df_analysis = pd.DataFrame(index=insect_classes)
 
         if method == 'ae' or method == 'adv_ae':
-            od_methods = ['DBSCAN']#, 'MCD']
+            od_methods = ['DBSCAN', 'DeepSVDD']
         elif method == 'adbench' or method == 'cnn':
-            od_methods = ['LODA']
+            od_methods = ['OCSVM']
         elif method == 'resnet18':
             od_methods = ['OCSVM']
 
