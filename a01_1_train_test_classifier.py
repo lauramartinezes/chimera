@@ -18,26 +18,152 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from mnist_dataset import CustomBinaryInsectDF
 
+# class SimpleCNN(nn.Module):
+#     def __init__(self, n_classes=2):
+#         super(SimpleCNN, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.pool = nn.AdaptiveAvgPool2d((7, 7))  # Downsample to 7x7
+#         self.fc1 = nn.Linear(64 * 7 * 7, 128)
+#         self.fc2 = nn.Linear(128, n_classes)
+#         self.dropout = nn.Dropout(0.3)
+
+#     def forward(self, x):
+#         x = F.relu(self.conv1(x))
+#         x = F.relu(self.conv2(x))
+#         x = self.pool(x)  # Apply adaptive pooling
+#         x = torch.flatten(x, 1)
+#         x = self.dropout(F.relu(self.fc1(x)))
+#         x = self.fc2(x)
+#         return x
+
 class SimpleCNN(nn.Module):
-    def __init__(self):
+    def __init__(self, n_classes=2):
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)  # Batch normalization for stability
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.AdaptiveAvgPool2d((7, 7))  # Downsample to 7x7
+        self.bn2 = nn.BatchNorm2d(64)
+        
+        self.pool = nn.MaxPool2d(2, 2)  # Max pooling (halves the size)
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((7, 7))  # Ensures fixed size
+        
         self.fc1 = nn.Linear(64 * 7 * 7, 128)
-        self.fc2 = nn.Linear(128, 2)
-        self.dropout = nn.Dropout(0.3)
+        self.fc2 = nn.Linear(128, n_classes)
+        self.dropout = nn.Dropout(0.4)  # Slightly higher dropout for regularization
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)  # Apply adaptive pooling
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))  # Conv -> BN -> ReLU -> MaxPool
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = self.adaptive_pool(x)  # Adaptive pooling to ensure 7x7 output
         x = torch.flatten(x, 1)
         x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
+        x = self.fc2(x)  # Output logits for n_classes
+        return x
+    
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+#73 vs 82
+# class OverfittingCNN(nn.Module):
+#     def __init__(self, n_classes=2):
+#         super(OverfittingCNN, self).__init__()
+
+#         # Use stride=2 instead of pooling to reduce feature map size
+#         self.conv1 = nn.Conv2d(3, 128, kernel_size=3, stride=2, padding=1)  # 150x150 -> 75x75
+#         self.conv2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1) # 75x75 -> 38x38
+#         self.conv3 = nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1) # 38x38 -> 19x19
+#         self.conv4 = nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1) # 19x19 -> 10x10
+
+#         # Reduce FC layer size by processing a smaller feature map
+#         self.fc1 = nn.Linear(1024 * 10 * 10, 1024)  
+#         self.fc2 = nn.Linear(1024, 256)
+#         self.fc3 = nn.Linear(256, n_classes)
+        
+#         self.leaky_relu = nn.LeakyReLU(0.01)
+
+#         self._init_weights()  # Apply extreme weight initialization
+
+#     def forward(self, x):
+#         x = self.leaky_relu(self.conv1(x))
+#         x = self.leaky_relu(self.conv2(x))
+#         x = self.leaky_relu(self.conv3(x))  
+#         x = self.leaky_relu(self.conv4(x))  
+#         x = torch.flatten(x, 1)  
+#         x = self.leaky_relu(self.fc1(x))
+#         x = self.leaky_relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+
+#     def _init_weights(self):
+#         """Applies extreme weight initialization to make the model unstable."""
+#         for m in self.modules():
+#             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+#                 nn.init.normal_(m.weight, mean=0, std=2.0)  # Large std makes it overfit
+#                 if m.bias is not None:
+#                     nn.init.constant_(m.bias, 0)
+
+class OverfittingCNN(nn.Module):
+    def __init__(self, n_classes=2):
+        super(OverfittingCNN, self).__init__()
+
+        # Reduce feature map size gradually
+        self.conv1 = nn.Conv2d(3, 128, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
+        self.conv5 = nn.Conv2d(512, 512, kernel_size=3, stride=2, padding=1)  # Stride to downsample
+
+        # Global average pooling to guarantee fixed size before FC layers
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))  # Output shape = (batch, 512, 1, 1)
+
+        # Fully connected layers
+        self.fc1 = nn.Linear(512, 512)  
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, n_classes)
+        
+        self.leaky_relu = nn.LeakyReLU(0.01)
+
+        self._init_weights()  # Extreme weight initialization
+
+    def forward(self, x):
+        x = self.leaky_relu(self.conv1(x))
+        x = self.leaky_relu(self.conv2(x))
+        x = self.leaky_relu(self.conv3(x))  
+        x = self.leaky_relu(self.conv4(x))  
+        x = self.leaky_relu(self.conv5(x))  
+
+        x = self.global_pool(x)  # Ensure the shape is (batch, 512, 1, 1)
+        x = torch.flatten(x, 1)  # Flatten to (batch, 512)
+
+        x = self.leaky_relu(self.fc1(x))
+        x = self.leaky_relu(self.fc2(x))
+        x = self.fc3(x)
         return x
 
+    def _init_weights(self):
+        """Applies extreme weight initialization to make the model unstable."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, mean=0, std=2.0)  # Large std makes it overfit
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
 
+    
+# class SimpleCNN(nn.Module):
+#     def __init__(self, n_classes=2):
+#         super(SimpleCNN, self).__init__()
+#         self.conv = nn.Conv2d(3, 16, kernel_size=3, padding=1)  # Single conv layer
+#         self.pool = nn.AdaptiveAvgPool2d((4, 4))  # Smaller adaptive pooling
+#         self.fc = nn.Linear(16 * 4 * 4, n_classes)  # Fully connected layer
+
+#     def forward(self, x):
+#         x = F.relu(self.conv(x))  # Apply single conv layer with ReLU
+#         x = self.pool(x)  # Downsample to (4x4)
+#         x = torch.flatten(x, 1)  # Flatten for FC layer
+#         x = self.fc(x)  # Output logits
+#         return x
 
 
 if torch.cuda.is_available():
@@ -195,7 +321,7 @@ if __name__ == '__main__':
     ##########################
     ### BINARY CLASS INSECT DATASET
     ##########################
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"] #['wmv', 'm']
     method_datasets = ['raw', 'cleaning_benchmark', 'ae', 'adv_ae', 'adbench']#['adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
     retrain_models = True
     
@@ -236,7 +362,7 @@ if __name__ == '__main__':
         if 'ae' in method:
             od_method = '_DBSCAN'
         elif method == 'adbench':
-            od_method = '_LODA'
+            od_method = '_OCSVM'
         else:   
             od_method = ''
         dfs_train_ = []
@@ -253,10 +379,7 @@ if __name__ == '__main__':
             if method == 'cleaning_benchmark':
                 df_train_i = df_train_i[df_train_i['label'] == 0]
             # Correct labels for training a classifier instead of an outlier detector
-            if main_insect_class == 'wmv':
-                df_train_i.label = 0
-            if main_insect_class == 'c':
-                df_train_i.label = 1
+            df_train_i.label = i
             dfs_train_.append(df_train_i)
         
         df_train = pd.concat(dfs_train_, ignore_index=True)
@@ -276,10 +399,7 @@ if __name__ == '__main__':
             if method == 'cleaning_benchmark':
                 df_val_i = df_val_i[df_val_i['label'] == 0]
             # Correct labels for training a classifier instead of an outlier detector
-            if main_insect_class == 'wmv':
-                df_val_i.label = 0
-            if main_insect_class == 'c':
-                df_val_i.label = 1
+            df_val_i.label = i
             dfs_val.append(df_val_i)
         
         df_val = pd.concat(dfs_val, ignore_index=True)
@@ -341,6 +461,7 @@ if __name__ == '__main__':
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
         model_name = 'resnet18' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
+        # model = OverfittingCNN(n_classes=len(insect_classes))
         model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
