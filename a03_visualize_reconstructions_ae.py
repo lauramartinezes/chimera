@@ -17,8 +17,9 @@ from vq_vae import VQVAE
 
 
 def plot_original_vs_reconstructed_images(images, reconstructions, filename=None, dirname=None):
-    fig, axes = plt.subplots(2, 8, figsize=(12, 4))
-    for i in range(8):
+    range_len = 8 if len(images)>8 else len(images)
+    fig, axes = plt.subplots(2, range_len, figsize=(12, 4))
+    for i in range(range_len):
         axes[0, i].imshow(images[i].permute(1, 2, 0).numpy())
         axes[0, i].axis('off')
         axes[1, i].imshow(reconstructions[i].permute(1, 2, 0).numpy())
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     vq_vae_types = ['', 'adv_'] 
     
     for vq_vae_type in vq_vae_types:
