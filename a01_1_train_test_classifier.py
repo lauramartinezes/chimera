@@ -527,18 +527,18 @@ if __name__ == '__main__':
                     val_losses.append(val_epoch_loss)
                     test_losses.append(test_epoch_loss)
                                 
-                    (train_accuracy, train_wmv_accuracy, train_c_accuracy, 
-                     train_wmv_meas_noise_accuracy, train_c_meas_noise_accuracy, 
-                     train_wmv_milabel_accuracy, train_c_milabel_accuracy, 
-                     train_wmv_good_accuracy, train_c_good_accuracy) = compute_accuracy(model, train_loader, device=DEVICE)
-                    (val_accuracy, val_wmv_accuracy, val_c_accuracy, 
-                     val_wmv_meas_noise_accuracy, val_c_meas_noise_accuracy, 
-                     val_wmv_milabel_accuracy, val_c_milabel_accuracy,
-                     val_wmv_good_accuracy, val_c_good_accuracy) = compute_accuracy(model, val_loader, device=DEVICE)
-                    (test_accuracy, test_wmv_accuracy, test_c_accuracy, 
-                     test_wmv_meas_noise_accuracy, test_c_meas_noise_accuracy, 
-                     test_wmv_milabel_accuracy, test_c_milabel_accuracy,
-                     test_wmv_good_accuracy, test_c_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
+                    (train_accuracy, train_insect_0_accuracy, train_insect_1_accuracy, 
+                     train_insect_0_meas_noise_accuracy, train_insect_1_meas_noise_accuracy, 
+                     train_insect_0_milabel_accuracy, train_insect_1_milabel_accuracy, 
+                     train_insect_0_good_accuracy, train_insect_1_good_accuracy) = compute_accuracy(model, train_loader, device=DEVICE)
+                    (val_accuracy, val_insect_0_accuracy, val_insect_1_accuracy, 
+                     val_insect_0_meas_noise_accuracy, val_insect_1_meas_noise_accuracy, 
+                     val_insect_0_milabel_accuracy, val_insect_1_milabel_accuracy,
+                     val_insect_0_good_accuracy, val_insect_1_good_accuracy) = compute_accuracy(model, val_loader, device=DEVICE)
+                    (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
+                     test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
+                     test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
+                     test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
                     train_accuracies.append(train_accuracy.item())
                     val_accuracies.append(val_accuracy.item())
                     test_accuracies.append(test_accuracy.item())
@@ -549,34 +549,34 @@ if __name__ == '__main__':
                         train_accuracy,
                         val_accuracy,
                         test_accuracy))
-                    print('Train WMV Accuracy: %.2f%%' % train_wmv_accuracy)
-                    print('Train C Accuracy: %.2f%%' % train_c_accuracy)
-                    print('Train WMV Meas. Noise Accuracy: %.2f%%' % train_wmv_meas_noise_accuracy)
-                    print('Train C Meas. Noise Accuracy: %.2f%%' % train_c_meas_noise_accuracy)
-                    print('Train WMV Mislabel Accuracy: %.2f%%' % train_wmv_milabel_accuracy)
-                    print('Train C Mislabel Accuracy: %.2f%%' % train_c_milabel_accuracy)
-                    print('Train WMV Good Accuracy: %.2f%%' % train_wmv_good_accuracy)
-                    print('Train C Good Accuracy: %.2f%%' % train_c_good_accuracy)
+                    print(f'Train {insect_classes[0]} Accuracy: %.2f%%' % train_insect_0_accuracy)
+                    print(f'Train {insect_classes[1]} Accuracy: %.2f%%' % train_insect_1_accuracy)
+                    print(f'Train {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % train_insect_0_meas_noise_accuracy)
+                    print(f'Train {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % train_insect_1_meas_noise_accuracy)
+                    print(f'Train {insect_classes[0]} Mislabel Accuracy: %.2f%%' % train_insect_0_milabel_accuracy)
+                    print(f'Train {insect_classes[1]} Mislabel Accuracy: %.2f%%' % train_insect_1_milabel_accuracy)
+                    print(f'Train {insect_classes[0]} Good Accuracy: %.2f%%' % train_insect_0_good_accuracy)
+                    print(f'Train {insect_classes[1]} Good Accuracy: %.2f%%' % train_insect_1_good_accuracy)
 
-                    print('Validation WMV Accuracy: %.2f%%' % val_wmv_accuracy)
-                    print('Validation C Accuracy: %.2f%%' % val_c_accuracy)
-                    print('Validation WMV Meas. Noise Accuracy: %.2f%%' % val_wmv_meas_noise_accuracy)
-                    print('Validation C Meas. Noise Accuracy: %.2f%%' % val_c_meas_noise_accuracy)
-                    print('Validation WMV Mislabel Accuracy: %.2f%%' % val_wmv_milabel_accuracy)
-                    print('Validation C Mislabel Accuracy: %.2f%%' % val_c_milabel_accuracy)
-                    print('Validation WMV Good Accuracy: %.2f%%' % val_wmv_good_accuracy)
-                    print('Validation C Good Accuracy: %.2f%%' % val_c_good_accuracy)
+                    print(f'Validation {insect_classes[0]} Accuracy: %.2f%%' % val_insect_0_accuracy)
+                    print(f'Validation {insect_classes[1]} Accuracy: %.2f%%' % val_insect_1_accuracy)
+                    print(f'Validation {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % val_insect_0_meas_noise_accuracy)
+                    print(f'Validation {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % val_insect_1_meas_noise_accuracy)
+                    print(f'Validation {insect_classes[0]} Mislabel Accuracy: %.2f%%' % val_insect_0_milabel_accuracy)
+                    print(f'Validation {insect_classes[1]} Mislabel Accuracy: %.2f%%' % val_insect_1_milabel_accuracy)
+                    print(f'Validation {insect_classes[0]} Good Accuracy: %.2f%%' % val_insect_0_good_accuracy)
+                    print(f'Validation {insect_classes[1]} Good Accuracy: %.2f%%' % val_insect_1_good_accuracy)
 
-                    print('Test WMV Accuracy: %.2f%%' % test_wmv_accuracy)
-                    print('Test C Accuracy: %.2f%%' % test_c_accuracy)
-                    # print('Test WMV Meas. Noise Accuracy: %.2f%%' % test_wmv_meas_noise_accuracy)
-                    # print('Test C Meas. Noise Accuracy: %.2f%%' % test_c_meas_noise_accuracy)
-                    # print('Test WMV Mislabel Accuracy: %.2f%%' % test_wmv_milabel_accuracy)
-                    # print('Test C Mislabel Accuracy: %.2f%%' % test_c_milabel_accuracy)
-                    # print('Test WMV Good Accuracy: %.2f%%' % test_wmv_good_accuracy)
-                    # print('Test C Good Accuracy: %.2f%%' % test_c_good_accuracy)
+                    print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
+                    print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
+                    # print(f'Test {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % test_insect_0_meas_noise_accuracy)
+                    # print(f'Test {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % test_insect_1_meas_noise_accuracy)
+                    # print(f'Test {insect_classes[0]} Mislabel Accuracy: %.2f%%' % test_insect_0_milabel_accuracy)
+                    # print(f'Test {insect_classes[1]} Mislabel Accuracy: %.2f%%' % test_insect_1_milabel_accuracy)
+                    # print(f'Test {insect_classes[0]} Good Accuracy: %.2f%%' % test_insect_0_good_accuracy)
+                    # print(f'Test {insect_classes[1]} Good Accuracy: %.2f%%' % test_insect_1_good_accuracy)
 
-                    lowest_val_class_accuracy = min(val_wmv_accuracy, val_c_accuracy)
+                    lowest_val_class_accuracy = min(val_insect_0_accuracy, val_insect_1_accuracy)
 
                         # Check if the validation accuracy improved
                     valid_accuracy_improved = val_accuracy > best_val_accuracy
@@ -601,12 +601,12 @@ if __name__ == '__main__':
 
             # Plot the training and validation accuracy
             plt.figure(figsize=(10, 5))
-            plt.plot(range(1, NUM_EPOCHS + 1), train_accuracies, label='Train Accuracy')
-            plt.plot(range(1, NUM_EPOCHS + 1), val_accuracies, label='Validation Accuracy')
-            plt.plot(range(1, NUM_EPOCHS + 1), test_accuracies, label='Test Accuracy')
+            plt.plot(range(1, NUM_EPOCHS + 1), train_accuracies, label=f'Train Accuracy')
+            plt.plot(range(1, NUM_EPOCHS + 1), val_accuracies, label=f'Validation Accuracy')
+            plt.plot(range(1, NUM_EPOCHS + 1), test_accuracies, label=f'Test Accuracy')
             plt.xlabel('Epochs')
             plt.ylabel('Accuracy')
-            plt.title('Training and Validation Accuracy')
+            plt.title(f'Training and Validation Accuracy')
             plt.legend()
             # plt.show()
             train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves')
@@ -616,12 +616,12 @@ if __name__ == '__main__':
 
             # Plot the training and validation loss
             plt.figure(figsize=(10, 5))
-            plt.plot(range(1, NUM_EPOCHS + 1), train_losses, label='Train Loss')
-            plt.plot(range(1, NUM_EPOCHS + 1), val_losses, label='Validation Loss')
-            plt.plot(range(1, NUM_EPOCHS + 1), test_losses, label='Test Loss')
+            plt.plot(range(1, NUM_EPOCHS + 1), train_losses, label=f'Train Loss')
+            plt.plot(range(1, NUM_EPOCHS + 1), val_losses, label=f'Validation Loss')
+            plt.plot(range(1, NUM_EPOCHS + 1), test_losses, label=f'Test Loss')
             plt.xlabel('Epochs')
             plt.ylabel('Loss')
-            plt.title('Training and Validation Loss')
+            plt.title(f'Training and Validation Loss')
             plt.legend()
             # plt.show()
             plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.png'))
@@ -641,20 +641,20 @@ if __name__ == '__main__':
         
         model.eval()
         with torch.set_grad_enabled(False): # save memory during inference
-            (test_accuracy, test_wmv_accuracy, test_c_accuracy, 
-            test_wmv_meas_noise_accuracy, test_c_meas_noise_accuracy, 
-            test_wmv_milabel_accuracy, test_c_milabel_accuracy,
-            test_wmv_good_accuracy, test_c_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
-            print('Test accuracy: %.2f%%' % test_accuracy)
-            print('Test WMV Accuracy: %.2f%%' % test_wmv_accuracy)
-            print('Test C Accuracy: %.2f%%' % test_c_accuracy)
+            (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
+            test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
+            test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
+            test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
+            print(f'Test accuracy: %.2f%%' % test_accuracy)
+            print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
+            print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
         
         results.append({
             "clean_dataset": not(clean_dataset==''),
             "best_val_accuracy": best_val_accuracy.item(),# if retrain_models==True else None,
             "test_accuracy": test_accuracy.item(),
-            "test_wmv_accuracy": test_wmv_accuracy.item(),
-            "test_c_accuracy": test_c_accuracy.item(),
+            f"test_{insect_classes[0]}accuracy": test_insect_0_accuracy.item(),
+            f"test_{insect_classes[1]}_accuracy": test_insect_1_accuracy.item(),
             'method': f'{method}'
         })
         df_results = pd.DataFrame(results)
