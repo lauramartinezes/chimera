@@ -1,3 +1,4 @@
+import argparse
 import os
 import random
 import shutil
@@ -18,48 +19,48 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from mnist_dataset import CustomBinaryInsectDF
 
-# class SimpleCNN(nn.Module):
-#     def __init__(self, n_classes=2):
-#         super(SimpleCNN, self).__init__()
-#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-#         self.pool = nn.AdaptiveAvgPool2d((7, 7))  # Downsample to 7x7
-#         self.fc1 = nn.Linear(64 * 7 * 7, 128)
-#         self.fc2 = nn.Linear(128, n_classes)
-#         self.dropout = nn.Dropout(0.3)
-
-#     def forward(self, x):
-#         x = F.relu(self.conv1(x))
-#         x = F.relu(self.conv2(x))
-#         x = self.pool(x)  # Apply adaptive pooling
-#         x = torch.flatten(x, 1)
-#         x = self.dropout(F.relu(self.fc1(x)))
-#         x = self.fc2(x)
-#         return x
-
 class SimpleCNN(nn.Module):
     def __init__(self, n_classes=2):
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)  # Batch normalization for stability
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        
-        self.pool = nn.MaxPool2d(2, 2)  # Max pooling (halves the size)
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((7, 7))  # Ensures fixed size
-        
+        self.pool = nn.AdaptiveAvgPool2d((7, 7))  # Downsample to 7x7
         self.fc1 = nn.Linear(64 * 7 * 7, 128)
         self.fc2 = nn.Linear(128, n_classes)
-        self.dropout = nn.Dropout(0.4)  # Slightly higher dropout for regularization
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))  # Conv -> BN -> ReLU -> MaxPool
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.adaptive_pool(x)  # Adaptive pooling to ensure 7x7 output
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)  # Apply adaptive pooling
         x = torch.flatten(x, 1)
         x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)  # Output logits for n_classes
+        x = self.fc2(x)
         return x
+
+# class SimpleCNN(nn.Module):
+#     def __init__(self, n_classes=2):
+#         super(SimpleCNN, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.bn1 = nn.BatchNorm2d(32)  # Batch normalization for stability
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.bn2 = nn.BatchNorm2d(64)
+        
+#         self.pool = nn.MaxPool2d(2, 2)  # Max pooling (halves the size)
+#         self.adaptive_pool = nn.AdaptiveAvgPool2d((7, 7))  # Ensures fixed size
+        
+#         self.fc1 = nn.Linear(64 * 7 * 7, 128)
+#         self.fc2 = nn.Linear(128, n_classes)
+#         self.dropout = nn.Dropout(0.4)  # Slightly higher dropout for regularization
+
+#     def forward(self, x):
+#         x = self.pool(F.relu(self.bn1(self.conv1(x))))  # Conv -> BN -> ReLU -> MaxPool
+#         x = self.pool(F.relu(self.bn2(self.conv2(x))))
+#         x = self.adaptive_pool(x)  # Adaptive pooling to ensure 7x7 output
+#         x = torch.flatten(x, 1)
+#         x = self.dropout(F.relu(self.fc1(x)))
+#         x = self.fc2(x)  # Output logits for n_classes
+#         return x
     
 import torch
 import torch.nn as nn
@@ -285,6 +286,21 @@ def split_data(df_train_val, test_size=0.2):
 
     return train_data, val_data
 
+def get_args():
+    parser = argparse.ArgumentParser(
+        description='Evaluation of weekly training')
+    parser.add_argument('--random_seed_1', type=int, default=1)
+    parser.add_argument('--random_seed_2', type=int, default=1265)
+    parser.add_argument('--learning_rate', type=float, default=0.0001)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--num_epochs', type=int, default=10)
+    parser.add_argument('--num_classes', type=int, default=2)
+    parser.add_argument('--device', type=str, default='cuda:0')
+    parser.add_argument('--modelname', type=str, default='resnet18')
+    parser.add_argument('--pretrained', type=bool, default=False)
+    parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
+    args = parser.parse_args()
+    return args
 
 ##########################
 ### SETTINGS
@@ -301,13 +317,14 @@ NUM_CLASSES = 2
 
 # Other
 DEVICE = "cuda:0"
-GRAYSCALE = True
 
 
 if __name__ == '__main__':
     # Load the configuration
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
+
+    args = get_args()
 
     # Set manual seed for reproducibility
     torch.manual_seed(config["exp_params"]["manual_seed"])
@@ -322,7 +339,7 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################
     insect_classes = config["data_params"]["data_classes"] #['wmv', 'm']
-    method_datasets = ['raw', 'cleaning_benchmark', 'ae', 'adv_ae', 'adbench']#['adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
+    method_datasets = ['ae', 'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#['adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
     retrain_models = True
     
     # transform_train = transforms.Compose([
@@ -462,6 +479,7 @@ if __name__ == '__main__':
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
         model_name = 'resnet18' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
         # model = OverfittingCNN(n_classes=len(insect_classes))
+        #model = SimpleCNN(n_classes=len(insect_classes))
         model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
@@ -609,7 +627,7 @@ if __name__ == '__main__':
             plt.title(f'Training and Validation Accuracy')
             plt.legend()
             # plt.show()
-            train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves')
+            train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}')
             os.makedirs(train_curves_path, exist_ok=True)
             plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.png'))
             plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.svg'))
