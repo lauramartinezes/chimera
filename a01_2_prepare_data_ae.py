@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import tqdm
 import yaml
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
@@ -48,6 +50,88 @@ def compute_predictions(model, data_loader, device):
         all_probs.extend(probas.cpu().numpy())
 
     return all_predictions, all_actuals, all_probs
+
+
+# Step 1: Define categories using df-consistent terminology
+def get_category_lists(insect_classes):
+    natures = ["good", "mislabeled", "meas_noise"]
+    true_categories = [f"{cls}_{nature}" for nature in natures for cls in insect_classes]
+    predicted_categories = [f"{cls}_{nature}" for nature in natures for cls in insect_classes]
+    return true_categories, predicted_categories
+
+
+# Step 2: Determine the true category of a sample
+def get_true_category(row, insect_classes):
+    cls = insect_classes[row["label"]]
+    if row["measurement_noise"]:
+        return f"{cls}_meas_noise"
+    elif row["mislabeled"]:
+        return f"{cls}_mislabeled"
+    else:
+        return f"{cls}_good"
+
+
+# Step 3: Determine the predicted category based on classifier output and true nature
+def get_predicted_category(true_cat, pred_label, insect_classes):
+    # Extract components from true_cat
+    true_class, nature = true_cat.split("_", 1)
+    pred_class = insect_classes[pred_label]
+
+    # Define a lookup table of (nature, predicted == true?) → predicted nature
+    transition = {
+        "good":              {True: "good", False: "mislabeled"},
+        "mislabeled":        {True: "mislabeled", False: "good"},
+        "meas_noise": {True: "meas_noise", False: "meas_noise"}
+    }
+
+    is_correct = (pred_class == true_class)
+    predicted_nature = transition.get(nature, {}).get(is_correct)
+
+    if predicted_nature is None:
+        return "UNKNOWN"
+
+    return f"{pred_class}_{predicted_nature}"
+
+
+# Step 4: Compute confusion matrix
+def build_extended_confusion_matrix(df, all_predictions, insect_classes):
+    true_cats, pred_cats = get_category_lists(insect_classes)
+    conf_matrix = pd.DataFrame(0, index=true_cats, columns=pred_cats)
+
+    for idx, row in df.iterrows():
+        true_cat = get_true_category(row, insect_classes)
+        pred_label = all_predictions[idx]
+        pred_cat = get_predicted_category(true_cat, pred_label, insect_classes)
+        if pred_cat != "UNKNOWN":
+            conf_matrix.loc[true_cat, pred_cat] += 1
+    
+    return conf_matrix
+
+
+# Step 5: Plotting
+def plot_confusion_matrix(conf_matrix, subtitle=None):
+    plt.figure(figsize=(10, 8))
+
+    # Normalize the values row-wise for color scaling
+    normalized = conf_matrix.div(conf_matrix.sum(axis=1), axis=0).fillna(0)
+
+    # Plot the heatmap with normalized colors but integer annotations
+    sns.heatmap(
+        normalized,
+        annot=conf_matrix,          # Show actual counts
+        fmt="d",                    # Format annotation as integer
+        cmap="Blues",
+        vmin=0, vmax=1              # Row-wise normalization is in [0,1]
+    )
+
+    plt.xticks(rotation=20, ha="right")  # Make x-axis labels easier to read
+    plt.yticks(rotation=0)               # Keep y-axis labels straight
+
+    plt.title(f"Confusion Matrix ({subtitle.title()})" if subtitle else "Confusion Matrix")
+    plt.xlabel("Predicted Category")
+    plt.ylabel("True Category")
+    plt.tight_layout()
+    plt.show()
 
 
 ##########################
@@ -98,12 +182,12 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'simplecnn' #'mobilenetv3_small_100' #overfittingcnn
-    model = SimpleCNN()
-    #model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
+    model_name = 'resnet18' #'simplecnn' #'mobilenetv3_small_100' #overfittingcnn
+    #model = SimpleCNN()
+    model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -115,6 +199,7 @@ if __name__ == '__main__':
     all_pred_counts = []
     all_good_pred_counts = []
     all_mislabels_pred_counts = []
+    all_confusion_matrices = []
 
     for subset in subsets:
         dfs_subset = []
@@ -163,6 +248,10 @@ if __name__ == '__main__':
             1 - pred if max(probs) < 0.7 else pred
             for pred, probs in zip(all_predictions, all_probs)
         ])
+
+        conf_matrix = build_extended_confusion_matrix(df_subset, all_predictions, insect_classes)
+        all_confusion_matrices.append(conf_matrix)
+        plot_confusion_matrix(conf_matrix, subtitle=subset)
 
         df_subset['pred_label'] = all_predictions
         df_subset['pred_probas'] = all_probs
@@ -218,26 +307,47 @@ if __name__ == '__main__':
         print('Predicted Mislabels: \n' ,df_pred_mislabels)
 
         ########################## Probas counts
-        df_insect_0_pred_good_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good|{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
-        insect_0_pred_good_probas = df_insect_0_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_good_probas_counts = insect_0_pred_good_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_0_pred_good_orig_good_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good', case=False, na=False)]
+        insect_0_pred_good_orig_good_probas = df_insect_0_pred_good_orig_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_good_probas_orig_good_counts = insect_0_pred_good_orig_good_probas.apply(lambda x: list(x)).value_counts()
+        
+        df_insect_0_pred_good_orig_mislabels_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
+        insect_0_pred_good_orig_mislabels_probas = df_insect_0_pred_good_orig_mislabels_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_good_probas_orig_mislabels_counts = insect_0_pred_good_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        df_insect_0_pred_mislabels = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good|{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
-        insect_0_pred_mislabels_probas = df_insect_0_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_mislabels_probas_counts = insect_0_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
 
-        df_insect_1_pred_good_samples = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good|{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
-        insect_1_pred_good_probas = df_insect_1_pred_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_good_probas_counts = insect_1_pred_good_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_0_pred_mislabels_orig_good = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good', case=False, na=False)]
+        insect_0_pred_mislabels_probas_orig_good = df_insect_0_pred_mislabels_orig_good.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_mislabels_probas_orig_good_counts = insect_0_pred_mislabels_probas_orig_good.apply(lambda x: list(x)).value_counts()
 
-        df_insect_1_pred_mislabels = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good|{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
-        insect_1_pred_mislabels_probas = df_insect_1_pred_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_mislabels_probas_counts = insect_1_pred_mislabels_probas.apply(lambda x: list(x)).value_counts()
+        df_insect_0_pred_mislabels_orig_mislabels = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
+        insect_0_pred_mislabels_probas_orig_mislabels = df_insect_0_pred_mislabels_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_0_pred_mislabels_probas_orig_mislabels_counts = insect_0_pred_mislabels_probas_orig_mislabels.apply(lambda x: list(x)).value_counts()
 
-        print(f"{insect_classes[0]}_pred_good_probas_counts: \n", insect_0_pred_good_probas_counts)
-        print(f"{insect_classes[0]}_pred_mislabels_probas_counts: \n", insect_0_pred_mislabels_probas_counts)
-        print(f"{insect_classes[1]}_pred_good_probas_counts: \n", insect_1_pred_good_probas_counts)
-        print(f"{insect_classes[1]}_pred_mislabels_probas_counts: \n", insect_1_pred_mislabels_probas_counts)
+        df_insect_1_pred_good_orig_good_samples = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good', case=False, na=False)]
+        insect_1_pred_good_orig_good_probas = df_insect_1_pred_good_orig_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_good_probas_orig_good_counts = insect_1_pred_good_orig_good_probas.apply(lambda x: list(x)).value_counts()
+
+        df_insect_1_pred_good_orig_mislabels = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
+        insect_1_pred_good_orig_mislabels_probas = df_insect_1_pred_good_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_good_probas_orig_mislabels_counts = insect_1_pred_good_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
+
+        df_insect_1_pred_mislabels_orig_good = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good', case=False, na=False)]
+        insect_1_pred_mislabels_orig_good_probas = df_insect_1_pred_mislabels_orig_good.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_mislabels_orig_good_probas_counts = insect_1_pred_mislabels_orig_good_probas.apply(lambda x: list(x)).value_counts()
+
+        df_insect_1_pred_mislabels_orig_mislabels= df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
+        insect_1_pred_mislabels_orig_mislabels_probas = df_insect_1_pred_mislabels_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
+        insect_1_pred_mislabels_orig_mislabels_probas_counts = insect_1_pred_mislabels_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
+
+        print(f"{insect_classes[0]}_pred_good_probas_orig_good_counts: \n", insect_0_pred_good_probas_orig_good_counts)
+        print(f"{insect_classes[0]}_pred_good_probas_orig_mislabel_counts: \n", insect_0_pred_good_probas_orig_mislabels_counts)
+        print(f"{insect_classes[0]}_pred_mislabels_probas_orig_good_counts: \n", insect_0_pred_mislabels_probas_orig_mislabels_counts)
+        print(f"{insect_classes[0]}_pred_mislabels_probas_orig_mislabels_counts: \n", insect_0_pred_mislabels_probas_orig_mislabels_counts)
+        print(f"{insect_classes[1]}_pred_good_probas_orig_good_counts: \n", insect_1_pred_good_probas_orig_good_counts)
+        print(f"{insect_classes[1]}_pred_good_probas_orig_mislabels_counts: \n", insect_1_pred_good_probas_orig_mislabels_counts)
+        print(f"{insect_classes[1]}_pred_mislabels_orig_good_probas_counts: \n", insect_1_pred_mislabels_orig_good_probas_counts)
+        print(f"{insect_classes[1]}_pred_mislabels_orig_mislabels_probas_counts: \n", insect_1_pred_mislabels_orig_mislabels_probas_counts)
 
         # update mislabeled column
         df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"data/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"data/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
@@ -281,4 +391,9 @@ if __name__ == '__main__':
     df_all_mislabels_pred_counts = all_mislabels_pred_counts[0] + all_mislabels_pred_counts[1]
     print(df_all_mislabels_pred_counts)
     df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}.csv'))
+    
+    # Get total confusion matrix
+    conf_matrix_total = sum(all_confusion_matrices)
+    plot_confusion_matrix(conf_matrix_total, subtitle='Total')
+
     print('')
