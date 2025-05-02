@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
     # pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    # insect_classes = ['wmv', 'c']
+    # insect_classes = config["data_params"]["data_classes"]
     # ae_types = [''] #, 'adv_']
 
     # transform = transforms.Compose([

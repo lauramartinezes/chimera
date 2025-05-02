@@ -30,7 +30,7 @@ def get_train_test_umap(X_train, X_test, n_components=2):
 
     return X_train_embedding, X_test_embedding
 
-def visualize_test_latent_space_wrt_train(main_insect_class, mislabeled_insect_class, train_features, test_features, labels_train, labels_test, filename='', dirname=''):
+def visualize_test_latent_space_wrt_train(main_insect_class, mislabeled_insect_class, train_features, test_features, labels_train, labels_test, insect_classes, filename='', dirname=''):
     umap_folder = os.path.join(dirname, 'UMAPS')
     os.makedirs(umap_folder, exist_ok=True)
     
@@ -38,7 +38,7 @@ def visualize_test_latent_space_wrt_train(main_insect_class, mislabeled_insect_c
     label_mapping_train = {0: f"Normal Sample ({main_insect_class})", 1: f"Label Noise ({mislabeled_insect_class})", 2: "Measurement Noise"}
     txt_labels_train = [label_mapping_train[label] for label in labels_train]
     
-    label_mapping_test = {0: "wmv_test", 1: "c_test"}
+    label_mapping_test = {0: f"{insect_classes[0]}_test", 1: f"{insect_classes[1]}_test"}
     txt_labels_test = [label_mapping_test[label] for label in labels_test]
 
     # Plot UMAP results
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
     vq_vae_types = ['', 'adv_'] 
 
     transform = transforms.Compose([
@@ -213,6 +213,7 @@ if __name__ == '__main__':
                 latents_2d_test, 
                 labels_noise_train, 
                 labels_encoding_test, 
+                insect_classes,
                 f'ae_{vq_vae_type}{main_insect_class}_test', 
                 config["logging_params"]["save_dir"]
             )

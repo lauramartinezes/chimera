@@ -68,7 +68,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join('data', f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    insect_classes = ['wmv', 'c']
+    insect_classes = config["data_params"]["data_classes"]
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -172,6 +172,7 @@ if __name__ == '__main__':
             latents_2d_test, 
             labels_noise_train, 
             labels_cnn_test, 
+            insect_classes,
             f'cnn_{main_insect_class}_test', 
             config["logging_params"]["save_dir"]
         )
