@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import random
 import torch
@@ -34,8 +33,6 @@ from pyod.models.so_gaal import SO_GAAL
 from pyod.models.mo_gaal import MO_GAAL
 from pyod.models.xgbod import XGBOD
 from pyod.models.deep_svdd import DeepSVDD
-from robpy.covariance.mcd import DetMCD
-from scipy.stats import chi2
 from sklearn.metrics import roc_auc_score, average_precision_score
 
 def set_seed(seed):
@@ -79,7 +76,7 @@ class PYOD():
                            'COPOD':COPOD, 'ECOD':ECOD,  'FeatureBagging':FeatureBagging, 'HBOS':HBOS, 'KNN':KNN,
                            'LMDD':LMDD, 'LODA':LODA, 'LOF':LOF, 'LOCI':LOCI, 'LSCP':LSCP, 'MAD':MAD,
                            'MCD':MCD, 'PCA':PCA, 'ROD':ROD, 'SOD':SOD, 'SOS':SOS, 'VAE':VAE, 'DeepSVDD': DeepSVDD,
-                           'AutoEncoder': AutoEncoder, 'SOGAAL': SO_GAAL, 'MOGAAL': MO_GAAL,'XGBOD': XGBOD, 'DetMCD': DetMCD}
+                           'AutoEncoder': AutoEncoder, 'SOGAAL': SO_GAAL, 'MOGAAL': MO_GAAL,'XGBOD': XGBOD}
 
         self.tune = tune
         self.contamination = contamination
@@ -318,10 +315,7 @@ class PYOD():
 
         else:
             # unsupervised method would ignore the y labels
-            if self.model_name == 'DetMCD':
-                self.model = self.model_dict[self.model_name](alpha=0.75, correct_covariance=True, reweighting=True)
-                self.model.fit(X_train)
-            elif self.model_name == 'DeepSVDD':
+            if self.model_name == 'DeepSVDD':
                 self.model = self.model_dict[self.model_name](n_features=X_train.shape[1]).fit(X_train)
             elif self.model_name == 'MCD':
                 self.model = self.model_dict[self.model_name](contamination=self.contamination).fit(X_train, y_train)
@@ -332,58 +326,10 @@ class PYOD():
 
     # from pyod: for consistency, outliers are assigned with larger anomaly scores
     def predict_score(self, X):
-        if self.model_name == 'DetMCD':
-            score = self.model.mahalanobis(X)
-            return score
         score = self.model.decision_function(X)
         return score
     
     def predict_binary_score(self, X):
-        if self.model_name == 'DetMCD':
-            score = self.predict_score(X)
-            threshold = chi2.ppf(0.975, df=X.shape[1])
-            
-            # Binary labels
-            return (score > threshold).astype(int)
         score = self.model.predict(X)
         return score
 
-
-if __name__ == '__main__':
-    # Set a random seed for reproducibility
-    data = np.load('FashionMNIST_9.npz')
-    X_train = data['X']
-    y_train = data['y']
-
-
-    models = ['IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM',
-            'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
-            'LMDD', 'LODA', 'LOF', 'LOCI', #'LSCP', 'MAD',
-            'MCD', 'PCA', 'ROD', 'SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD'
-            'SOGAAL', 'MOGAAL', 'DetMCD']
-
-    metrics_list = []
-
-    for model in models:
-        if model == 'DetMCD':
-            # from sklearn.decomposition import PCA
-            # pca = PCA(n_components=100)  # Start with 100 components
-            # X_train = pca.fit_transform(X_train)
-            import umap
-            umap_reducer = umap.UMAP(n_components=256, random_state=42)
-            X_train = umap_reducer.fit_transform(X_train)
-
-        pyod_model = PYOD(seed=42, model_name=model)
-        pyod_model.fit(X_train, [])
-        anomaly_scores = pyod_model.predict_score(X_train)
-        binary_scores = pyod_model.predict_binary_score(X_train)
-        metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=0)
-        print(f'{model}: {metrics}')
-
-        metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
-
-    # Create a DataFrame from the metrics list
-    metrics_df = pd.DataFrame(metrics_list)
-    print(metrics_df)
-
-    print()
