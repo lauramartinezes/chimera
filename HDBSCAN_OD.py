@@ -1,12 +1,13 @@
 import numpy as np
 import hdbscan
 
-from sklearn.cluster import DBSCAN
-
-
 def HDBSCAN_OD(latent_space_points, min_cluster_size=5, min_samples=1):
     # Fit HDBSCAN model
-    hdbscan_model = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, gen_min_span_tree=True)
+    hdbscan_model = hdbscan.HDBSCAN(
+        min_cluster_size=min_cluster_size, 
+        min_samples=min_samples, 
+        gen_min_span_tree=True
+    )
     labels = hdbscan_model.fit_predict(latent_space_points)
 
     # Count the number of points in each cluster (ignore noise points labeled as -1)
