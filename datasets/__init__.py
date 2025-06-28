@@ -1,1 +1,1 @@
-from .datasets import InsectImgDataset
+from .datasets import CustomBinaryInsectDF
