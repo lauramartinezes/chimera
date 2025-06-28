@@ -1,69 +1,23 @@
 import argparse
 import os
 import random
-import shutil
 import time
-from matplotlib import pyplot as plt
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import tqdm
 import yaml
-from torch.optim.lr_scheduler import CyclicLR
 
-from torch.utils.data import DataLoader, ConcatDataset
-from torchvision import transforms
+from matplotlib import pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
-
-class SCELoss(torch.nn.Module):
-    def __init__(self, alpha, beta, num_classes=10, weight=None):
-        super(SCELoss, self).__init__()
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.alpha = alpha
-        self.beta = beta
-        self.num_classes = num_classes
-        self.weight = weight.to(self.device) if weight is not None else None
-        self.cross_entropy = torch.nn.CrossEntropyLoss(weight=self.weight)
-
-    def forward(self, pred, labels):
-        # CCE
-        ce = self.cross_entropy(pred, labels)
-
-        # RCE
-        pred = F.softmax(pred, dim=1)
-        pred = torch.clamp(pred, min=1e-7, max=1.0)
-        label_one_hot = F.one_hot(labels, self.num_classes).float().to(self.device)
-        label_one_hot = torch.clamp(label_one_hot, min=1e-4, max=1.0)
-        rce = (-1*torch.sum(pred * torch.log(label_one_hot), dim=1))
-
-        # Loss
-        loss = self.alpha * ce + self.beta * rce.mean()
-        return loss
-
-class SimpleCNN(nn.Module):
-    def __init__(self, n_classes=2):
-        super(SimpleCNN, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.AdaptiveAvgPool2d((7, 7))  # Downsample to 7x7
-        self.fc1 = nn.Linear(64 * 7 * 7, 128)
-        self.fc2 = nn.Linear(128, n_classes)
-        self.dropout = nn.Dropout(0.3)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)  # Apply adaptive pooling
-        x = torch.flatten(x, 1)
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
-        return x
 
 
 if torch.cuda.is_available():
@@ -339,8 +293,8 @@ if __name__ == '__main__':
     ##########################
     ### BINARY CLASS INSECT DATASET
     ##########################
-    insect_classes = config["data_params"]["data_classes"] #['wmv', 'm']
-    method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']#, ]#] #, 'ae', 'adv_ae', 'adbench', 'cnn'] #'inv_ae'
+    insect_classes = config["data_params"]["data_classes"] 
+    method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
     transform = transforms.Compose([
@@ -356,9 +310,6 @@ if __name__ == '__main__':
         transforms.RandomAutocontrast(p=0.7),
         transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.5),
         transforms.RandomRotation(degrees=(-25, 25)),
-        #transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-        #transforms.RandomPosterize(bits=7, p=0.1),
-        #transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         transforms.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value='random'),
@@ -366,19 +317,18 @@ if __name__ == '__main__':
     results = []
 
     for method in method_datasets:
-        if method=='cnn' or method=='adv_ae' or method=='ae' or method=='adbench' or method=='inv_ae':
-            clean_dataset='_clean'
-        elif method=='cleaning_benchmark' or method=='raw': 
+        if method=='cleaning_benchmark' or method=='raw': 
             clean_dataset=''
+        else:
+            clean_dataset='_clean'
 
-        if 'ae' in method:
-            od_method = '_DBSCAN'
-        elif method == 'cnn':
+        if method == 'cnn':
             od_method = '_DBSCAN'
         elif method == 'adbench':
             od_method = '_OCSVM'
         else:   
             od_method = ''
+
         dfs_train_ = []
         for i in range(len(insect_classes)):
             main_insect_class = insect_classes[i]
@@ -470,11 +420,8 @@ if __name__ == '__main__':
         ### RESNET-18 MODEL
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model_name = 'resnet18' #'mobilenetv3_large_100.miil_in21k_ft_in1k' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
-        if model_name == 'simplecnn':
-            model = SimpleCNN(n_classes=len(insect_classes))
-        else:
-            model = timm.create_model(model_name, pretrained=True, num_classes=NUM_CLASSES)
+        model_name = 'resnet18'
+        model = timm.create_model(model_name, pretrained=True, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
@@ -482,22 +429,7 @@ if __name__ == '__main__':
 
         if not os.path.exists(save_path_best) or retrain_models==True:
             optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
-            #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])#config["exp_params"]["scheduler_gamma"])
-            #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
-            
-            # optimizer = torch.optim.Adam(model.parameters())
-            # # Set up the cyclical learning rate scheduler
-            # cycles = NUM_EPOCHS // 2  # Half the number of epochs since there are two phases per cycle
-            # step_size_up = len(train_loader) * cycles  # Number of update steps per cycle
-            # scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=0.01, step_size_up=step_size_up, cycle_momentum=False)
-
-            criterion_name = 'CrossEntropyLoss'
-            if criterion_name == 'CrossEntropyLoss':
-                criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
-            elif criterion_name == 'SCELoss':
-                criterion = SCELoss(alpha=6., beta=1., num_classes=df_train['label'].unique().shape[0], weight=class_weights_tensor) 
-            else:
-                raise ValueError(f"Unknown criterion: {criterion_name}")
+            criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
                     
             ##########################
             ### TRAIN
@@ -621,10 +553,6 @@ if __name__ == '__main__':
                         print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s)")
 
                 print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
-                # Step the scheduler
-                #if epoch < 3:
-                #scheduler.step()
-                #print(f"Learning Rate: {scheduler.get_last_lr()[0]:.6f}")
 
                 if epoch > 1:
                     # Plot the training and validation accuracy
@@ -652,14 +580,9 @@ if __name__ == '__main__':
                         method=method,
                         num_epochs=epoch + 1
                     )
-                # if epochs_no_improve >= patience:
-                #     print(f"Early stopping triggered after {epoch+1} epochs with no improvement.")
-                #     break  # <-- This breaks the outer epoch loop
 
             print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))
-            torch.save(model.state_dict(), save_path)
-
-            
+            torch.save(model.state_dict(), save_path)         
 
         else:
             model.load_state_dict(torch.load(save_path_best))
