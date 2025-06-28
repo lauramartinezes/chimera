@@ -1,5 +1,5 @@
 data_params:
-  data_path: Data/
+  data_dir: data/
   data_classes: ['wmv', 'wrl']
   num_workers: 0
   patch_size: 148
