@@ -5,7 +5,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 class CustomBinaryInsectDF(Dataset):
-    def __init__(self, df, transform_percent=0, transform=None, seed=None, outlier_indices=None):
+    def __init__(self, df, transform=None, seed=None):
         # Set the seed for reproducibility
         if seed is not None:
             self.seed = seed
@@ -21,10 +21,6 @@ class CustomBinaryInsectDF(Dataset):
 
         # Initialize the outlier variable to False for all samples
         self.outliers = np.full(len(self.labels), False)
-        
-        # Set the outlier flag to True for specified outlier indices
-        if outlier_indices is not None:
-            self.outliers[outlier_indices] = True
 
     def _set_seed(self, seed):
         random.seed(seed)  # Set the seed for Python's random module
