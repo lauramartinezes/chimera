@@ -9,7 +9,7 @@ import torch
 
 
 class UmapHdbscanOD:
-    def __init__(self, main_class_name, save_dir=None):
+    def __init__(self, main_class_name=None, save_dir=None):
         self.main_class_name = main_class_name
         self.save_dir = save_dir
         if save_dir:
@@ -75,7 +75,7 @@ class UmapHdbscanOD:
             self._plot_final_clusters(data, best_dim, best_mcs, best_ms)
 
         print(f"\nOptimal: dim={best_dim}, mcs={best_mcs}, ms={best_ms}")
-        return best_dim, best_mcs, best_ms
+        return int(best_dim), int(best_mcs), int(best_ms)
 
     def predict_outliers(self, data, dim, mcs, ms):
         reducer = UMAP(n_components=dim, random_state=42, n_jobs=1)
