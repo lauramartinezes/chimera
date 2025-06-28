@@ -16,12 +16,12 @@ from tqdm import tqdm
 
 from PyOD import PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
-from a04_4_feature_correlations_vgg16 import find_optimal_umap_dbscan
-from HDBSCAN_OD import DBSCAN_OD
+from a04_4_feature_correlations_vgg16 import find_optimal_umap_hdbscan
+from HDBSCAN_OD import HDBSCAN_OD
 from CustomBinaryInsectDF import CustomBinaryInsectDF
 
 
-def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='DBSCAN'):
+def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='HDBSCAN'):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -33,26 +33,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
     )
     print(f"{phase.capitalize()} dataset correctly loaded")
     
-    if 'ae' in method:
-        # Extract features from encoding latents
-        (
-            raw_latents,
-            features_encoding,
-            labels_encoding,
-            real_labels_encoding,
-            measurement_noise,
-            mislabel_noise,
-        ) = extract_features_from_encoding(model, loader, device)
-
-        # Reduce dimensions to 512D for outlier detection
-        print('Starting UMAP 512D reduction')
-        latents = raw_latents.reshape(raw_latents.shape[0], -1)
-        reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
-        #reducer_512d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=512, random_state=42)
-        latents_512d = reducer_512d.fit_transform(latents)
-        optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
-        
-    elif method == 'cnn' or 'adbench' in method or method == 'resnet18':
+    if method == 'cnn' or 'adbench' in method or method == 'resnet18':
         (
             latents, 
             labels_cnn, 
@@ -62,17 +43,23 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         ) = extract_features_from_dataloader(loader, model)
         if method == 'adbench':
             latents_512d = latents
-            optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
+            optimal_min_cluster_size, optimal_min_samples = 5, 5  # Default values for HDBSCAN if not optimized
         elif method == 'adbench_2d':
             reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
             #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
             latents_512d = reducer_2d.fit_transform(latents)
-            optimal_eps, optimal_min_samples = 0.5, 1
+            optimal_min_cluster_size, optimal_min_samples = 5, 5
         else:
-            optimal_dim, optimal_eps, optimal_min_samples = find_optimal_umap_dbscan(
+            N = len(latents)
+            min_cluster_size_values = [max(5, int(p * N)) for p in [0.005, 0.01, 0.02, 0.05]]
+            min_samples_values = [max(5, int(p * N)) for p in [0.002, 0.005, 0.01]]
+
+            optimal_dim, optimal_min_cluster_size, optimal_min_samples = find_optimal_umap_hdbscan(
                 main_insect_class,
                 latents, 
-                save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_dbscan_analysis")
+                min_cluster_size_values=min_cluster_size_values,
+                min_samples_values=min_samples_values,
+                save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis")
             )
             reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
             #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=optimal_dim, random_state=42)
@@ -80,15 +67,19 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
     metrics = {}
-    if od_method != 'DBSCAN':
+    if od_method != 'HDBSCAN':
         y_pred, metrics = get_outlier_predictions(
             latents_512d,
             y_true,
             model=od_method,
             # contamination= 0.2
         )
-    elif od_method == 'DBSCAN':
-        y_pred = DBSCAN_OD(latents_512d, eps=optimal_eps, min_samples=optimal_min_samples)
+    elif od_method == 'HDBSCAN':
+        y_pred = HDBSCAN_OD(
+            latents_512d, 
+            min_cluster_size=optimal_min_cluster_size, 
+            min_samples=optimal_min_samples
+        )
         metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
     visualize_y_true_vs_y_pred_umap(
@@ -309,7 +300,7 @@ if __name__ == '__main__':
             if cnn_type == 'cnn' or 'adbench' in cnn_type:
                 model_cnn = timm.create_model('resnet18', pretrained=True)
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['DBSCAN', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
+                od_methods = ['HDBSCAN', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
             elif cnn_type == model_name:
                 model_cnn = timm.create_model(model_name, pretrained=False, num_classes=2)
                 save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
@@ -321,7 +312,7 @@ if __name__ == '__main__':
                 else:
                     print("Model not found")
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['DBSCAN'] #['DBSCAN', 'MCD']
+                od_methods = ['HDBSCAN'] #['HDBSCAN', 'MCD']
                     
             model_cnn.eval()
             print("Model correctly initialized")
