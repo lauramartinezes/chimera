@@ -17,7 +17,7 @@ from tqdm import tqdm
 from PyOD import PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from a04_4_feature_correlations_vgg16 import find_optimal_umap_dbscan
-from a06_2_dbscan_evaluation import DBSCAN_OD
+from HDBSCAN_OD import DBSCAN_OD
 from mnist_dataset import CustomBinaryInsectDF
 
 

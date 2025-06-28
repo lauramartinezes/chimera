@@ -22,7 +22,7 @@ from torchvision import transforms
 
 from PyOD import metric
 from a04_2_umap_projections_cnn import get_train_test_umap, visualize_test_latent_space_wrt_train#, visualize_train_latent_space
-from a06_2_dbscan_evaluation import DBSCAN_OD
+from HDBSCAN_OD import DBSCAN_OD
 from a06_outliers_evaluation import get_outlier_methods_csv
 #from a07_clean_data import get_outlier_predictions, visualize_y_true_vs_y_pred_umap #to avoid circular import
 from mnist_dataset import CustomBinaryInsectDF
