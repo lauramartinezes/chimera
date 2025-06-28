@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from a04_2_umap_projections_cnn import get_train_test_umap, visualize_test_latent_space_wrt_train, visualize_train_latent_space
-from mnist_dataset import CustomBinaryInsectDF
+from CustomBinaryInsectDF import CustomBinaryInsectDF
 
 
 def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):

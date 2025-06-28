@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
-from mnist_dataset import CustomBinaryInsectDF
+from CustomBinaryInsectDF import CustomBinaryInsectDF
 from a01_1_train_test_classifier import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
