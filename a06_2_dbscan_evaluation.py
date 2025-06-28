@@ -9,6 +9,7 @@ import torch
 import seaborn as sns
 import umap
 import yaml
+import hdbscan
 
 from torchvision import transforms
 
@@ -27,6 +28,19 @@ def DBSCAN_OD(latent_space_points, eps=0.5, min_samples=1):
     predictions = np.where(labels != largest_cluster_label, 1, 0)
 
     return predictions
+
+def HDBSCAN_OD(latent_space_points, min_cluster_size=5, min_samples=1):
+    # Fit HDBSCAN model
+    hdbscan_model = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, gen_min_span_tree=True)
+    labels = hdbscan_model.fit_predict(latent_space_points)
+
+    # Count the number of points in each cluster (ignore noise points labeled as -1)
+    unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
+    largest_cluster_label = unique_labels[np.argmax(counts)]
+
+    predictions = np.where(labels != largest_cluster_label, 1, 0)
+
+    return predictions  
 
 def visualize_outliers(outliers, inliers):
     # Plotting the clusters
@@ -57,8 +71,8 @@ def visualize_y_pred_umap(features, y_pred):
     # UMAP transformation (shared latent space for both plots)
     if features.shape[1] > 2:
         print(f'Starting UMAP 2D reduction')
-        #reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-        reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+        reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
         latents_2d = reducer_2d.fit_transform(features)
     else:
         latents_2d = features

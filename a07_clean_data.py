@@ -1,6 +1,7 @@
 import os
 import random
 from matplotlib import pyplot as plt
+import cupy as cp
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -17,6 +18,7 @@ from torchvision import transforms
 
 from PyOD import PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
+from a04_4_feature_correlations_vgg16 import find_optimal_umap_dbscan
 from a06_2_dbscan_evaluation import DBSCAN_OD
 from mnist_dataset import CustomBinaryInsectDF
 from vq_vae import VQVAE
@@ -48,11 +50,12 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         # Reduce dimensions to 512D for outlier detection
         print('Starting UMAP 512D reduction')
         latents = raw_latents.reshape(raw_latents.shape[0], -1)
-        # reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
-        reducer_512d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=512, random_state=42)
+        reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
+        #reducer_512d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=512, random_state=42)
         latents_512d = reducer_512d.fit_transform(latents)
+        optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
         
-    elif method == 'cnn' or method == 'adbench' or method == 'resnet18':
+    elif method == 'cnn' or 'adbench' in method or method == 'resnet18':
         (
             latents, 
             labels_cnn, 
@@ -60,7 +63,23 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
             measurement_noise, 
             mislabel_noise 
         ) = extract_features_from_dataloader(loader, model)
-        latents_512d = latents
+        if method == 'adbench':
+            latents_512d = latents
+            optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
+        elif method == 'adbench_2d':
+            reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+            latents_512d = reducer_2d.fit_transform(latents)
+            optimal_eps, optimal_min_samples = 0.5, 1
+        else:
+            optimal_dim, optimal_eps, optimal_min_samples = find_optimal_umap_dbscan(
+                main_insect_class,
+                cp.asarray(latents), 
+                save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_dbscan_analysis")
+            )
+            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
+            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=optimal_dim, random_state=42)
+            latents_512d = reducer_optimd.fit_transform(latents)
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
     metrics = {}
@@ -72,7 +91,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
             # contamination= 0.2
         )
     elif od_method == 'DBSCAN':
-        y_pred = DBSCAN_OD(latents_512d, eps=0.5)
+        y_pred = DBSCAN_OD(latents_512d, eps=optimal_eps, min_samples=optimal_min_samples)
         metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
     visualize_y_true_vs_y_pred_umap(
@@ -162,22 +181,28 @@ def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
     return anomaly_binary_scores, metrics
 
 
-def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None):
+def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None, detected_label_noises=None):
     umap_folder = os.path.join(dirname, 'True vs Pred UMAPS')
     os.makedirs(umap_folder, exist_ok=True)
 
     # UMAP transformation (shared latent space for both plots)
     print(f'Starting UMAP 2D reduction')
-    # reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-    reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+    reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+    #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
     latents_2d = reducer_2d.fit_transform(features)
 
     measurement_noises = measurement_noises.astype(int)*2
     label_noises = label_noises.astype(int)
-    noises = measurement_noises + label_noises
+    if detected_label_noises is not None:
+        detected_label_noises = detected_label_noises.astype(int)*3
+        noises = measurement_noises + label_noises + detected_label_noises
+    else:
+        noises = measurement_noises + label_noises
 
     # Dictionary to map numbers to text labels
     true_label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
+    if detected_label_noises is not None:
+        true_label_mapping[3] = "Detected Label Noise"
     txt_true_labels = [true_label_mapping[label] for label in noises]
     
     pred_label_mapping = {0: "Normal Sample", 1: "Outlier"}
@@ -187,7 +212,7 @@ def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, 
     fig, axes = plt.subplots(1, 2, figsize=(20, 8))
 
     # Plot for y_true
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_true_labels, palette=sns.color_palette("hsv", 3), ax=axes[0], legend='full')
+    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_true_labels, palette=sns.color_palette("hsv", len(true_label_mapping)), ax=axes[0], legend='full')
     axes[0].set_title("Latent Space UMAP: True Labels")
     axes[0].set_xlabel("UMAP dimension 1")
     axes[0].set_ylabel("UMAP dimension 2")
@@ -199,6 +224,7 @@ def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, 
     axes[1].set_ylabel("UMAP dimension 2")
 
     # Save the figure
+    fig.suptitle(filename, fontsize=18)
     plt.tight_layout()
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.png'), format='png')
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
@@ -282,7 +308,7 @@ if __name__ == '__main__':
             model_ae.to(device)
             print("Model correctly initialized")
 
-            od_methods = ['DBSCAN', 'DeepSVDD']
+            od_methods = ['DBSCAN', 'MCD']
             for od_method in od_methods:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
                     df_train_val, 

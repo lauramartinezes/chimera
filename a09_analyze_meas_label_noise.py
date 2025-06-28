@@ -34,7 +34,7 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     insect_classes = config["data_params"]["data_classes"]
-    method_datasets = ['ae', 'adv_ae', 'adbench', 'cnn', 'resnet18']
+    method_datasets = ['adbench', 'cnn'] #'ae', 'adv_ae', 'resnet18' 'adbench_2d'
     subsets = ['train', 'val']
 
 
@@ -44,11 +44,15 @@ if __name__ == '__main__':
         df_analysis = pd.DataFrame(index=insect_classes)
 
         if method == 'ae' or method == 'adv_ae':
-            od_methods = ['DBSCAN', 'DeepSVDD']
-        elif method == 'adbench' or method == 'cnn':
+            od_methods = ['DBSCAN', 'MCD']
+        elif method == 'adbench':
             od_methods = ['OCSVM']
+        elif method == 'cnn':
+            od_methods = ['DBSCAN', 'MCD']
         elif method == 'resnet18':
-            od_methods = ['OCSVM']
+            od_methods = ['LODA']
+        elif method == 'adbench_2d':
+            od_methods = ['MCD']
 
         print(f'Analyzing {method} method')
         for od_method in od_methods:
@@ -66,17 +70,17 @@ if __name__ == '__main__':
                 if 'directory' not in df.columns:
                     df['directory'] = df['filepath'].apply(os.path.dirname)
 
-                good_original = df[df['directory'].str.contains(f'{main_insect_class}_good', case=False, na=False)]
+                good_original = df[df['directory'].str.contains(f'{os.sep}{main_insect_class}_good', case=False, na=False)]
                 good_pred_good = good_original[good_original['outlier_detected'] == False].shape[0]
                 good_pred_meas_noise = good_original[good_original['outlier_detected'] == True].shape[0]
                 good_pred_mislabels = 0 #these moved to the other class
 
-                meas_noise_original = df[df['directory'].str.contains(f'{main_insect_class}_trash', case=False, na=False)]
+                meas_noise_original = df[df['directory'].str.contains(f'{os.sep}{main_insect_class}_trash', case=False, na=False)]
                 meas_noise_pred_good = meas_noise_original[meas_noise_original['outlier_detected'] == False].shape[0]
                 meas_noise_pred_meas_noise = meas_noise_original[meas_noise_original['outlier_detected'] == True].shape[0]
                 meas_noise_pred_mislabels = 0 #these moved to the other class
 
-                mislabels_original = df[df['directory'].str.contains(f'{mislabeled_insect_class}_for_{main_insect_class}', case=False, na=False)]
+                mislabels_original = df[df['directory'].str.contains(f'{os.sep}{mislabeled_insect_class}_for_{main_insect_class}', case=False, na=False)]
                 mislabels_pred_good = mislabels_original[mislabels_original['outlier_detected'] == False].shape[0]
                 mislabels_pred_meas_noise = mislabels_original[mislabels_original['outlier_detected'] == True].shape[0]
                 mislabels_pred_mislabels = 0 #these moved to the other class
@@ -104,15 +108,15 @@ if __name__ == '__main__':
                 if 'directory' not in df.columns:
                     df['directory'] = df['filepath'].apply(os.path.dirname)
 
-                mislabels_transferred = df[df['directory'].str.contains(f'{main_insect_class}_for_{mislabeled_insect_class}', case=False, na=False)]
+                mislabels_transferred = df[df['directory'].str.contains(f'{os.sep}{main_insect_class}_for_{mislabeled_insect_class}', case=False, na=False)]
                 mislabels_transferred_pred_mislabels = mislabels_transferred[mislabels_transferred['outlier_detected'] == False].shape[0]
                 mislabels_transferred_pred_meas_noise = mislabels_transferred[mislabels_transferred['outlier_detected'] == True].shape[0]
 
-                good_transferred = df[df['directory'].str.contains(f'{mislabeled_insect_class}_good', case=False, na=False)]
+                good_transferred = df[df['directory'].str.contains(f'{os.sep}{mislabeled_insect_class}_good', case=False, na=False)]
                 good_transferred_pred_mislabels = good_transferred[good_transferred['outlier_detected'] == False].shape[0]
                 good_transferred_pred_meas_noise = good_transferred[good_transferred['outlier_detected'] == True].shape[0]
                 
-                meas_noise_transferred = df[df['directory'].str.contains(f'{mislabeled_insect_class}_trash', case=False, na=False)]
+                meas_noise_transferred = df[df['directory'].str.contains(f'{os.sep}{mislabeled_insect_class}_trash', case=False, na=False)]
                 meas_noise_transferred_pred_mislabels = meas_noise_transferred[meas_noise_transferred['outlier_detected'] == False].shape[0]
                 meas_noise_transferred_pred_meas_noise = meas_noise_transferred[meas_noise_transferred['outlier_detected'] == True].shape[0]
 

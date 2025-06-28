@@ -44,8 +44,8 @@ def process_data_ae(df, model, device, config, transform, pin_memory, main_insec
     reshaped_raw_features_encoding = raw_features_encoding.reshape(raw_features_encoding.shape[0], -1)
     
     # Reduce dimensions to 512D for outlier detection
-    #reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42, n_jobs=1)
-    reducer_n_d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=n_dim_reduction, random_state=42)
+    reducer_n_d = umap.UMAP(n_components=n_dim_reduction, random_state=42, n_jobs=1)
+    #reducer_n_d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=n_dim_reduction, random_state=42)
 
     latents_raw_encoding_n_d = reducer_n_d.fit_transform(reshaped_raw_features_encoding)
     
@@ -68,6 +68,11 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         pin_memory,
     )
     latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features_from_dataloader(loader, model)
+
+    if '2d' in cnn_type:
+        reducer_2_d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        #reducer_2_d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+        latents_cnn = reducer_2_d.fit_transform(latents_cnn)
 
     get_outlier_methods_csv(
         latents_cnn,
@@ -216,50 +221,50 @@ if __name__ == '__main__':
         df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
         # AE method
-        ae_types = ['', 'adv_']
-        for ae_type in ae_types:
-            save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
-            model_ae = VQVAE(
-                in_channels=config["model_params"]["in_channels"],
-                embedding_dim=config["model_params"]["embedding_dim"],
-                num_embeddings=config["model_params"]["num_embeddings"],
-                img_size=config["model_params"]["img_size"],
-                beta=config["model_params"]["beta"]
-            ).to(device)
-            model_ae.load_state_dict(torch.load(save_path_best))
-            model_ae.to(device)
-            print("Model correctly initialized")
+        # ae_types = ['', 'adv_']
+        # for ae_type in ae_types:
+        #     save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{config["logging_params"]["name"]}_{ae_type}{main_insect_class}_best.pth')
+        #     model_ae = VQVAE(
+        #         in_channels=config["model_params"]["in_channels"],
+        #         embedding_dim=config["model_params"]["embedding_dim"],
+        #         num_embeddings=config["model_params"]["num_embeddings"],
+        #         img_size=config["model_params"]["img_size"],
+        #         beta=config["model_params"]["beta"]
+        #     ).to(device)
+        #     model_ae.load_state_dict(torch.load(save_path_best))
+        #     model_ae.to(device)
+        #     print("Model correctly initialized")
 
-            process_data_ae(
-                df_train, 
-                model_ae, 
-                device, 
-                config, 
-                transform_ae, 
-                pin_memory, 
-                main_insect_class, 
-                phase="train", 
-                n_dim_reduction=512, 
-                ae_type=ae_type
-            )
-            print(f'Metrics for AE {ae_type} are available')
+        #     process_data_ae(
+        #         df_train, 
+        #         model_ae, 
+        #         device, 
+        #         config, 
+        #         transform_ae, 
+        #         pin_memory, 
+        #         main_insect_class, 
+        #         phase="train", 
+        #         n_dim_reduction=512, 
+        #         ae_type=ae_type
+        #     )
+        #     print(f'Metrics for AE {ae_type} are available')
 
         # Resnet method
         model_cnn = timm.create_model('resnet18', pretrained=True)
         model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
         model_cnn.eval()
 
-        process_data_cnn(
-            df_train, 
-            model_cnn, 
-            device, 
-            config, 
-            transform_cnn, 
-            main_insect_class, 
-            phase="train", 
-            cnn_type='cnn'
-        )     
-        print('Metrics for CNN are available') 
+        # process_data_cnn(
+        #     df_train, 
+        #     model_cnn, 
+        #     device, 
+        #     config, 
+        #     transform_cnn, 
+        #     main_insect_class, 
+        #     phase="train", 
+        #     cnn_type='cnn'
+        # )     
+        # print('Metrics for CNN are available') 
 
         # Adbench method
         df_train_path = os.path.join('data', f'df_train_raw_{main_insect_class}.csv') 
@@ -276,34 +281,34 @@ if __name__ == '__main__':
             transform_cnn, 
             main_insect_class, 
             phase="train", 
-            cnn_type='adbench'
+            cnn_type='adbench_2d'
         )     
         print('Metrics for AdBench are available')
 
-        # VGG16 method
-        model_name = 'resnet18'
-        model_vgg16 = timm.create_model(model_name, pretrained=False, num_classes=2)
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+        # # VGG16 method
+        # model_name = 'resnet18'
+        # model_vgg16 = timm.create_model(model_name, pretrained=False, num_classes=2)
+        # save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
-        # Load the model
-        if os.path.exists(save_path_best):
-            model_vgg16.load_state_dict(torch.load(save_path_best))
-            print("Model correctly loaded")
-        else:
-            print("Model not found")
-        model_vgg16 = torch.nn.Sequential(*(list(model_vgg16.children())[:-1]))
-        model_vgg16.eval()
+        # # Load the model
+        # if os.path.exists(save_path_best):
+        #     model_vgg16.load_state_dict(torch.load(save_path_best))
+        #     print("Model correctly loaded")
+        # else:
+        #     print("Model not found")
+        # model_vgg16 = torch.nn.Sequential(*(list(model_vgg16.children())[:-1]))
+        # model_vgg16.eval()
 
-        process_data_cnn(
-            df_train, 
-            model_vgg16, 
-            device, 
-            config, 
-            transform_cnn, 
-            main_insect_class, 
-            phase="train", 
-            cnn_type=model_name
-        ) 
-        print('Metrics for VGG16 are available')
+        # process_data_cnn(
+        #     df_train, 
+        #     model_vgg16, 
+        #     device, 
+        #     config, 
+        #     transform_cnn, 
+        #     main_insect_class, 
+        #     phase="train", 
+        #     cnn_type=model_name
+        # ) 
+        # print('Metrics for VGG16 are available')
 
         print('')

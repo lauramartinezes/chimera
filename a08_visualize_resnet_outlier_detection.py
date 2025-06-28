@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     model_name = 'resnet18'
-    cnn_types = ['cnn', 'adbench', model_name]
+    cnn_types = ['adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
@@ -61,7 +61,7 @@ if __name__ == '__main__':
             # df_train = pd.read_csv(df_train_path)
             df_subsets = []
             for subset in subsets:
-                if cnn_type == 'adbench':
+                if 'adbench' in cnn_type:
                     df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv')
                 else:
                     df_subset_path = os.path.join('data', f'df_{subset}_ae_{main_insect_class}.csv')
@@ -70,10 +70,10 @@ if __name__ == '__main__':
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
             # CNN method
-            if cnn_type == 'cnn' or cnn_type == 'adbench':
+            if cnn_type == 'cnn' or 'adbench' in cnn_type:
                 model_cnn = timm.create_model('resnet18', pretrained=True)
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['OCSVM']
+                od_methods = ['DBSCAN', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
             elif cnn_type == model_name:
                 model_cnn = timm.create_model(model_name, pretrained=False, num_classes=2)
                 save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
@@ -85,7 +85,7 @@ if __name__ == '__main__':
                 else:
                     print("Model not found")
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['OCSVM'] #['DBSCAN', 'MCD']
+                od_methods = ['DBSCAN'] #['DBSCAN', 'MCD']
                     
             model_cnn.eval()
             print("Model correctly initialized")

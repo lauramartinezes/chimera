@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
-from a01_1_train_test_classifier import SimpleCNN, compute_accuracy
+from a01_1_train_test_classifier import SimpleCNN, compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
 if torch.cuda.is_available():
@@ -32,65 +32,47 @@ def update_mislabeled_flags(row, mislabeled_col, insect_0_value, insect_classes)
         row[f'mislabeled_{insect_classes[1]}'] = False
     return row
 
-def compute_predictions(model, data_loader, device):
-    all_predictions = []
-    all_actuals = []
-    all_probs = []
-
-    for images, labels, real_label, measurement_noise, label_noise, outlier  in tqdm.tqdm(data_loader, desc="Computing predictions", total=len(data_loader)):
-            
-        images = images.to(device)
-        labels = labels.to(device)
-
-        logits = model(images)
-        probas = F.softmax(logits, dim=1)
-        _, predicted_labels = torch.max(probas, 1)
-        all_predictions.extend(predicted_labels.cpu().numpy())
-        all_actuals.extend(labels.cpu().numpy())
-        all_probs.extend(probas.cpu().numpy())
-
-    return all_predictions, all_actuals, all_probs
-
 
 # Step 1: Define categories using df-consistent terminology
 def get_category_lists(insect_classes):
-    natures = ["good", "mislabeled", "meas_noise"]
-    true_categories = [f"{cls}_{nature}" for nature in natures for cls in insect_classes]
-    predicted_categories = [f"{cls}_{nature}" for nature in natures for cls in insect_classes]
+    true_categories = []
+
+    # Add 'good' and 'mislabeled' categories for each real class
+    for i, cls in enumerate(insect_classes):
+        other_cls = insect_classes[1 - i]  # pick the other class
+        true_categories.append(f"{cls}_good")
+        true_categories.append(f"{cls}_labeled_as_{other_cls}")
+
+    # Add measurement noise categories
+    for cls in insect_classes:
+        true_categories.append(f"measurement_noise_labeled_as_{cls}")
+
+    
+    predicted_categories = insect_classes  # still only the predicted class names
     return true_categories, predicted_categories
 
 
-# Step 2: Determine the true category of a sample
+# Step 2: Determine the true category of a sample   
 def get_true_category(row, insect_classes):
-    cls = insect_classes[row["label"]]
     if row["measurement_noise"]:
-        return f"{cls}_meas_noise"
-    elif row["mislabeled"]:
-        return f"{cls}_mislabeled"
+        cls = insect_classes[row["label"]]  # still uses original label
+        return f"measurement_noise_labeled_as_{cls}"
+
+    cls = insect_classes[row["label"]]
+    if row["mislabeled"]:
+        # Swap logic for mislabeled
+        if cls == insect_classes[0]:  # wmv mislabeled
+            return f"{insect_classes[1]}_labeled_as_{insect_classes[0]}"
+        else:  # v mislabeled
+            return f"{insect_classes[0]}_labeled_as_{insect_classes[1]}"
     else:
         return f"{cls}_good"
 
 
+
 # Step 3: Determine the predicted category based on classifier output and true nature
 def get_predicted_category(true_cat, pred_label, insect_classes):
-    # Extract components from true_cat
-    true_class, nature = true_cat.split("_", 1)
-    pred_class = insect_classes[pred_label]
-
-    # Define a lookup table of (nature, predicted == true?) → predicted nature
-    transition = {
-        "good":              {True: "good", False: "mislabeled"},
-        "mislabeled":        {True: "mislabeled", False: "good"},
-        "meas_noise": {True: "meas_noise", False: "meas_noise"}
-    }
-
-    is_correct = (pred_class == true_class)
-    predicted_nature = transition.get(nature, {}).get(is_correct)
-
-    if predicted_nature is None:
-        return "UNKNOWN"
-
-    return f"{pred_class}_{predicted_nature}"
+    return insect_classes[pred_label]
 
 
 # Step 4: Compute confusion matrix
@@ -102,14 +84,14 @@ def build_extended_confusion_matrix(df, all_predictions, insect_classes):
         true_cat = get_true_category(row, insect_classes)
         pred_label = all_predictions[idx]
         pred_cat = get_predicted_category(true_cat, pred_label, insect_classes)
-        if pred_cat != "UNKNOWN":
+        if pred_cat in conf_matrix.columns:
             conf_matrix.loc[true_cat, pred_cat] += 1
     
     return conf_matrix
 
 
 # Step 5: Plotting
-def plot_confusion_matrix(conf_matrix, subtitle=None):
+def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
     plt.figure(figsize=(10, 8))
 
     # Normalize the values row-wise for color scaling
@@ -124,14 +106,15 @@ def plot_confusion_matrix(conf_matrix, subtitle=None):
         vmin=0, vmax=1              # Row-wise normalization is in [0,1]
     )
 
-    plt.xticks(rotation=20, ha="right")  # Make x-axis labels easier to read
+    plt.xticks(rotation=0)# 20, ha="right")  # Make x-axis labels easier to read
     plt.yticks(rotation=0)               # Keep y-axis labels straight
 
     plt.title(f"Confusion Matrix ({subtitle.title()})" if subtitle else "Confusion Matrix")
-    plt.xlabel("Predicted Category")
-    plt.ylabel("True Category")
+    plt.xlabel("Predicted Class")
+    plt.ylabel("True Class and Nature")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.png'))
+    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
 
 
 ##########################
@@ -164,6 +147,23 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
+    # Choose between green->purple step or purple->green step
+    step_order = "purple_to_green"  # or "green_to_purple"
+    if step_order=="purple_to_green":
+        in_suffix = 'raw'
+        clean_suffix = ''
+        extra_in_suffix = ''
+        data_dir = 'data'
+        out_suffix = 'ae'
+    elif step_order=="green_to_purple":
+        in_suffix = 'adbench'
+        clean_suffix = 'clean_'
+        extra_in_suffix = '_DBSCAN_clean'
+        data_dir = os.path.join('data', 'clean')
+        out_suffix = 'inv_ae'
+    else:
+        raise ValueError("Invalid step order. Choose between 'purple_to_green' or 'green_to_purple'.")  
+
     ##########################
     ### BINARY CLASS INSECT DATASET
     ##########################
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{clean_suffix}{in_suffix}_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -196,10 +196,21 @@ if __name__ == '__main__':
     else:
         print("Model not found")
 
+    conf_matrix_path = os.path.join('logs', 'initial_confusion_matrices')
+    os.makedirs(conf_matrix_path, exist_ok=True)
+
     all_pred_counts = []
     all_good_pred_counts = []
     all_mislabels_pred_counts = []
     all_confusion_matrices = []
+
+    all_predictions = []
+    all_actuals = []
+    all_probs = []
+
+    all_actuals_no_noise = []
+    all_probs_no_noise = []
+    all_predictions_no_noise = []
 
     for subset in subsets:
         dfs_subset = []
@@ -208,7 +219,7 @@ if __name__ == '__main__':
             main_insect_class = insect_classes[i]
             mislabeled_insect_class = insect_classes[1 - i]
 
-            df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv')
+            df_subset_path = os.path.join(data_dir, f'df_{subset}_{in_suffix}_{main_insect_class}{extra_in_suffix}.csv')
             df_subset_i = pd.read_csv(df_subset_path)
             df_subset_i['noisy_outlier_label_original'] = df_subset_i.label
             
@@ -239,22 +250,78 @@ if __name__ == '__main__':
         ##########################
         model.eval()
         with torch.set_grad_enabled(False): # save memory during inference
-            all_predictions, all_actuals, all_probs = compute_predictions(model, loader, device=DEVICE)
+            all_subset_predictions, all_subset_actuals, all_subset_probs = compute_predictions(model, loader, device=DEVICE)
             accuracy = compute_accuracy(model, loader, device=DEVICE)
-            print(f"Prediction: {all_predictions[0]}\nActual: {all_actuals[0]}\nProbabilities: {all_probs[0]}")
+            print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
             print(f"Accuracy: {accuracy}")
 
-        thresholded_predictions = np.array([
-            1 - pred if max(probs) < 0.7 else pred
-            for pred, probs in zip(all_predictions, all_probs)
-        ])
+        # thresholded_predictions = np.array([
+        #     actual if max(probs) <= 0.8 else pred
+        #     for pred, probs, actual in zip(all_subset_predictions, all_subset_probs, all_subset_actuals)
+        # ])
 
-        conf_matrix = build_extended_confusion_matrix(df_subset, all_predictions, insect_classes)
+        # all_subset_predictions = thresholded_predictions
+
+        all_probs.extend(all_subset_probs)
+        all_actuals.extend(all_subset_actuals)
+
+        # Remove noisy samples from the predictions
+        meas_noise_samples = df_subset[df_subset['measurement_noise'] == True].index
+        mislabel_samples = df_subset[df_subset['mislabeled'] == True].index
+        all_noisy_samples = meas_noise_samples.union(mislabel_samples) 
+
+        all_subset_probs_no_noise = np.delete(np.array(all_subset_probs), all_noisy_samples, axis=0)
+        all_subset_actuals_no_noise = np.delete(all_subset_actuals, all_noisy_samples)
+
+        all_probs_no_noise.extend(all_subset_probs_no_noise)
+        all_actuals_no_noise.extend(all_subset_actuals_no_noise)
+
+        prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
+        os.makedirs(prob_distribution_path, exist_ok=True)
+        # plot_probability_distribution(
+        #     np.array(all_subset_probs), 
+        #     np.array(all_subset_actuals), 
+        #     start=0, end=1.0, step=0.1,
+        #     filename_suffix=subset,
+        #     save_path=prob_distribution_path,
+        #     clean_dataset=clean_dataset,
+        #     method=method
+        #     )
+        
+        # plot_prediction_confidence_by_predicted_class(
+        #     np.array(all_subset_probs), 
+        #     start=0.5, end=1.0, step=0.1,
+        #     filename_suffix=subset,
+        #     save_path=prob_distribution_path,
+        #     clean_dataset=clean_dataset,
+        #     method=method
+        #     )
+        
+        # do plot for no noisy samples
+        # plot_probability_distribution(
+        #     np.array(all_subset_probs_no_noise),
+        #     np.array(all_subset_actuals_no_noise),
+        #     start=0, end=1.0, step=0.1,
+        #     filename_suffix=f'{subset}_no_noise',
+        #     save_path=prob_distribution_path,
+        #     clean_dataset=clean_dataset,
+        #     method=method
+        #     )
+        # plot_prediction_confidence_by_predicted_class(
+        #     np.array(all_subset_probs_no_noise),
+        #     start=0.5, end=1.0, step=0.1,
+        #     filename_suffix=f'{subset}_no_noise',
+        #     save_path=prob_distribution_path,
+        #     clean_dataset=clean_dataset,
+        #     method=method
+        #     )
+        
+        conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
         all_confusion_matrices.append(conf_matrix)
-        plot_confusion_matrix(conf_matrix, subtitle=subset)
+        plot_confusion_matrix(conf_matrix, subtitle=subset, path=conf_matrix_path)
 
-        df_subset['pred_label'] = all_predictions
-        df_subset['pred_probas'] = all_probs
+        df_subset['pred_label'] = all_subset_predictions
+        df_subset['pred_probas'] = all_subset_probs
 
         df_insect_0 = df_subset[df_subset['pred_label'] == 0]
         df_insect_1 = df_subset[df_subset['pred_label'] == 1]
@@ -372,28 +439,77 @@ if __name__ == '__main__':
         df_insect_0['label'] = outlier_labels_insect_0
         df_insect_1['label'] = outlier_labels_insect_1
 
-        df_insect_0_path = os.path.join('data', f'df_{subset}_ae_{insect_classes[0]}.csv')
+        df_insect_0_path = os.path.join('data', f'df_{subset}_{out_suffix}_{insect_classes[0]}.csv')
         df_insect_0.to_csv(df_insect_0_path)
 
-        df_insect_1_path = os.path.join('data', f'df_{subset}_ae_{insect_classes[1]}.csv')
+        df_insect_1_path = os.path.join('data', f'df_{subset}_{out_suffix}_{insect_classes[1]}.csv')
         df_insect_1.to_csv(df_insect_1_path)
+
+        if step_order == "green_to_purple":
+            df_insect_0 = df_insect_0[df_insect_0[f'noisy_label_classification'] == 0]
+            df_insect_1 = df_insect_1[df_insect_1[f'noisy_label_classification'] == 1]
+            
+            df_insect_0_path = os.path.join('data', 'clean', f'df_{subset}_{out_suffix}_{insect_classes[0]}_DBSCAN_clean.csv')
+            df_insect_0.to_csv(df_insect_0_path)
+
+            df_insect_1_path = os.path.join('data', 'clean', f'df_{subset}_{out_suffix}_{insect_classes[1]}_DBSCAN_clean.csv')
+            df_insect_1.to_csv(df_insect_1_path)
 
         print('')
     
     df_all_pred_counts = all_pred_counts[0] + all_pred_counts[1]
     print(df_all_pred_counts)
-    df_all_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_pred_counts_{model_name}.csv'))
+    df_all_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_pred_counts_{model_name}_{in_suffix}.csv'))
 
     df_all_good_pred_counts = all_good_pred_counts[0] + all_good_pred_counts[1]
     print(df_all_good_pred_counts)
-    df_all_good_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_good_pred_counts_{model_name}.csv'))
+    df_all_good_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_good_pred_counts_{model_name}_{in_suffix}.csv'))
 
     df_all_mislabels_pred_counts = all_mislabels_pred_counts[0] + all_mislabels_pred_counts[1]
     print(df_all_mislabels_pred_counts)
-    df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}.csv'))
+    df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}_{in_suffix}.csv'))
     
     # Get total confusion matrix
     conf_matrix_total = sum(all_confusion_matrices)
-    plot_confusion_matrix(conf_matrix_total, subtitle='Total')
+    plot_confusion_matrix(conf_matrix_total, subtitle='total', path=conf_matrix_path)
+
+    # Get total probability distribution
+    # plot_probability_distribution(
+    #     np.array(all_probs), 
+    #     np.array(all_actuals), 
+    #     start=0, end=1.0, step=0.1,
+    #     filename_suffix='train_val',
+    #     save_path=prob_distribution_path,
+    #     clean_dataset=clean_dataset,
+    #     method=method
+    #     )
+    
+    # plot_prediction_confidence_by_predicted_class(
+    #     np.array(all_probs), 
+    #     start=0.5, end=1.0, step=0.1,
+    #     filename_suffix='train_val',
+    #     save_path=prob_distribution_path,
+    #     clean_dataset=clean_dataset,
+    #     method=method
+    #     )
+    
+    # # do plot for no noisy samples
+    # plot_probability_distribution(
+    #     np.array(all_probs_no_noise),
+    #     np.array(all_actuals_no_noise),
+    #     start=0, end=1.0, step=0.1,
+    #     filename_suffix='train_val_no_noise',
+    #     save_path=prob_distribution_path,
+    #     clean_dataset=clean_dataset,
+    #     method=method
+    #     )
+    # plot_prediction_confidence_by_predicted_class(
+    #     np.array(all_probs_no_noise),
+    #     start=0.5, end=1.0, step=0.1,
+    #     filename_suffix='train_val_no_noise',
+    #     save_path=prob_distribution_path,
+    #     clean_dataset=clean_dataset,
+    #     method=method
+    #     )
 
     print('')

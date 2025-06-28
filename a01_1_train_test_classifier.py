@@ -11,13 +11,40 @@ import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import tqdm
 import yaml
+from torch.optim.lr_scheduler import CyclicLR
 
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 from sklearn.utils.class_weight import compute_class_weight
 
 from mnist_dataset import CustomBinaryInsectDF
+
+class SCELoss(torch.nn.Module):
+    def __init__(self, alpha, beta, num_classes=10, weight=None):
+        super(SCELoss, self).__init__()
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.alpha = alpha
+        self.beta = beta
+        self.num_classes = num_classes
+        self.weight = weight.to(self.device) if weight is not None else None
+        self.cross_entropy = torch.nn.CrossEntropyLoss(weight=self.weight)
+
+    def forward(self, pred, labels):
+        # CCE
+        ce = self.cross_entropy(pred, labels)
+
+        # RCE
+        pred = F.softmax(pred, dim=1)
+        pred = torch.clamp(pred, min=1e-7, max=1.0)
+        label_one_hot = F.one_hot(labels, self.num_classes).float().to(self.device)
+        label_one_hot = torch.clamp(label_one_hot, min=1e-4, max=1.0)
+        rce = (-1*torch.sum(pred * torch.log(label_one_hot), dim=1))
+
+        # Loss
+        loss = self.alpha * ce + self.beta * rce.mean()
+        return loss
 
 class SimpleCNN(nn.Module):
     def __init__(self, n_classes=2):
@@ -96,71 +123,177 @@ def compute_accuracy(model, data_loader, device):
 
     return correct_pred_percent, correct_pred_class_0_percent, correct_pred_class_1_percent, correct_pred_measurement_noise_class_0_percent, correct_pred_measurement_noise_class_1_percent, correct_pred_label_noise_class_0_percent, correct_pred_label_noise_class_1_percent, correct_pred_good_class_0_percent, correct_pred_good_class_1_percent
 
-def compute_loss(model, data_loader, device):
+def compute_loss(model, data_loader, device, criterion=None, class_weights_tensor=None):
     epoch_loss = 0
     for batch_idx, (images, labels, _, _, _, _) in enumerate(data_loader):
         images = images.to(device)
         labels = labels.to(device)
         
         logits = model(images)
-        loss = F.cross_entropy(logits, labels, weight=class_weights_tensor)  # Compute validation loss
+        if criterion is not None:
+            loss = criterion(logits, labels)
+        else:
+            loss = F.cross_entropy(logits, labels, weight=class_weights_tensor)  # Compute validation loss
         epoch_loss += loss.item()
 
     epoch_loss /= (batch_idx + 1)  # Compute average validation loss
     return epoch_loss
 
-def augment_train_data(num_augmentations, df_train, transform, seed):
-    # Define the original dataset
-    train_dataset = CustomBinaryInsectDF(
-        df_train, transform=transform, seed=seed
-    )
 
-    # Wrap the dataset with data augmentation applied multiple times
-    augmented_datasets = [train_dataset]  # Start with the original dataset
+def compute_predictions(model, data_loader, device):
+    all_predictions = []
+    all_actuals = []
+    all_probs = []
 
-    # Append augmented copies of the dataset
-    for _ in range(num_augmentations):  # Add 4 additional copies with transformations
-        augmented_datasets.append(CustomBinaryInsectDF(
-            df_train, transform=transform, seed=seed
-        ))
+    for images, labels, real_label, measurement_noise, label_noise, outlier  in tqdm.tqdm(data_loader, desc="Computing predictions", total=len(data_loader)):
+            
+        images = images.to(device)
+        labels = labels.to(device)
 
-    # Concatenate datasets to effectively increase size
-    augmented_train_dataset = ConcatDataset(augmented_datasets)
+        logits = model(images)
+        probas = F.softmax(logits, dim=1)
+        _, predicted_labels = torch.max(probas, 1)
+        all_predictions.extend(predicted_labels.cpu().numpy())
+        all_actuals.extend(labels.cpu().numpy())
+        all_probs.extend(probas.cpu().numpy())
 
-    return augmented_train_dataset
+    return all_predictions, all_actuals, all_probs
 
 
-def split_data(df_train_val, test_size=0.2):
+def plot_training_curves(train_vals, val_vals, test_vals, ylabel, title, filename_suffix, save_path, clean_dataset, method, num_epochs):
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, num_epochs + 1), train_vals, label='Train ' + ylabel)
+    plt.plot(range(1, num_epochs + 1), val_vals, label='Validation ' + ylabel)
+    plt.plot(range(1, num_epochs + 1), test_vals, label='Test ' + ylabel)
+    plt.xlabel('Epochs')
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.legend()
+    png_path = os.path.join(save_path, f'{filename_suffix}_{clean_dataset}_{method}.png')
+    svg_path = os.path.join(save_path, f'{filename_suffix}_{clean_dataset}_{method}.svg')
+    plt.savefig(png_path)
+    plt.savefig(svg_path)
+    plt.close()
+
+
+def plot_probability_distribution(probs, true_labels, start=0.5, end=1.0, step=0.05, filename_suffix='', save_path='', clean_dataset='', method=''):
     """
-    Splits the dataset into train and validation sets, ensuring no location overlap and class balance.
+    Plots the distribution of predicted probabilities for the true class.
     
     Parameters:
-    - df_train_val: pandas DataFrame containing the dataset with 'location' and 'label' columns.
-    - test_size: Proportion of the dataset to include in the validation set (default is 0.2).
-    
-    Returns:
-    - train_data: pandas DataFrame for the training set.
-    - val_data: pandas DataFrame for the validation set.
+    - probs: array of shape (n_samples, 2), predicted class probabilities
+    - true_labels: array of shape (n_samples,), true labels (0 or 1)
+    - start: float, start of probability range (default 0.5)
+    - end: float, end of probability range (default 1.0)
+    - step: float, bin step size (default 0.05)
     """
-    # Step 1: Get unique locations
-    locations = df_train_val['location'].unique()
+    # 1. Predicted probability for the true class
+    true_probs = probs[np.arange(len(probs)), true_labels]
 
-    # Step 2: Split the locations into train/val, stratifying by the most frequent label per location
-    train_locations, val_locations = train_test_split(
-        locations, 
-        test_size=test_size, 
-        stratify=df_train_val.groupby('location')['label'].apply(lambda x: x.mode()[0])
-    )
+    # 2. Split by true class
+    true_probs_class0 = true_probs[true_labels == 0]
+    true_probs_class1 = true_probs[true_labels == 1]
 
-    # Step 3: Filter the original dataset based on the location split
-    train_data = df_train_val[df_train_val['location'].isin(train_locations)]
-    val_data = df_train_val[df_train_val['location'].isin(val_locations)]
+    # 3. Bin centers and edges
+    bin_centers = np.arange(start, end + 1e-8, step)
+    half_step = step / 2
+    bin_edges = np.arange(start - half_step, end + half_step + 1e-8, step)
 
-    return train_data, val_data
+    # 4. Histogram counts
+    counts_class0, _ = np.histogram(true_probs_class0, bins=bin_edges)
+    counts_class1, _ = np.histogram(true_probs_class1, bins=bin_edges)
+
+    # 5. Plot
+    bin_width = step
+    plt.figure(figsize=(8,6))
+    plt.bar(bin_centers, counts_class0, width=bin_width, label='True Class 0', edgecolor='black', alpha=0.6)
+    plt.bar(bin_centers, counts_class1, width=bin_width, label='True Class 1', edgecolor='black', alpha=0.6)
+    plt.xlabel('Predicted Probability for True Class')
+    plt.ylabel('Number of Samples')
+    plt.title(f'Probability Distribution per True Class (step={step})')
+    plt.xticks(bin_centers)
+    plt.xlim(start - half_step, end + half_step)
+    plt.legend()
+    plt.grid(True)
+    png_path = os.path.join(save_path, f'{filename_suffix}_prob_distribution_{clean_dataset}_{method}.png')
+    svg_path = os.path.join(save_path, f'{filename_suffix}_prob_distribution_{clean_dataset}_{method}.svg')
+    plt.savefig(png_path)
+    plt.savefig(svg_path)
+    plt.close()
+
+
+def plot_prediction_confidence_by_predicted_class(probs, start=0.5, end=1.0, step=0.05,
+                                                  filename_suffix='', save_path='', clean_dataset='', method=''):
+    """
+    Plots the distribution of model confidence (max predicted probability),
+    grouped by the predicted class.
+
+    Parameters:
+    - probs: array of shape (n_samples, 2) or list of 2-element arrays
+    - start: float, min prob to plot (default 0.5)
+    - end: float, max prob to plot (default 1.0)
+    - step: float, bin width (default 0.05)
+    - filename_suffix, save_path, clean_dataset, method: optional suffixes for saving the plot
+    """
+    # Convert list of arrays to 2D array if needed
+    if isinstance(probs, list):
+        probs = np.stack(probs)
+
+    # 1. Model confidence (max probability)
+    max_probs = probs.max(axis=1)
+
+    # 2. Predicted class
+    pred_labels = np.argmax(probs, axis=1)
+
+    # 3. Split by predicted class
+    max_probs_pred0 = max_probs[pred_labels == 0]
+    max_probs_pred1 = max_probs[pred_labels == 1]
+
+    # 4. Bin setup
+    bin_centers = np.arange(start, end + 1e-8, step)
+    half_step = step / 2
+    bin_edges = np.arange(start - half_step, end + half_step + 1e-8, step)
+
+    # 5. Histogram counts
+    counts_pred0, _ = np.histogram(max_probs_pred0, bins=bin_edges)
+    counts_pred1, _ = np.histogram(max_probs_pred1, bins=bin_edges)
+
+    # 6. Plot
+    bin_width = step
+    plt.figure(figsize=(8, 6))
+    plt.bar(bin_centers, counts_pred0, width=bin_width, label='Predicted Class 0', edgecolor='black', alpha=0.6)
+    plt.bar(bin_centers, counts_pred1, width=bin_width, label='Predicted Class 1', edgecolor='black', alpha=0.6)
+    plt.xlabel('Model Confidence (Max Predicted Probability)')
+    plt.ylabel('Number of Samples')
+    plt.title(f'Confidence Distribution per Predicted Class (step={step})')
+    plt.xticks(bin_centers)
+    plt.xlim(start - half_step, end + half_step)
+    plt.legend()
+    plt.grid(True)
+
+    # 7. Save if path provided
+    if save_path:
+        os.makedirs(save_path, exist_ok=True)
+        png_path = os.path.join(save_path, f'{filename_suffix}_confidence_by_predicted_class_{clean_dataset}_{method}.png')
+        svg_path = os.path.join(save_path, f'{filename_suffix}_confidence_by_predicted_class_{clean_dataset}_{method}.svg')
+        plt.savefig(png_path)
+        plt.savefig(svg_path)
+        print(f"Saved to {png_path} and {svg_path}")
+    else:
+        plt.show()
+
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description='Evaluation of weekly training')
+        description='Training and Testing Classifier')
     parser.add_argument('--random_seed_1', type=int, default=1)
     parser.add_argument('--random_seed_2', type=int, default=1265)
     parser.add_argument('--learning_rate', type=float, default=0.0001)
@@ -168,7 +301,7 @@ def get_args():
     parser.add_argument('--num_epochs', type=int, default=10)
     parser.add_argument('--num_classes', type=int, default=2)
     parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--modelname', type=str, default='resnet18')
+    parser.add_argument('--model_name', type=str, default='resnet18')
     parser.add_argument('--pretrained', type=bool, default=False)
     parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
     args = parser.parse_args()
@@ -180,9 +313,9 @@ def get_args():
 
 # Hyperparameters
 RANDOM_SEED = 1
-LEARNING_RATE = 0.0001 #0.0001
+LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001 
 BATCH_SIZE = 64
-NUM_EPOCHS = 10 #1
+NUM_EPOCHS = 25 #1
 
 # Architecture
 NUM_CLASSES = 2
@@ -199,11 +332,7 @@ if __name__ == '__main__':
     args = get_args()
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    set_seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
@@ -211,44 +340,40 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################
     insect_classes = config["data_params"]["data_classes"] #['wmv', 'm']
-    method_datasets = ['ae', 'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#['adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#'adv_ae', 'adbench', 'raw', 'cleaning_benchmark']#, 'ae', 'adbench', 'cnn', 'adv_ae']
+    method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']#, ]#] #, 'ae', 'adv_ae', 'adbench', 'cnn'] #'inv_ae'
     retrain_models = True
-    
-    # transform_train = transforms.Compose([
-    #     transforms.Resize((150, 150)),
-    #     transforms.RandomVerticalFlip(p=0.5),
-    #     transforms.RandomHorizontalFlip(p=0.5),
-    #     transforms.RandomAutocontrast(p=0.5),
-    #     transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.5),
-    #     transforms.RandomRotation(degrees=(-5, 5)),
-    #     transforms.RandomPosterize(bits=7, p=0.1),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    # ])
-
-    # transform_train = transforms.Compose([
-    #     transforms.Resize((150, 150)),
-    #     transforms.ToTensor(),
-    #     transforms.RandomVerticalFlip(p=0.5),
-    #     transforms.RandomHorizontalFlip(p=0.5),
-    #     transforms.RandomRotation(degrees=(-15, 15)),
-    #     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    # ])
 
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
+
+    transform_train = transforms.Compose([
+        transforms.Resize(size=(150, 150), antialias=True),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomAutocontrast(p=0.7),
+        transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.5),
+        transforms.RandomRotation(degrees=(-25, 25)),
+        #transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+        #transforms.RandomPosterize(bits=7, p=0.1),
+        #transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        transforms.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value='random'),
+    ])
     results = []
 
     for method in method_datasets:
-        if method=='cnn' or method=='adv_ae' or method=='ae' or method=='adbench':
+        if method=='cnn' or method=='adv_ae' or method=='ae' or method=='adbench' or method=='inv_ae':
             clean_dataset='_clean'
         elif method=='cleaning_benchmark' or method=='raw': 
             clean_dataset=''
 
         if 'ae' in method:
+            od_method = '_DBSCAN'
+        elif method == 'cnn':
             od_method = '_DBSCAN'
         elif method == 'adbench':
             od_method = '_OCSVM'
@@ -266,10 +391,17 @@ if __name__ == '__main__':
             )
             df_train_i = pd.read_csv(df_train_path)
             if method == 'cleaning_benchmark':
-                df_train_i = df_train_i[df_train_i['label'] == 0]
-            # Correct labels for training a classifier instead of an outlier detector
-            df_train_i.label = i
-            dfs_train_.append(df_train_i)
+                df_train_i_no_noise = df_train_i[df_train_i['label'] == 0]
+                df_train_i_label_noise = df_train_i[df_train_i['mislabeled'] == True] # Comment this line if you want to reove label noise as well
+                # Correct labels for training a classifier instead of an outlier detector
+                df_train_i_no_noise.label = i
+                df_train_i_label_noise.label = 1 - i
+                dfs_train_.append(df_train_i_no_noise)
+                dfs_train_.append(df_train_i_label_noise)
+            else:
+                # Correct labels for training a classifier instead of an outlier detector
+                df_train_i.label = i
+                dfs_train_.append(df_train_i)
         
         df_train = pd.concat(dfs_train_, ignore_index=True)
 
@@ -282,32 +414,22 @@ if __name__ == '__main__':
                 'data', 
                 'clean' if clean_dataset=='_clean' else '', 
                 f'df_val_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
-                #f'df_val_vgg16_{main_insect_class}_{method if method != "cleaning_benchmark" else "raw"}{clean_dataset}.csv'
             )
             df_val_i = pd.read_csv(df_val_path)
             if method == 'cleaning_benchmark':
-                df_val_i = df_val_i[df_val_i['label'] == 0]
-            # Correct labels for training a classifier instead of an outlier detector
-            df_val_i.label = i
-            dfs_val.append(df_val_i)
+                df_val_i_no_noise = df_val_i[df_val_i['label'] == 0]
+                df_val_i_label_noise = df_val_i[df_val_i['mislabeled'] == True] # Comment this line if you want to reove label noise as well
+                # Correct labels for training a classifier instead of an outlier detector
+                df_val_i_no_noise.label = i
+                df_val_i_label_noise.label = 1 - i
+                dfs_val.append(df_val_i_no_noise)
+                dfs_val.append(df_val_i_label_noise)
+            else:
+                # Correct labels for training a classifier instead of an outlier detector
+                df_val_i.label = i
+                dfs_val.append(df_val_i)
         
         df_val = pd.concat(dfs_val, ignore_index=True)
-
-
-        # df_train_val['location'] = df_train_val['filepath'].apply(lambda x: os.path.basename(x).split('_')[1])
-        # df_train_val['plate'] = df_train_val['filepath'].apply(lambda x: '_'.join(os.path.basename(x).split('.')[0].split('_')[:-1]))
-        # df_train, df_val = train_test_split(df_train_val, test_size=0.2, random_state=42, stratify=df_train_val['label'])
-        
-        # df_val_good = df_val[(df_val.measurement_noise==False) & (df_val.mislabeled==False)]
-        # df_train, df_val = split_data(df_train_val, test_size=0.2)
-        
-        # copy images into a train and val folders
-        # os.makedirs(os.path.join('data', 'df_train'), exist_ok=True)
-        # os.makedirs(os.path.join('data', 'df_val'), exist_ok=True)
-        # df_train.filepath.apply(lambda x: os.makedirs(os.path.dirname(x).replace('train', 'df_train'), exist_ok=True))
-        # df_val.filepath.apply(lambda x: os.makedirs(os.path.dirname(x).replace('train', 'df_val'), exist_ok=True))
-        # df_train.filepath.apply(lambda x: shutil.copy(x, os.path.dirname(x).replace('train', 'df_train')))
-        # df_val.filepath.apply(lambda x: shutil.copy(x, os.path.dirname(x).replace('train', 'df_val')))
 
         df_test_path = os.path.join('data', f'df_test.csv')
         df_test = pd.read_csv(df_test_path)
@@ -316,8 +438,7 @@ if __name__ == '__main__':
         class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(DEVICE)
 
         # Prepare Dataset
-        train_dataset = CustomBinaryInsectDF(df_train, transform = transform, seed=config["exp_params"]["manual_seed"])
-        # train_dataset = augment_train_data(4, df_train, transform = transform_train, seed=config["exp_params"]["manual_seed"])
+        train_dataset = CustomBinaryInsectDF(df_train, transform = transform_train, seed=config["exp_params"]["manual_seed"])
         val_dataset = CustomBinaryInsectDF(df_val, transform = transform, seed=config["exp_params"]["manual_seed"])
         test_dataset = CustomBinaryInsectDF(df_test, transform = transform, seed=config["exp_params"]["manual_seed"])
 
@@ -349,10 +470,11 @@ if __name__ == '__main__':
         ### RESNET-18 MODEL
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model_name = 'resnet18' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
-        # model = OverfittingCNN(n_classes=len(insect_classes))
-        #model = SimpleCNN(n_classes=len(insect_classes))
-        model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
+        model_name = 'resnet18' #'mobilenetv3_large_100.miil_in21k_ft_in1k' #'vgg16' #'efficientnet_lite0' #'tf_efficientnetv2_m.in21k_ft_in1k' #'resnet18'
+        if model_name == 'simplecnn':
+            model = SimpleCNN(n_classes=len(insect_classes))
+        else:
+            model = timm.create_model(model_name, pretrained=True, num_classes=NUM_CLASSES)
         model.to(DEVICE)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
@@ -360,8 +482,23 @@ if __name__ == '__main__':
 
         if not os.path.exists(save_path_best) or retrain_models==True:
             optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])
+            #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["exp_params"]["scheduler_gamma"])#config["exp_params"]["scheduler_gamma"])
+            #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
+            
+            # optimizer = torch.optim.Adam(model.parameters())
+            # # Set up the cyclical learning rate scheduler
+            # cycles = NUM_EPOCHS // 2  # Half the number of epochs since there are two phases per cycle
+            # step_size_up = len(train_loader) * cycles  # Number of update steps per cycle
+            # scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=0.01, step_size_up=step_size_up, cycle_momentum=False)
 
+            criterion_name = 'CrossEntropyLoss'
+            if criterion_name == 'CrossEntropyLoss':
+                criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
+            elif criterion_name == 'SCELoss':
+                criterion = SCELoss(alpha=6., beta=1., num_classes=df_train['label'].unique().shape[0], weight=class_weights_tensor) 
+            else:
+                raise ValueError(f"Unknown criterion: {criterion_name}")
+                    
             ##########################
             ### TRAIN
             ##########################
@@ -375,6 +512,10 @@ if __name__ == '__main__':
             val_losses = []
             test_losses = []
             start_time = time.time()
+
+            patience = 5  
+            epochs_no_improve = 0
+
             for epoch in range(NUM_EPOCHS):
                 model.train()
                 epoch_loss = 0
@@ -386,7 +527,7 @@ if __name__ == '__main__':
                     ### FORWARD AND BACK PROP
                     logits = model(images)
                     probas = F.softmax(logits, dim=1)
-                    loss = F.cross_entropy(logits, labels, weight=class_weights_tensor)
+                    loss = criterion(logits, labels)
                     optimizer.zero_grad()
                     
                     loss.backward()
@@ -412,8 +553,8 @@ if __name__ == '__main__':
 
                 model.eval()
                 with torch.set_grad_enabled(False): # save memory during inference
-                    val_epoch_loss = compute_loss(model, val_loader, DEVICE)
-                    test_epoch_loss = compute_loss(model, test_loader, DEVICE)
+                    val_epoch_loss = compute_loss(model, val_loader, DEVICE, criterion=criterion, class_weights_tensor=class_weights_tensor)
+                    test_epoch_loss = compute_loss(model, test_loader, DEVICE, criterion=criterion, class_weights_tensor=class_weights_tensor)
                     val_losses.append(val_epoch_loss)
                     test_losses.append(test_epoch_loss)
                                 
@@ -459,16 +600,10 @@ if __name__ == '__main__':
 
                     print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
                     print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
-                    # print(f'Test {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % test_insect_0_meas_noise_accuracy)
-                    # print(f'Test {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % test_insect_1_meas_noise_accuracy)
-                    # print(f'Test {insect_classes[0]} Mislabel Accuracy: %.2f%%' % test_insect_0_milabel_accuracy)
-                    # print(f'Test {insect_classes[1]} Mislabel Accuracy: %.2f%%' % test_insect_1_milabel_accuracy)
-                    # print(f'Test {insect_classes[0]} Good Accuracy: %.2f%%' % test_insect_0_good_accuracy)
-                    # print(f'Test {insect_classes[1]} Good Accuracy: %.2f%%' % test_insect_1_good_accuracy)
 
                     lowest_val_class_accuracy = min(val_insect_0_accuracy, val_insect_1_accuracy)
 
-                        # Check if the validation accuracy improved
+                    # Check if the validation accuracy improved
                     valid_accuracy_improved = val_accuracy > best_val_accuracy
 
                     # Check if the validation loss improved or if it is in the 10% percentile of the validation losses and the validation accuracy improved
@@ -480,42 +615,52 @@ if __name__ == '__main__':
                         best_lowest_val_class_accuracy = lowest_val_class_accuracy
                         torch.save(model.state_dict(), save_path_best)
                         print(f"New best model saved at {save_path_best} with Validation Accuracy: {best_val_accuracy:.3f}% and lowest class accuracy: {best_lowest_val_class_accuracy:.3f}%")
-                    
+                        epochs_no_improve = 0  # reset patience counter
+                    else:
+                        epochs_no_improve += 1
+                        print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s)")
+
                 print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
                 # Step the scheduler
-                scheduler.step()
-                print(f"Learning Rate: {scheduler.get_last_lr()[0]:.6f}")
-                
+                #if epoch < 3:
+                #scheduler.step()
+                #print(f"Learning Rate: {scheduler.get_last_lr()[0]:.6f}")
+
+                if epoch > 1:
+                    # Plot the training and validation accuracy
+                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}')
+                    os.makedirs(train_curves_path, exist_ok=True)
+
+                    plot_training_curves(
+                        train_accuracies, val_accuracies, test_accuracies,
+                        ylabel='Accuracy',
+                        title='Training and Validation Accuracy',
+                        filename_suffix='train_val_test_acc',
+                        save_path=train_curves_path,
+                        clean_dataset=clean_dataset,
+                        method=method,
+                        num_epochs=epoch + 1
+                    )
+
+                    plot_training_curves(
+                        train_losses, val_losses, test_losses,
+                        ylabel='Loss',
+                        title='Training and Validation Loss',
+                        filename_suffix='train_val_test_loss',
+                        save_path=train_curves_path,
+                        clean_dataset=clean_dataset,
+                        method=method,
+                        num_epochs=epoch + 1
+                    )
+                # if epochs_no_improve >= patience:
+                #     print(f"Early stopping triggered after {epoch+1} epochs with no improvement.")
+                #     break  # <-- This breaks the outer epoch loop
+
             print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))
             torch.save(model.state_dict(), save_path)
 
-            # Plot the training and validation accuracy
-            plt.figure(figsize=(10, 5))
-            plt.plot(range(1, NUM_EPOCHS + 1), train_accuracies, label=f'Train Accuracy')
-            plt.plot(range(1, NUM_EPOCHS + 1), val_accuracies, label=f'Validation Accuracy')
-            plt.plot(range(1, NUM_EPOCHS + 1), test_accuracies, label=f'Test Accuracy')
-            plt.xlabel('Epochs')
-            plt.ylabel('Accuracy')
-            plt.title(f'Training and Validation Accuracy')
-            plt.legend()
-            # plt.show()
-            train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}')
-            os.makedirs(train_curves_path, exist_ok=True)
-            plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.png'))
-            plt.savefig(os.path.join(train_curves_path, f'train_val_test_acc_{clean_dataset}_{method}.svg'))
+            
 
-            # Plot the training and validation loss
-            plt.figure(figsize=(10, 5))
-            plt.plot(range(1, NUM_EPOCHS + 1), train_losses, label=f'Train Loss')
-            plt.plot(range(1, NUM_EPOCHS + 1), val_losses, label=f'Validation Loss')
-            plt.plot(range(1, NUM_EPOCHS + 1), test_losses, label=f'Test Loss')
-            plt.xlabel('Epochs')
-            plt.ylabel('Loss')
-            plt.title(f'Training and Validation Loss')
-            plt.legend()
-            # plt.show()
-            plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.png'))
-            plt.savefig(os.path.join(train_curves_path, f'train_val_test_loss_{clean_dataset}_{method}.svg'))
         else:
             model.load_state_dict(torch.load(save_path_best))
             model.eval()
@@ -538,13 +683,35 @@ if __name__ == '__main__':
             print(f'Test accuracy: %.2f%%' % test_accuracy)
             print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
             print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
+            test_predictions, test_actuals, test_probs = compute_predictions(model, test_loader, device=DEVICE)
         
+        prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
+        os.makedirs(prob_distribution_path, exist_ok=True)
+        plot_probability_distribution(
+            np.array(test_probs), 
+            np.array(test_actuals), 
+            start=0, end=1.0, step=0.1,
+            filename_suffix='test',
+            save_path=prob_distribution_path,
+            clean_dataset=clean_dataset,
+            method=method
+            )
+        
+        plot_prediction_confidence_by_predicted_class(
+            np.array(test_probs), 
+            start=0.5, end=1.0, step=0.1,
+            filename_suffix='test',
+            save_path=prob_distribution_path,
+            clean_dataset=clean_dataset,
+            method=method
+            )
+
         results.append({
             "clean_dataset": not(clean_dataset==''),
-            "best_val_accuracy": best_val_accuracy.item(),# if retrain_models==True else None,
-            "test_accuracy": test_accuracy.item(),
-            f"test_{insect_classes[0]}accuracy": test_insect_0_accuracy.item(),
-            f"test_{insect_classes[1]}_accuracy": test_insect_1_accuracy.item(),
+            "best_val_accuracy": round(best_val_accuracy.item(), 2),
+            "test_accuracy": round(test_accuracy.item(), 2),
+            f"test_{insect_classes[0]}_accuracy": round(test_insect_0_accuracy.item(), 2),
+            f"test_{insect_classes[1]}_accuracy": round(test_insect_1_accuracy.item(), 2),
             'method': f'{method}'
         })
         df_results = pd.DataFrame(results)

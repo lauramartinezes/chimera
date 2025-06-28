@@ -72,8 +72,8 @@ def plot_latent_space_with_tooltips(
             2: "Measurement Noise",
         }
         label_mapping_test = {
-            0: f"wmv_test",
-            1: f"c_test",
+            0: f"{insect_classes[0]}_test",
+            1: f"{insect_classes[1]}_test",
         }
 
         fig = go.Figure()
@@ -187,8 +187,8 @@ if __name__ == '__main__':
     df_test = pd.read_csv(df_test_path)
 
     # Define the insect classes
-    insect_classes = ['wmv', 'c']
-    feature_ext_methods = ['ae', 'adv_ae', 'cnn']
+    insect_classes = ['wmv', 'wrl']
+    feature_ext_methods = ['ae', 'adv_ae', 'cnn', 'resnet18']
 
     # Prepare dictionaries for dropdown-based selection
     train_features_dict = {}
