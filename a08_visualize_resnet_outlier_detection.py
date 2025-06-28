@@ -32,38 +32,42 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         pin_memory,
     )
     print(f"{phase.capitalize()} dataset correctly loaded")
-    
-    if method == 'cnn' or 'adbench' in method or method == 'resnet18':
-        (
-            latents, 
-            labels_cnn, 
-            real_labels_cnn, 
-            measurement_noise, 
-            mislabel_noise 
-        ) = extract_features_from_dataloader(loader, model)
-        if method == 'adbench':
-            latents_512d = latents
-            optimal_min_cluster_size, optimal_min_samples = 5, 5  # Default values for HDBSCAN if not optimized
-        elif method == 'adbench_2d':
-            reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-            latents_512d = reducer_2d.fit_transform(latents)
-            optimal_min_cluster_size, optimal_min_samples = 5, 5
-        else:
-            N = len(latents)
-            min_cluster_size_values = [max(5, int(p * N)) for p in [0.005, 0.01, 0.02, 0.05]]
-            min_samples_values = [max(5, int(p * N)) for p in [0.002, 0.005, 0.01]]
 
-            optimal_dim, optimal_min_cluster_size, optimal_min_samples = find_optimal_umap_hdbscan(
-                main_insect_class,
-                latents, 
-                min_cluster_size_values=min_cluster_size_values,
-                min_samples_values=min_samples_values,
-                save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis")
-            )
-            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
-            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=optimal_dim, random_state=42)
-            latents_512d = reducer_optimd.fit_transform(latents)
+    # Extract features from the dataloader
+    (
+        latents, 
+        labels_cnn, 
+        real_labels_cnn, 
+        measurement_noise, 
+        mislabel_noise 
+    ) = extract_features_from_dataloader(loader, model)
+
+    N = len(latents)
+    default_min_cluster_size = max(5, int(0.05 * N))  # Default value for HDBSCAN
+    default_min_samples = max(5, int(0.01 * N))  # Default value for HDBSCAN
+
+    if method == 'adbench':
+        latents_512d = latents
+        optimal_min_cluster_size = default_min_cluster_size
+        optimal_min_samples = default_min_samples
+    elif method == 'adbench_2d':
+        reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        latents_512d = reducer_2d.fit_transform(latents)
+        optimal_min_cluster_size = default_min_cluster_size
+        optimal_min_samples = default_min_samples
+    else:
+        min_cluster_size_values = [max(5, int(p * N)) for p in [0.005, 0.01, 0.02, 0.05]]
+        min_samples_values = [max(5, int(p * N)) for p in [0.002, 0.005, 0.01]]
+
+        optimal_dim, optimal_min_cluster_size, optimal_min_samples = find_optimal_umap_hdbscan(
+            main_insect_class,
+            latents, 
+            min_cluster_size_values=min_cluster_size_values,
+            min_samples_values=min_samples_values,
+            save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis")
+        )
+        reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
+        latents_512d = reducer_optimd.fit_transform(latents)
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
     metrics = {}
