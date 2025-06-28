@@ -17,7 +17,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from CustomBinaryInsectDF import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF
 
 
 if torch.cuda.is_available():

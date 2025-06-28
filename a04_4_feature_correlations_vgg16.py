@@ -17,7 +17,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from CustomBinaryInsectDF import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF
 
 
 def extract_features_from_dataloader(dataloader, model, device):

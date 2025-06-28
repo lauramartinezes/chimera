@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from CustomBinaryInsectDF import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF
 
 def get_train_test_umap(X_train, X_test, n_components=2):
     umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)

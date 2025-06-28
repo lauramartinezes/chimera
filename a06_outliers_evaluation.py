@@ -14,7 +14,7 @@ from torchvision import transforms
 
 from PyOD import PYOD, metric
 from HDBSCAN_OD import HDBSCAN_OD
-from CustomBinaryInsectDF import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF
 
 
 def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train", cnn_type='cnn'):

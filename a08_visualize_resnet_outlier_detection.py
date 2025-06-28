@@ -18,7 +18,7 @@ from PyOD import PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from a04_4_feature_correlations_vgg16 import find_optimal_umap_hdbscan
 from HDBSCAN_OD import HDBSCAN_OD
-from CustomBinaryInsectDF import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF
 
 
 def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='HDBSCAN'):
