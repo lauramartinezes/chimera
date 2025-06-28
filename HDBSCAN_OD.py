@@ -1,20 +1,12 @@
-import os
-import random
-import cuml
-from matplotlib import pyplot as plt
 import numpy as np
-import pandas as pd
-from sklearn.cluster import DBSCAN
-import torch
 import seaborn as sns
 import umap
-import yaml
 import hdbscan
 
-from torchvision import transforms
+from matplotlib import pyplot as plt
+from sklearn.cluster import DBSCAN
 
 from PyOD import metric
-#from vq_vae import VQVAE
 
 
 def DBSCAN_OD(latent_space_points, eps=0.5, min_samples=1):
