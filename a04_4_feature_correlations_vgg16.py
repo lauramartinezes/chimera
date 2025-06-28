@@ -53,13 +53,7 @@ def find_optimal_umap_hdbscan(main_insect_class, data, dims=[2 ** i for i in ran
     for d in dims:
         print(f"\nFitting UMAP with {d} dimensions...")
         reducer = UMAP(n_components=d, random_state=42, n_jobs=1)
-        #reducer = UMAP(n_neighbors=15, min_dist=0.1, n_components=d, random_state=42)
         embedding = reducer.fit_transform(data)
-
-        # Preservation score
-        original_distances = pairwise_distances(data)
-        embedded_distances = pairwise_distances(embedding)
-        preservation_score = spearmanr(original_distances.flatten(), embedded_distances.flatten()).correlation
 
         for min_cluster_size in min_cluster_size_values:
             for min_samples in min_samples_values:
@@ -72,26 +66,24 @@ def find_optimal_umap_hdbscan(main_insect_class, data, dims=[2 ** i for i in ran
                 else:
                     rv_score = -1
 
-                noise_ratio = np.sum(cluster_labels == -1) / len(cluster_labels)
-                scores.append((d, min_cluster_size, min_samples, preservation_score, rv_score, noise_ratio))
+                scores.append((d, min_cluster_size, min_samples, rv_score))
 
                 print(f"Dim: {d}, min_cluster_size: {min_cluster_size}, min_samples: {min_samples}, "
-                      f"Relative Validity: {rv_score:.4f}, Preservation: {preservation_score:.4f}, "
-                      f"Noise Ratio: {noise_ratio:.2f}")
+                      f"Relative Validity: {rv_score:.4f}")
 
     scores = np.array(scores)
 
     # Filter out invalid scores (e.g., rv_score = -1)
-    valid_scores = scores[scores[:, 4] > 0]
+    valid_scores = scores[scores[:, 3] > 0]
 
     if len(valid_scores) > 0:
-        max_rv = np.max(valid_scores[:, 4])
-        top_candidates = valid_scores[valid_scores[:, 4] == max_rv]
+        max_rv = np.max(valid_scores[:, 3])
+        top_candidates = valid_scores[valid_scores[:, 3] == max_rv]
         best_idx = np.argmin(top_candidates[:, 0])  # Choose lowest dimension
         best_dim, best_mcs, best_ms = top_candidates[best_idx, :3]
     else:
         print("No valid clustering found. Using highest relative validity among all scores as fallback.")
-        best_idx = np.argmax(scores[:, 4])
+        best_idx = np.argmax(scores[:, 3])
         best_dim, best_mcs, best_ms = scores[best_idx, :3]
 
     if save_dir is not None:
@@ -119,17 +111,15 @@ def plot_umap_hdbscan_results(main_insect_class, scores, min_cluster_size_values
     dims = scores[:, 0]
     mcs_vals = scores[:, 1]
     ms_vals = scores[:, 2]
-    preservation_scores = scores[:, 3]
-    rv_scores = scores[:, 4]
-    noise_ratios = scores[:, 5]
+    rv_scores = scores[:, 3]
 
     # Plot relative validity
     fig, ax = plt.subplots(figsize=(10, 6))
     for ms in min_samples_values:
         for mcs in min_cluster_size_values:
-            subset = scores[(scores[:, 1] == mcs) & (scores[:, 2] == ms)]
+            subset = scores[(mcs_vals == mcs) & (ms_vals == ms)]
             if subset.shape[0] > 0:
-                ax.plot(subset[:, 0], subset[:, 4],
+                ax.plot(subset[:, 0], subset[:, 3],
                         label=f"mcs={int(mcs)}, ms={int(ms)}", marker='o')
     ax.set_title("Relative Validity Scores")
     ax.set_xlabel("UMAP Dimensions")
@@ -139,35 +129,6 @@ def plot_umap_hdbscan_results(main_insect_class, scores, min_cluster_size_values
     ax.grid(True)
     save_plot(fig, "Relative_Validity")
 
-    # Plot noise ratio
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for ms in min_samples_values:
-        for mcs in min_cluster_size_values:
-            subset = scores[(scores[:, 1] == mcs) & (scores[:, 2] == ms)]
-            if subset.shape[0] > 0:
-                ax.plot(subset[:, 0], subset[:, 5],
-                        label=f"mcs={int(mcs)}, ms={int(ms)}", marker='o')
-    ax.set_title("Noise Ratios")
-    ax.set_xlabel("UMAP Dimensions")
-    ax.set_ylabel("Noise Ratio")
-    plot_vertical_line(ax, best_dim)
-    ax.legend()
-    ax.grid(True)
-    save_plot(fig, "Noise_Ratio")
-
-    # Plot preservation score
-    fig, ax = plt.subplots(figsize=(10, 6))
-    unique_dims = sorted(np.unique(dims))
-    avg_pres_by_dim = [np.mean(preservation_scores[dims == d]) for d in unique_dims]
-    ax.plot(unique_dims, avg_pres_by_dim, marker='o', label="Preservation Score")
-    ax.set_title("Average Preservation Score per UMAP Dimension")
-    ax.set_xlabel("UMAP Dimensions")
-    ax.set_ylabel("Preservation Score (Spearman)")
-    plot_vertical_line(ax, best_dim)
-    ax.legend()
-    ax.grid(True)
-    save_plot(fig, "Preservation_Scores")
-
 
 def plot_final_umap_clusters(main_insect_class, data, best_dim, best_mcs, best_ms, save_dir=None):
     """
@@ -175,7 +136,7 @@ def plot_final_umap_clusters(main_insect_class, data, best_dim, best_mcs, best_m
    
     Parameters:
     - main_insect_class: str, name for labeling/saving plots
-    - data: input array (CuPy or NumPy)
+    - data: input array
     - best_dim: int, optimal UMAP embedding dimension for clustering
     - best_mcs: int, min_cluster_size for HDBSCAN
     - best_ms: int, min_samples for HDBSCAN
@@ -183,13 +144,11 @@ def plot_final_umap_clusters(main_insect_class, data, best_dim, best_mcs, best_m
     """
     print(f"Running HDBSCAN on {best_dim}D embedding (min_cluster_size={best_mcs}, min_samples={best_ms})...")
     umap_opt = UMAP(n_components=int(best_dim), random_state=42, n_jobs=1)
-    #umap_opt = UMAP(n_neighbors=15, min_dist=0.1, n_components=int(best_dim), random_state=42)
     embedding_opt = umap_opt.fit_transform(data)
 
     print("\nProjecting to 2D UMAP for visualization...")
     if best_dim!=2:
         umap_2d = UMAP(n_components=2, random_state=42, n_jobs=1)
-        #umap_2d = UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
         embedding_2d = umap_2d.fit_transform(data)
     else:
         embedding_2d = embedding_opt
