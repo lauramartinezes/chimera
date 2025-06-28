@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
 from mnist_dataset import CustomBinaryInsectDF
-from a01_1_train_test_classifier import SimpleCNN, compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from a01_1_train_test_classifier import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
 if torch.cuda.is_available():
@@ -182,8 +182,7 @@ if __name__ == '__main__':
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'resnet18' #'simplecnn' #'mobilenetv3_small_100' #overfittingcnn
-    #model = SimpleCNN()
+    model_name = 'resnet18'
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
