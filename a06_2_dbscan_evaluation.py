@@ -14,7 +14,7 @@ import hdbscan
 from torchvision import transforms
 
 from PyOD import metric
-from vq_vae import VQVAE
+#from vq_vae import VQVAE
 
 
 def DBSCAN_OD(latent_space_points, eps=0.5, min_samples=1):

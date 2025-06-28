@@ -1,22 +1,258 @@
 import os
 import random
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import timm
 import torch
-from tqdm import tqdm
 import umap
 import yaml
 
+from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from tqdm import tqdm
 
 from PyOD import PYOD, metric
-from a07_clean_data import clean_df
+from a04_2_umap_projections_cnn import extract_features_from_dataloader
+from a04_4_feature_correlations_vgg16 import find_optimal_umap_dbscan
+from a06_2_dbscan_evaluation import DBSCAN_OD
 from mnist_dataset import CustomBinaryInsectDF
-from vq_vae import VQVAE
+
+
+def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='DBSCAN'):
+    # Load the data
+    loader = load_data_from_df(
+        df,
+        transform,
+        config["exp_params"]["manual_seed"],
+        config["data_params"][f"train_batch_size"],
+        config["data_params"]["num_workers"],
+        pin_memory,
+    )
+    print(f"{phase.capitalize()} dataset correctly loaded")
+    
+    if 'ae' in method:
+        # Extract features from encoding latents
+        (
+            raw_latents,
+            features_encoding,
+            labels_encoding,
+            real_labels_encoding,
+            measurement_noise,
+            mislabel_noise,
+        ) = extract_features_from_encoding(model, loader, device)
+
+        # Reduce dimensions to 512D for outlier detection
+        print('Starting UMAP 512D reduction')
+        latents = raw_latents.reshape(raw_latents.shape[0], -1)
+        reducer_512d = umap.UMAP(n_components=512, random_state=42, n_jobs=1)
+        #reducer_512d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=512, random_state=42)
+        latents_512d = reducer_512d.fit_transform(latents)
+        optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
+        
+    elif method == 'cnn' or 'adbench' in method or method == 'resnet18':
+        (
+            latents, 
+            labels_cnn, 
+            real_labels_cnn, 
+            measurement_noise, 
+            mislabel_noise 
+        ) = extract_features_from_dataloader(loader, model)
+        if method == 'adbench':
+            latents_512d = latents
+            optimal_eps, optimal_min_samples = 0.5, 1  # Default values for DBSCAN if not optimized
+        elif method == 'adbench_2d':
+            reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+            latents_512d = reducer_2d.fit_transform(latents)
+            optimal_eps, optimal_min_samples = 0.5, 1
+        else:
+            optimal_dim, optimal_eps, optimal_min_samples = find_optimal_umap_dbscan(
+                main_insect_class,
+                latents, 
+                save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_dbscan_analysis")
+            )
+            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
+            #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=optimal_dim, random_state=42)
+            latents_512d = reducer_optimd.fit_transform(latents)
+
+    y_true = (measurement_noise + mislabel_noise).astype(int)
+    metrics = {}
+    if od_method != 'DBSCAN':
+        y_pred, metrics = get_outlier_predictions(
+            latents_512d,
+            y_true,
+            model=od_method,
+            # contamination= 0.2
+        )
+    elif od_method == 'DBSCAN':
+        y_pred = DBSCAN_OD(latents_512d, eps=optimal_eps, min_samples=optimal_min_samples)
+        metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
+
+    visualize_y_true_vs_y_pred_umap(
+        latents, 
+        measurement_noise, 
+        mislabel_noise,
+        y_pred, 
+        filename=f'{method}_{main_insect_class}_{phase}_{od_method}',
+        dirname=config["logging_params"]["save_dir"]
+    )
+
+    get_confusion_matrix(
+        y_true, 
+        y_pred, 
+        filename=f'{method}_{main_insect_class}_{phase}_{od_method}', 
+        dirname=config["logging_params"]["save_dir"]
+    )
+
+    # Mark outliers in the dataframe and transform them from integer to boolean
+    df['outlier_detected'] = y_pred
+    df['outlier_detected'] = df['outlier_detected'].astype(bool)
+
+    # Filter the dataframe to have only the clean samples
+    df_clean = df[y_pred == 0]
+    if f'noisy_label_classification' in df_clean.columns:
+        reference_label = 0 if main_insect_class == 'wmv' else 1
+        df_clean = df_clean[df_clean[f'noisy_label_classification'] == reference_label]
+    
+    return df_clean, df, metrics
+
+
+def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
+    dataset = CustomBinaryInsectDF(
+        df, 
+        transform = transform, 
+        seed=seed
+    )
+
+    return DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory
+    )
+
+
+def extract_features_from_encoding(model, dataloader, device):
+    model.eval()  # Set the model to evaluation mode
+    all_features = []  # To store features from all batches
+    all_labels = []    # To store labels if needed
+    all_real_labels = []
+    all_measurement_noise = []
+    all_mislabeled = []
+    all_encodings = []
+
+    with torch.no_grad():
+        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Featured extraction encoding: "):
+            images = images.to(device)
+
+            # Pass images through the encoder layers
+            encoding = model.encode(images)[0]  # Raw encoder output
+
+            # Global Average Pooling: Compute mean across spatial dimensions (H, W)
+            pooled_encoding = encoding.mean(dim=[2, 3])  # Shape: [B, embedding_dim]
+
+            # Append features to the list
+            all_features.append(pooled_encoding.cpu().numpy())
+            all_encodings.append(encoding.cpu().numpy())
+            all_labels.append(labels.numpy())  # Collect labels if needed
+            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
+            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
+            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
+    # Concatenate all features into a single array
+    return np.vstack(all_encodings), np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
+
+
+def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
+    print(f'{model} outlier extraction')
+    pyod_model = PYOD(seed=42, model_name=model, contamination=contamination)
+    pyod_model.fit(X_train, [])
+    anomaly_scores = pyod_model.predict_score(X_train)
+    metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
+    anomaly_binary_scores = pyod_model.predict_binary_score(X_train)
+
+    return anomaly_binary_scores, metrics
+
+
+def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None, detected_label_noises=None):
+    umap_folder = os.path.join(dirname, 'True vs Pred UMAPS')
+    os.makedirs(umap_folder, exist_ok=True)
+
+    # UMAP transformation (shared latent space for both plots)
+    print(f'Starting UMAP 2D reduction')
+    reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+    #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+    latents_2d = reducer_2d.fit_transform(features)
+
+    measurement_noises = measurement_noises.astype(int)*2
+    label_noises = label_noises.astype(int)
+    if detected_label_noises is not None:
+        detected_label_noises = detected_label_noises.astype(int)*3
+        noises = measurement_noises + label_noises + detected_label_noises
+    else:
+        noises = measurement_noises + label_noises
+
+    # Dictionary to map numbers to text labels
+    true_label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
+    if detected_label_noises is not None:
+        true_label_mapping[3] = "Detected Label Noise"
+    txt_true_labels = [true_label_mapping[label] for label in noises]
+    
+    pred_label_mapping = {0: "Normal Sample", 1: "Outlier"}
+    txt_pred_labels = [pred_label_mapping[label] for label in y_pred]
+
+    # Create side-by-side subplots
+    fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Plot for y_true
+    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_true_labels, palette=sns.color_palette("hsv", len(true_label_mapping)), ax=axes[0], legend='full')
+    axes[0].set_title("Latent Space UMAP: True Labels")
+    axes[0].set_xlabel("UMAP dimension 1")
+    axes[0].set_ylabel("UMAP dimension 2")
+
+    # Plot for y_pred
+    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_pred_labels, palette=sns.color_palette("hsv", 2), ax=axes[1], legend='full')
+    axes[1].set_title("Latent Space UMAP: Predicted Labels")
+    axes[1].set_xlabel("UMAP dimension 1")
+    axes[1].set_ylabel("UMAP dimension 2")
+
+    # Save the figure
+    fig.suptitle(filename, fontsize=18)
+    plt.tight_layout()
+    plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.png'), format='png')
+    plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
+
+
+def get_confusion_matrix(y_true, y_pred, filename=None, dirname=None):
+    matrices_folder = os.path.join(dirname, 'True vs Pred Confusion Matrices')
+    os.makedirs(matrices_folder, exist_ok=True)
+
+    class_names = ['Inlier', 'Outlier']  # 0: Inlier, 1: Outlier
+    cm = confusion_matrix(y_true, y_pred)
+
+    # Normalize by row (true class)
+    cm_normalized = cm.astype('float') / cm.sum(axis=1, keepdims=True)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # Set consistent color scale
+    sns.heatmap(cm_normalized, annot=cm, fmt='d', cmap='Blues', ax=ax, xticklabels=class_names, 
+                yticklabels=class_names, vmin=0, vmax=1)
+
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title('Confusion Matrix (Normalized Colors)')
+    
+    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.png'), format='png')
+    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.svg'), format='svg')
+    # plt.show()
+
+    # Save the confusion matrix as a numpy array
+    np.save(os.path.join(matrices_folder, f"{filename}_confusion_matrix.npy"), cm)
+
 
 
 if __name__ == '__main__':

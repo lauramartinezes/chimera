@@ -13,7 +13,7 @@ import seaborn as sns
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from a04_1_umap_projections_ae import get_train_test_umap, visualize_test_latent_space_wrt_train, visualize_train_latent_space
+from a04_2_umap_projections_cnn import get_train_test_umap, visualize_test_latent_space_wrt_train, visualize_train_latent_space
 from mnist_dataset import CustomBinaryInsectDF
 
 
