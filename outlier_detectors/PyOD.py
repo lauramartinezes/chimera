@@ -1,8 +1,4 @@
 import numpy as np
-import pandas as pd
-import random
-import torch
-
 
 #add the baselines from the pyod package
 from pyod.models.iforest import IForest
@@ -33,34 +29,9 @@ from pyod.models.so_gaal import SO_GAAL
 from pyod.models.mo_gaal import MO_GAAL
 from pyod.models.xgbod import XGBOD
 from pyod.models.deep_svdd import DeepSVDD
-from sklearn.metrics import roc_auc_score, average_precision_score
 
-def set_seed(seed):
-    # os.environ['PYTHONHASHSEED'] = str(seed)
-    # os.environ['TF_CUDNN_DETERMINISTIC'] = 'true'
-    # os.environ['TF_DETERMINISTIC_OPS'] = 'true'
+from outlier_detectors.utils import set_seed, metric
 
-    # basic seed
-    np.random.seed(seed)
-    random.seed(seed)
-
-    # tensorflow seed
-    # try:
-    #     tf.random.set_seed(seed) # for tf >= 2.0
-    # except:
-    #     tf.set_random_seed(seed)
-    #     tf.random.set_random_seed(seed)
-
-    # pytorch seed
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-def metric(y_true, y_score, pos_label=1):
-    aucroc = roc_auc_score(y_true=y_true, y_score=y_score)
-    aucpr = average_precision_score(y_true=y_true, y_score=y_score, pos_label=pos_label)
-
-    return {'aucroc':aucroc, 'aucpr':aucpr}
 
 class PYOD():
     def __init__(self, seed, model_name, tune=False, contamination=0.1):
@@ -213,8 +184,8 @@ class PYOD():
                 try:
                     # model performance on the validation set
                     score_val = model.decision_function(X_val)
-                    metric = metric(y_true=y_val, y_score=score_val, pos_label=1)
-                    metric_list.append(metric['aucpr'])
+                    metrics = metric(y_true=y_val, y_score=score_val, pos_label=1)
+                    metric_list.append(metrics['aucpr'])
 
                 except:
                     metric_list.append(0.0)
