@@ -3,6 +3,7 @@ import random
 import cuml
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
 import timm
 import torch
 from tqdm import tqdm
@@ -12,9 +13,9 @@ import yaml
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from PyOD import PYOD, metric
-from HDBSCAN_OD import HDBSCAN_OD
+from outlier_detectors import PYOD, metric
 from datasets import CustomBinaryInsectDF
+from outlier_detectors import UmapHdbscanOD
 
 
 def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train", cnn_type='cnn'):
@@ -31,6 +32,10 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
     if '2d' in cnn_type:
         reducer_2_d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
         latents_cnn = reducer_2_d.fit_transform(latents_cnn)
+
+    if 'napoletano' in cnn_type:
+        pca = PCA(n_components=0.95)
+        latents_cnn = pca.fit_transform(latents_cnn)
 
     get_outlier_methods_csv(
         latents_cnn,
@@ -94,17 +99,20 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
     y_train = measurement_noises + label_noises
 
     metrics_list = []
-    models = ['HDBSCAN_OD','SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
+    models = ['UmapHdbscanOD','SOD', 'DeepSVDD', 'MOGAAL','IForest', 'OCSVM', #'SOGAAL', 'SOS', 
               'ABOD', 'COF', 'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', #, 'CBLOF'
               'KNN', 'LMDD', 'LODA', 'LOF', 'MCD']#, 'PCA']
     
     for model in models:
-        if model!='HDBSCAN_OD':
+        if model!='UmapHdbscanOD':
             pyod_model = PYOD(seed=42, model_name=model)
             pyod_model.fit(X_train, [])
             anomaly_scores = pyod_model.predict_score(X_train)
         else:
-            anomaly_scores = HDBSCAN_OD(X_train, min_cluster_size=int(0.05*len(X_train)), min_samples=int(0.01*len(X_train)))
+            umap_hdbscan_od = UmapHdbscanOD()
+            best_dim, best_mcs, best_ms = umap_hdbscan_od.find_optimal_params(X_train)
+            anomaly_scores = umap_hdbscan_od.predict_outliers(X_train, best_dim, best_mcs, best_ms)
+                
         metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
         print(f'{model}: {metrics}')
 
@@ -226,6 +234,17 @@ if __name__ == '__main__':
             main_insect_class, 
             phase="train", 
             cnn_type='adbench'
+        )  
+
+        process_data_cnn(
+            df_train, 
+            model_cnn, 
+            device, 
+            config, 
+            transform_cnn, 
+            main_insect_class, 
+            phase="train", 
+            cnn_type='adbench_napoletano'
         )  
 
         print('Metrics for AdBench are available')
