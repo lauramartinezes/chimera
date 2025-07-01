@@ -68,7 +68,7 @@ class UmapHdbscanOD:
         else:
             print("No valid clustering found. Using highest relative validity among all scores as fallback.")
             best_idx = np.argmax(scores[:, 3])
-            best_dim, best_mcs, best_ms = map(int, scores[best_idx, :3])
+            best_dim, best_mcs, best_ms = [int(x) for x in scores[best_idx, :3]]
 
         if self.save_dir:
             self._plot_scores(scores, dims, min_cluster_size_values, min_samples_values, best_dim)
