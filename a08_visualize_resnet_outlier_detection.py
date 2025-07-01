@@ -41,6 +41,8 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         mislabel_noise 
     ) = extract_features_from_dataloader(loader, model)
 
+    latents_all_dims = latents.copy()
+
     umap_hdbscan_od = UmapHdbscanOD(
         main_class_name=main_insect_class, 
         save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis", method)
@@ -91,7 +93,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
     visualize_y_true_vs_y_pred_umap(
-        latents, 
+        latents_all_dims, 
         measurement_noise, 
         mislabel_noise,
         y_pred, 
