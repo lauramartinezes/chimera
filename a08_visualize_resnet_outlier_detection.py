@@ -14,14 +14,13 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from PyOD import PYOD, metric
+from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from a04_4_feature_correlations_vgg16 import find_optimal_umap_hdbscan
-from HDBSCAN_OD import HDBSCAN_OD
 from datasets import CustomBinaryInsectDF
 
 
-def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='HDBSCAN'):
+def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -42,47 +41,52 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         mislabel_noise 
     ) = extract_features_from_dataloader(loader, model)
 
+    umap_hdbscan_od = UmapHdbscanOD(
+        main_class_name=main_insect_class, 
+        save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis", method)
+    )
+
     N = len(latents)
     default_min_cluster_size = max(5, int(0.05 * N))  # Default value for HDBSCAN
     default_min_samples = max(5, int(0.01 * N))  # Default value for HDBSCAN
 
     if method == 'adbench':
-        latents_512d = latents
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
     elif method == 'adbench_2d':
-        reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-        latents_512d = reducer_2d.fit_transform(latents)
+        optimal_dim = 2
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
     else:
         min_cluster_size_values = [max(5, int(p * N)) for p in [0.005, 0.01, 0.02, 0.05]]
         min_samples_values = [max(5, int(p * N)) for p in [0.002, 0.005, 0.01]]
 
-        optimal_dim, optimal_min_cluster_size, optimal_min_samples = find_optimal_umap_hdbscan(
-            main_insect_class,
+        optimal_dim, optimal_min_cluster_size, optimal_min_samples = umap_hdbscan_od.find_optimal_params(
             latents, 
+            dims=[2 ** i for i in range(1, 9)],
             min_cluster_size_values=min_cluster_size_values,
             min_samples_values=min_samples_values,
-            save_dir=os.path.join(config["logging_params"]["save_dir"], "umap_hdbscan_analysis")
         )
-        reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
-        latents_512d = reducer_optimd.fit_transform(latents)
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
     metrics = {}
-    if od_method != 'HDBSCAN':
+    if od_method != 'UmapHdbscanOD':
+        if method !='adbench':
+            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
+            latents = reducer_optimd.fit_transform(latents)
         y_pred, metrics = get_outlier_predictions(
-            latents_512d,
+            latents,
             y_true,
             model=od_method,
             # contamination= 0.2
         )
-    elif od_method == 'HDBSCAN':
-        y_pred = HDBSCAN_OD(
-            latents_512d, 
-            min_cluster_size=optimal_min_cluster_size, 
-            min_samples=optimal_min_samples
+
+    elif od_method == 'UmapHdbscanOD':
+        y_pred = umap_hdbscan_od.predict_outliers(
+            latents, 
+            optimal_dim,
+            optimal_min_cluster_size, 
+            optimal_min_samples
         )
         metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
@@ -264,7 +268,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     model_name = 'resnet18'
-    cnn_types = ['adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
+    cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
@@ -304,7 +308,7 @@ if __name__ == '__main__':
             if cnn_type == 'cnn' or 'adbench' in cnn_type:
                 model_cnn = timm.create_model('resnet18', pretrained=True)
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['HDBSCAN', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
+                od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
             elif cnn_type == model_name:
                 model_cnn = timm.create_model(model_name, pretrained=False, num_classes=2)
                 save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
@@ -316,7 +320,7 @@ if __name__ == '__main__':
                 else:
                     print("Model not found")
                 model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['HDBSCAN'] #['HDBSCAN', 'MCD']
+                od_methods = ['UmapHdbscanOD'] #['UmapHdbscanOD', 'MCD']
                     
             model_cnn.eval()
             print("Model correctly initialized")
