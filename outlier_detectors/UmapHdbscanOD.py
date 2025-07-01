@@ -68,18 +68,22 @@ class UmapHdbscanOD:
         else:
             print("No valid clustering found. Using highest relative validity among all scores as fallback.")
             best_idx = np.argmax(scores[:, 3])
-            best_dim, best_mcs, best_ms = scores[best_idx, :3]
+            best_dim, best_mcs, best_ms = map(int, scores[best_idx, :3])
 
         if self.save_dir:
             self._plot_scores(scores, dims, min_cluster_size_values, min_samples_values, best_dim)
             self._plot_final_clusters(data, best_dim, best_mcs, best_ms)
 
         print(f"\nOptimal: dim={best_dim}, mcs={best_mcs}, ms={best_ms}")
-        return int(best_dim), int(best_mcs), int(best_ms)
+        return best_dim, best_mcs, best_ms
 
     def predict_outliers(self, data, dim, mcs, ms):
-        reducer = UMAP(n_components=dim, random_state=42, n_jobs=1)
-        embedding = reducer.fit_transform(data)
+        original_dim = data.shape[1]
+        if dim < original_dim:
+            reducer = UMAP(n_components=dim, random_state=42, n_jobs=1)
+            embedding = reducer.fit_transform(data)
+        else:
+            embedding = data
         clusterer = hdbscan.HDBSCAN(min_cluster_size=mcs, min_samples=ms)
         labels = clusterer.fit_predict(embedding)
 
