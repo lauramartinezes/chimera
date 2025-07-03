@@ -61,36 +61,6 @@ def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
     )
 
 
-def extract_features_from_encoding(model, dataloader, device):
-    model.eval()  # Set the model to evaluation mode
-    all_features = []  # To store features from all batches
-    all_labels = []    # To store labels if needed
-    all_real_labels = []
-    all_measurement_noise = []
-    all_mislabeled = []
-    all_encodings = []
-
-    with torch.no_grad():
-        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Featured extraction encoding: "):
-            images = images.to(device)
-
-            # Pass images through the encoder layers
-            encoding = model.encode(images)[0]  # Raw encoder output
-
-            # Global Average Pooling: Compute mean across spatial dimensions (H, W)
-            pooled_encoding = encoding.mean(dim=[2, 3])  # Shape: [B, embedding_dim]
-
-            # Append features to the list
-            all_features.append(pooled_encoding.cpu().numpy())
-            all_encodings.append(encoding.cpu().numpy())
-            all_labels.append(labels.numpy())  # Collect labels if needed
-            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
-            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
-            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
-    # Concatenate all features into a single array
-    return np.vstack(all_encodings), np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
-
-
 def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename=None, dirname=None):
     csv_folder = os.path.join(dirname, 'OUTLIERS_CSVS')
     os.makedirs(csv_folder, exist_ok=True)
