@@ -15,8 +15,8 @@ from tqdm import tqdm
 
 from datasets import set_feature_extraction_transform
 from outlier_detectors import UmapHdbscanOD, PYOD, metric
-from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from datasets import CustomBinaryInsectDF
+from models import extract_features
 
 
 def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
@@ -38,7 +38,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         real_labels_cnn, 
         measurement_noise, 
         mislabel_noise 
-    ) = extract_features_from_dataloader(loader, model)
+    ) = extract_features(loader, model)
 
     latents_all_dims = latents.copy()
 

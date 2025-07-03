@@ -14,32 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from datasets import CustomBinaryInsectDF
-
-
-def extract_features_from_dataloader(dataloader, model, device):
-    all_features = []  # To store features from all batches
-    all_labels = []    # To store labels if needed
-    all_real_labels = []
-    all_measurement_noise = []
-    all_mislabeled = []
-
-    with torch.no_grad():  # Disable gradient calculation
-        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Extracting features", total=len(dataloader)):
-            images = images.to(device)
-            labels = labels.to(device)
-            
-            # Forward pass to get the features
-            features = model(images)  # Get features for the batch
-            features_np = features.cpu().numpy().reshape(features.shape[0], -1)  # Flatten to 2D array
-            all_features.append(features_np)
-            all_labels.append(labels.cpu().numpy())  # Collect labels if needed
-            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
-            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
-            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
-
-    # Stack all features and labels vertically
-    return np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
-
+from models import extract_features
     
 if __name__ == '__main__':
     # Load the configuration
@@ -102,7 +77,7 @@ if __name__ == '__main__':
             real_labels_cnn_train, 
             measurement_noise_cnn_train, 
             mislabeled_cnn_train
-        ) = extract_features_from_dataloader(train_loader, model, device)
+        ) = extract_features(train_loader, model, device)
         
         # === Step 1: Load ResNet18 feature vectors ===
         # Replace with your actual file path

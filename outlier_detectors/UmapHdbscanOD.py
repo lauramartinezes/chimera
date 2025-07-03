@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import hdbscan
 from umap import UMAP
-from tqdm import tqdm
-import torch
 
 
 class UmapHdbscanOD:
@@ -14,32 +12,6 @@ class UmapHdbscanOD:
         self.save_dir = save_dir
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-
-    def extract_features(self, dataloader, model, device):
-        all_features, all_labels = [], []
-        all_real_labels, all_measurement_noise, all_mislabeled = [], [], []
-
-        with torch.no_grad():
-            for images, labels, real_labels, measurement_noise, mislabeled, _ in tqdm(dataloader, desc="Extracting features"):
-                images = images.to(device)
-                labels = labels.to(device)
-                
-                # Forward pass to get the features
-                features = model(images)  # Get features for the batch
-                features_np = features.cpu().numpy().reshape(features.shape[0], -1)  # Flatten to 2D array
-                all_features.append(features_np)
-                all_labels.append(labels.cpu().numpy())  # Collect labels if needed
-                all_real_labels.append(real_labels.numpy())  # Collect labels if needed
-                all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
-                all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
-
-        return (
-            np.vstack(all_features),
-            np.concatenate(all_labels),
-            np.concatenate(all_real_labels),
-            np.concatenate(all_measurement_noise),
-            np.concatenate(all_mislabeled)
-        )
 
     def find_optimal_params(self, data, dims=[2 ** i for i in range(1, 9)],
                             min_cluster_size_values=[5, 10, 20], min_samples_values=[1, 5, 10]):

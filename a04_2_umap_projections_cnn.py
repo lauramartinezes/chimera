@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from datasets import CustomBinaryInsectDF, set_feature_extraction_transform
+from models import extract_features
 
 def get_train_test_umap(X_train, X_test, n_components=2):
     umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)
@@ -84,28 +85,6 @@ def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
         num_workers=num_workers,
         pin_memory=pin_memory
     )
-
-
-def extract_features_from_dataloader(dataloader, model):
-    all_features = []  # To store features from all batches
-    all_labels = []    # To store labels if needed
-    all_real_labels = []
-    all_measurement_noise = []
-    all_mislabeled = []
-
-    with torch.no_grad():  # Disable gradient calculation
-        for images, labels, real_labels, measurement_noise, mislabeled, outliers in tqdm(dataloader, desc="Extracting features", total=len(dataloader)):
-            # Forward pass to get the features
-            features = model(images)  # Get features for the batch
-            features_np = features.numpy().reshape(features.shape[0], -1)  # Flatten to 2D array
-            all_features.append(features_np)
-            all_labels.append(labels.numpy())  # Collect labels if needed
-            all_real_labels.append(real_labels.numpy())  # Collect labels if needed
-            all_measurement_noise.append(measurement_noise.numpy())  # Collect labels if needed
-            all_mislabeled.append(mislabeled.numpy())  # Collect labels if needed
-
-    # Stack all features and labels vertically
-    return np.vstack(all_features), np.concatenate(all_labels), np.concatenate(all_real_labels), np.concatenate(all_measurement_noise), np.concatenate(all_mislabeled)
 
 
 if __name__ == '__main__':
@@ -188,7 +167,7 @@ if __name__ == '__main__':
                 real_labels_cnn_test, 
                 measurement_noise_cnn_test, 
                 mislabeled_cnn_test
-            ) = extract_features_from_dataloader(test_loader, model)
+            ) = extract_features(test_loader, model)
             
             (
                 latents_cnn_train, 
@@ -196,7 +175,7 @@ if __name__ == '__main__':
                 real_labels_cnn_train, 
                 measurement_noise_cnn_train, 
                 mislabeled_cnn_train
-            ) = extract_features_from_dataloader(train_loader, model)
+            ) = extract_features(train_loader, model)
 
 
             measurement_noise_cnn_train = measurement_noise_cnn_train.astype(int)*2
