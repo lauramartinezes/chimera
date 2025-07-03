@@ -1,4 +1,7 @@
 
+#TODO: project for both cnn and ad bench methods
+#TODO: before that we need to rename the df ae to df swap or something like that
+
 import os
 import random
 import numpy as np
@@ -14,7 +17,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from datasets import CustomBinaryInsectDF
+from datasets import CustomBinaryInsectDF, set_feature_extraction_transform
 
 def get_train_test_umap(X_train, X_test, n_components=2):
     umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)
@@ -123,11 +126,6 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
 
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    ])
 
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
@@ -141,8 +139,8 @@ if __name__ == '__main__':
         # Combine the training and validation dataframes
         df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
-        train_dataset = CustomBinaryInsectDF(df_train, transform = transform, seed=config["exp_params"]["manual_seed"])
-        test_dataset = CustomBinaryInsectDF(df_test, transform = transform, seed=config["exp_params"]["manual_seed"])
+        train_dataset = CustomBinaryInsectDF(df_train, transform = set_feature_extraction_transform(), seed=config["exp_params"]["manual_seed"])
+        test_dataset = CustomBinaryInsectDF(df_test, transform = set_feature_extraction_transform(), seed=config["exp_params"]["manual_seed"])
 
         train_loader = DataLoader(
             train_dataset, 

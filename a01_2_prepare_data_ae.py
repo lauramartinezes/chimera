@@ -16,8 +16,9 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 
-from datasets import CustomBinaryInsectDF
-from a01_1_train_test_classifier import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from datasets import CustomBinaryInsectDF, set_test_transform
+from models import compute_accuracy, compute_predictions
+from a01_1_train_test_classifier import plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
 if torch.cuda.is_available():
@@ -166,13 +167,7 @@ if __name__ == '__main__':
 
     ##########################
     ### BINARY CLASS INSECT DATASET
-    ##########################
-    transform = transforms.Compose([
-        transforms.Resize((150, 150)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    ])
-    
+    ##########################    
     insect_classes = config["data_params"]["data_classes"]
     clean_dataset = ''
     method = 'ae' 
@@ -234,7 +229,7 @@ if __name__ == '__main__':
         df_subset['directory'] = df_subset['filepath'].apply(os.path.dirname)
 
         # Prepare Dataset
-        dataset = CustomBinaryInsectDF(df_subset, transform = transform, seed=config["exp_params"]["manual_seed"])
+        dataset = CustomBinaryInsectDF(df_subset, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
         
         loader = DataLoader(
             dataset, 

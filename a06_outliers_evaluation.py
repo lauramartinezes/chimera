@@ -1,6 +1,5 @@
 import os
 import random
-import cuml
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -11,8 +10,8 @@ import umap
 import yaml
 
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
+from datasets import set_feature_extraction_transform
 from outlier_detectors import PYOD, metric
 from datasets import CustomBinaryInsectDF
 from outlier_detectors import UmapHdbscanOD
@@ -160,11 +159,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    transform_cnn = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    ])
+    transform_cnn = set_feature_extraction_transform()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     

@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
+from datasets import set_feature_extraction_transform
 from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
 from a04_4_feature_correlations_vgg16 import find_optimal_umap_hdbscan
@@ -279,16 +280,7 @@ if __name__ == '__main__':
     results = []
 
     for cnn_type in cnn_types:
-        
-        if cnn_type == model_name:
-            img_size = 150
-        else:
-            img_size = 224
-        transform_cnn = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
+        transform_cnn = set_feature_extraction_transform()
 
         for i in range(len(insect_classes)):
             main_insect_class = insect_classes[i]
