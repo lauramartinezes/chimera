@@ -1,19 +1,32 @@
-import torchvision.transforms as T
-
-transforms_dict = {
-    'common': [T.ToPILImage(), T.Resize(size=(150, 150))],
-    'augment': [T.RandomVerticalFlip(p=0.5),
-              T.RandomHorizontalFlip(p=0.5),
-              T.RandomRotation(degrees=(-15, 15))],
-    'to_tensor': [T.ToTensor()]
-}
+from torchvision import transforms
 
 
-def set_train_transform(augment=False):
-    if augment:
-        return T.Compose(transforms_dict['common'] + transforms_dict['augment'] + transforms_dict['to_tensor'])
-    return T.Compose(transforms_dict['common'] + transforms_dict['to_tensor'])
+def set_train_transform():
+    return transforms.Compose([
+        transforms.Resize(size=(150, 150), antialias=True),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomAutocontrast(p=0.7),
+        transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.5),
+        transforms.RandomRotation(degrees=(-25, 25)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        transforms.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value='random'),
+    ])
 
 
 def set_test_transform():
-    return T.Compose(transforms_dict['common'] + transforms_dict['to_tensor'])
+    return set_inference_transform(150)
+
+
+def set_feature_extraction_transform():
+    return set_inference_transform(224)
+
+
+def set_inference_transform(img_size):
+    return transforms.Compose([
+        transforms.Resize((img_size, img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+
