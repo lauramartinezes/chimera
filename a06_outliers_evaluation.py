@@ -12,9 +12,8 @@ import yaml
 from torch.utils.data import DataLoader
 
 from datasets import set_feature_extraction_transform
-from outlier_detectors import PYOD, get_outlier_methods_csv, metric
+from outlier_detectors import get_outlier_methods_csv
 from datasets import CustomBinaryInsectDF
-from outlier_detectors import UmapHdbscanOD
 
 
 def process_data_cnn(df, model, device, config, transform, main_insect_class, phase="train", cnn_type='cnn'):
