@@ -10,9 +10,7 @@ import yaml
 import seaborn as sns
 
 from umap import UMAP
-from scipy.stats import spearmanr
 from matplotlib import pyplot as plt
-from sklearn.metrics import pairwise_distances
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import transforms

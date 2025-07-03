@@ -1,20 +1,14 @@
 import os
 import random
-import time
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 import timm
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import tqdm
 import yaml
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from torch.utils.data import DataLoader, ConcatDataset
-from torchvision import transforms
+from torch.utils.data import DataLoader
 
 from datasets import CustomBinaryInsectDF, set_test_transform
 from models import compute_accuracy, compute_predictions

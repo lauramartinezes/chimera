@@ -11,13 +11,11 @@ import yaml
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from tqdm import tqdm
 
 from datasets import set_feature_extraction_transform
 from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from a04_2_umap_projections_cnn import extract_features_from_dataloader
-from a04_4_feature_correlations_vgg16 import find_optimal_umap_hdbscan
 from datasets import CustomBinaryInsectDF
 
 
