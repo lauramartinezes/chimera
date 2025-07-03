@@ -286,8 +286,6 @@ if __name__ == '__main__':
             main_insect_class = insect_classes[i]
             mislabeled_insect_class = insect_classes[1 - i]
 
-            # df_train_path = os.path.join('/home/u0159868/Documents/repos/stickybugs-outliers/data/02 before adding class maps', f'df_train_ae_{main_insect_class}.csv')
-            # df_train = pd.read_csv(df_train_path)
             df_subsets = []
             for subset in subsets:
                 if 'adbench' in cnn_type:
@@ -298,23 +296,10 @@ if __name__ == '__main__':
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-            # CNN method
-            if cnn_type == 'cnn' or 'adbench' in cnn_type:
-                model_cnn = timm.create_model('resnet18', pretrained=True)
-                model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
-            elif cnn_type == model_name:
-                model_cnn = timm.create_model(model_name, pretrained=False, num_classes=2)
-                save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_raw_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
-            
-                # Load the model
-                if os.path.exists(save_path_best):
-                    model_cnn.load_state_dict(torch.load(save_path_best))
-                    print("Model correctly loaded")
-                else:
-                    print("Model not found")
-                model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-                od_methods = ['UmapHdbscanOD'] #['UmapHdbscanOD', 'MCD']
+            # CNN model
+            model_cnn = timm.create_model('resnet18', pretrained=True)
+            model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
+            od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
                     
             model_cnn.eval()
             print("Model correctly initialized")
