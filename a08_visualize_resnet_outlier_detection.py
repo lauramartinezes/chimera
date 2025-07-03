@@ -91,7 +91,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         )
         metrics = metric(y_true=y_true, y_score=y_pred, pos_label=1)      
 
-    visualize_y_true_vs_y_pred_umap(
+    plot_y_true_vs_y_od_pred_umap(
         latents_all_dims, 
         measurement_noise, 
         mislabel_noise,
@@ -147,7 +147,7 @@ def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
     return anomaly_binary_scores, metrics
 
 
-def visualize_y_true_vs_y_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None, detected_label_noises=None):
+def plot_y_true_vs_y_od_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None, detected_label_noises=None):
     umap_folder = os.path.join(dirname, 'True vs Pred UMAPS')
     os.makedirs(umap_folder, exist_ok=True)
 
