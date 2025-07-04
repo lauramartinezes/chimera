@@ -15,15 +15,144 @@ import yaml
 from matplotlib import pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
-from datasets import CustomBinaryInsectDF
-from datasets.transforms import set_test_transform, set_train_transform
+from datasets import CustomBinaryInsectDF, set_test_transform, set_train_transform
 from models import compute_accuracy, compute_loss, compute_predictions
 
 
 if torch.cuda.is_available():
     torch.backends.cudnn.deterministic = True
+
+
+def load_subset_df_classification(insect_classes, subset, method, od_method, root_dir, clean_dataset=''):
+    dfs_subset = []
+    for i, main_insect_class in enumerate(insect_classes):
+        df_subset_path = os.path.join(
+            root_dir,
+            'clean' if clean_dataset=='_clean' else '', 
+            f'df_{subset}_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
+        )
+        df_subset_i = pd.read_csv(df_subset_path)
+        if method == 'cleaning_benchmark':
+            df_subset_i_no_noise = df_subset_i[df_subset_i['label'] == 0]
+            df_subset_i_label_noise = df_subset_i[df_subset_i['mislabeled'] == True] # Comment this line if you want to reove label noise as well
+            # Correct labels for training a classifier instead of an outlier detector
+            df_subset_i_no_noise.label = i
+            df_subset_i_label_noise.label = 1 - i
+            dfs_subset.append(df_subset_i_no_noise)
+            dfs_subset.append(df_subset_i_label_noise)
+        else:
+            # Correct labels for training a classifier instead of an outlier detector
+            df_subset_i.label = i
+            dfs_subset.append(df_subset_i)
+    
+    return pd.concat(dfs_subset, ignore_index=True)
+
+
+def train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, num_epochs):
+    model.train()
+    epoch_loss = 0
+    for batch_idx, (images, labels, _, _, _, _) in enumerate(train_loader):
+        
+        images = images.to(device)
+        labels = labels.to(device)
+            
+        ### FORWARD AND BACK PROP
+        logits = model(images)
+        probas = F.softmax(logits, dim=1)
+        loss = criterion(logits, labels)
+        optimizer.zero_grad()
+        
+        loss.backward()
+        
+        ### UPDATE MODEL PARAMETERS
+        optimizer.step()
+        
+        ### LOGGING
+        if not batch_idx % 50:
+            print (f'Case {case} dataset: '+'Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f' 
+                %(epoch+1, num_epochs, batch_idx, 
+                    len(train_loader), loss))  
+        epoch_loss += loss.item()
+    return epoch_loss / (batch_idx + 1)
+
+
+def validate_epoch(model, train_loader, val_loader, test_loader, criterion, device, class_weights_tensor, epoch, num_epochs):
+    model.eval()
+    with torch.set_grad_enabled(False): # save memory during inference
+        val_epoch_loss = compute_loss(model, val_loader, device, criterion=criterion, class_weights_tensor=class_weights_tensor)
+        test_epoch_loss = compute_loss(model, test_loader, device, criterion=criterion, class_weights_tensor=class_weights_tensor)
+                    
+        (train_accuracy, train_insect_0_accuracy, train_insect_1_accuracy, 
+        train_insect_0_meas_noise_accuracy, train_insect_1_meas_noise_accuracy, 
+        train_insect_0_milabel_accuracy, train_insect_1_milabel_accuracy, 
+        train_insect_0_good_accuracy, train_insect_1_good_accuracy) = compute_accuracy(model, train_loader, device=device)
+
+        (val_accuracy, val_insect_0_accuracy, val_insect_1_accuracy, 
+        val_insect_0_meas_noise_accuracy, val_insect_1_meas_noise_accuracy, 
+        val_insect_0_milabel_accuracy, val_insect_1_milabel_accuracy,
+        val_insect_0_good_accuracy, val_insect_1_good_accuracy) = compute_accuracy(model, val_loader, device=device)
+
+        (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
+        test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
+        test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
+        test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device=device)
+
+        print('Epoch: %03d/%03d | Train: %.3f%% | Validation: %.3f%% | Test: %.3f%%' % (
+            epoch+1, num_epochs, 
+            train_accuracy,
+            val_accuracy,
+            test_accuracy))
+        print(f'Train {insect_classes[0]} Accuracy: %.2f%%' % train_insect_0_accuracy)
+        print(f'Train {insect_classes[1]} Accuracy: %.2f%%' % train_insect_1_accuracy)
+        print(f'Train {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % train_insect_0_meas_noise_accuracy)
+        print(f'Train {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % train_insect_1_meas_noise_accuracy)
+        print(f'Train {insect_classes[0]} Mislabel Accuracy: %.2f%%' % train_insect_0_milabel_accuracy)
+        print(f'Train {insect_classes[1]} Mislabel Accuracy: %.2f%%' % train_insect_1_milabel_accuracy)
+        print(f'Train {insect_classes[0]} Good Accuracy: %.2f%%' % train_insect_0_good_accuracy)
+        print(f'Train {insect_classes[1]} Good Accuracy: %.2f%%' % train_insect_1_good_accuracy)
+
+        print(f'Validation {insect_classes[0]} Accuracy: %.2f%%' % val_insect_0_accuracy)
+        print(f'Validation {insect_classes[1]} Accuracy: %.2f%%' % val_insect_1_accuracy)
+        print(f'Validation {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % val_insect_0_meas_noise_accuracy)
+        print(f'Validation {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % val_insect_1_meas_noise_accuracy)
+        print(f'Validation {insect_classes[0]} Mislabel Accuracy: %.2f%%' % val_insect_0_milabel_accuracy)
+        print(f'Validation {insect_classes[1]} Mislabel Accuracy: %.2f%%' % val_insect_1_milabel_accuracy)
+        print(f'Validation {insect_classes[0]} Good Accuracy: %.2f%%' % val_insect_0_good_accuracy)
+        print(f'Validation {insect_classes[1]} Good Accuracy: %.2f%%' % val_insect_1_good_accuracy)
+
+        print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
+        print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
+
+        lowest_val_class_accuracy = min(val_insect_0_accuracy, val_insect_1_accuracy)
+    return val_epoch_loss, test_epoch_loss, train_accuracy.item(), val_accuracy.item(), test_accuracy.item(), lowest_val_class_accuracy
+
+
+def test_model(model, test_loader, device):
+    model.eval()
+    with torch.set_grad_enabled(False): # save memory during inference
+        (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
+        test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
+        test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
+        test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device)
+        print(f'Test accuracy: %.2f%%' % test_accuracy)
+        print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
+        print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
+    test_predictions, test_actuals, test_probs = compute_predictions(model, test_loader, device)
+    return test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, test_predictions, test_actuals, test_probs
+
+
+def save_best_model(model, save_path_best, best_val_accuracy, val_accuracy, lowest_val_class_accuracy, epochs_no_improve):
+    if best_val_accuracy < val_accuracy:
+        best_val_accuracy = val_accuracy
+        best_lowest_val_class_accuracy = lowest_val_class_accuracy
+        torch.save(model.state_dict(), save_path_best)
+        print(f"New best model saved at {save_path_best} with Validation Accuracy: {best_val_accuracy:.3f}% and lowest class accuracy: {best_lowest_val_class_accuracy:.3f}%")
+        epochs_no_improve = 0  # reset patience counter
+    else:
+        epochs_no_improve += 1
+        print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s)")
+    return best_val_accuracy, epochs_no_improve
 
 
 def plot_training_curves(train_vals, val_vals, test_vals, ylabel, title, filename_suffix, save_path, clean_dataset, method, num_epochs):
@@ -181,7 +310,7 @@ def get_args():
 RANDOM_SEED = 1
 LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001 
 BATCH_SIZE = 64
-NUM_EPOCHS = 25 #1
+NUM_EPOCHS = 2 #1
 
 # Architecture
 NUM_CLASSES = 2
@@ -205,7 +334,10 @@ if __name__ == '__main__':
     ##########################
     ### BINARY CLASS INSECT DATASET
     ##########################
+    data_dir = config["data_params"]["data_dir"]
     insect_classes = config["data_params"]["data_classes"] 
+    num_classes = len(insect_classes)
+    model_name = config["model_params"]["resnet18"] 
     method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
@@ -223,66 +355,14 @@ if __name__ == '__main__':
             od_method = '_OCSVM'
         else:   
             od_method = ''
+            
+        ##########################
+        ### DATA LOADING
+        ##########################
+        df_train = load_subset_df_classification(insect_classes, 'train', method, od_method, data_dir, clean_dataset)
+        df_val = load_subset_df_classification(insect_classes, 'val', method, od_method, data_dir, clean_dataset)
+        df_test = pd.read_csv(os.path.join(data_dir, f'df_test.csv'))
 
-        dfs_train_ = []
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
-            mislabeled_insect_class = insect_classes[1 - i]
-
-            df_train_path = os.path.join(
-                'data', 
-                'clean' if clean_dataset=='_clean' else '', 
-                f'df_train_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
-            )
-            df_train_i = pd.read_csv(df_train_path)
-            if method == 'cleaning_benchmark':
-                df_train_i_no_noise = df_train_i[df_train_i['label'] == 0]
-                df_train_i_label_noise = df_train_i[df_train_i['mislabeled'] == True] # Comment this line if you want to reove label noise as well
-                # Correct labels for training a classifier instead of an outlier detector
-                df_train_i_no_noise.label = i
-                df_train_i_label_noise.label = 1 - i
-                dfs_train_.append(df_train_i_no_noise)
-                dfs_train_.append(df_train_i_label_noise)
-            else:
-                # Correct labels for training a classifier instead of an outlier detector
-                df_train_i.label = i
-                dfs_train_.append(df_train_i)
-        
-        df_train = pd.concat(dfs_train_, ignore_index=True)
-
-        dfs_val = []
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
-            mislabeled_insect_class = insect_classes[1 - i]
-
-            df_val_path = os.path.join(
-                'data', 
-                'clean' if clean_dataset=='_clean' else '', 
-                f'df_val_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{od_method}{clean_dataset}.csv'
-            )
-            df_val_i = pd.read_csv(df_val_path)
-            if method == 'cleaning_benchmark':
-                df_val_i_no_noise = df_val_i[df_val_i['label'] == 0]
-                df_val_i_label_noise = df_val_i[df_val_i['mislabeled'] == True] # Comment this line if you want to reove label noise as well
-                # Correct labels for training a classifier instead of an outlier detector
-                df_val_i_no_noise.label = i
-                df_val_i_label_noise.label = 1 - i
-                dfs_val.append(df_val_i_no_noise)
-                dfs_val.append(df_val_i_label_noise)
-            else:
-                # Correct labels for training a classifier instead of an outlier detector
-                df_val_i.label = i
-                dfs_val.append(df_val_i)
-        
-        df_val = pd.concat(dfs_val, ignore_index=True)
-
-        df_test_path = os.path.join('data', f'df_test.csv')
-        df_test = pd.read_csv(df_test_path)
-
-        class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
-        class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(DEVICE)
-
-        # Prepare Dataset
         train_dataset = CustomBinaryInsectDF(df_train, transform = set_train_transform(), seed=config["exp_params"]["manual_seed"])
         val_dataset = CustomBinaryInsectDF(df_val, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
         test_dataset = CustomBinaryInsectDF(df_test, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
@@ -310,19 +390,22 @@ if __name__ == '__main__':
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
         )
+        
 
         ##########################
         ### RESNET-18 MODEL
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model_name = 'resnet18'
-        model = timm.create_model(model_name, pretrained=True, num_classes=NUM_CLASSES)
+        model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
         model.to(DEVICE)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
         save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
 
         if not os.path.exists(save_path_best) or retrain_models==True:
+            class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
+            class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(DEVICE)
+
             optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
             criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
                     
@@ -330,7 +413,6 @@ if __name__ == '__main__':
             ### TRAIN
             ##########################
             best_val_accuracy = 0
-            best_val_loss = 100
             best_lowest_val_class_accuracy = 0
             train_accuracies = []
             val_accuracies = []
@@ -343,109 +425,36 @@ if __name__ == '__main__':
             patience = 5  
             epochs_no_improve = 0
 
+            if method == 'raw':
+                case = 'raw dirty'
+            elif method == 'cleaning_benchmark':
+                case = 'cleaning benchmark'
+            else:
+                case = f'{method} cleaned'
+
             for epoch in range(NUM_EPOCHS):
-                model.train()
-                epoch_loss = 0
-                for batch_idx, (images, labels, _, _, _, _) in enumerate(train_loader):
-                    
-                    images = images.to(DEVICE)
-                    labels = labels.to(DEVICE)
-                        
-                    ### FORWARD AND BACK PROP
-                    logits = model(images)
-                    probas = F.softmax(logits, dim=1)
-                    loss = criterion(logits, labels)
-                    optimizer.zero_grad()
-                    
-                    loss.backward()
-                    
-                    ### UPDATE MODEL PARAMETERS
-                    optimizer.step()
-                    
-                    ### LOGGING
-                    if not batch_idx % 50:
-                        if method == 'raw':
-                            case = 'raw dirty'
-                        elif method == 'cleaning_benchmark':
-                            case = 'cleaning benchmark'
-                        else:
-                            case = f'{method} cleaned'
-                        print (f'Case {case} dataset: '+'Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f' 
-                            %(epoch+1, NUM_EPOCHS, batch_idx, 
-                                len(train_loader), loss))  
-                    epoch_loss += loss.item()
-                epoch_loss /= batch_idx + 1
-                train_losses.append(epoch_loss)
+                train_epoch_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE, case, epoch, NUM_EPOCHS)
+                train_losses.append(train_epoch_loss)
 
-
-                model.eval()
-                with torch.set_grad_enabled(False): # save memory during inference
-                    val_epoch_loss = compute_loss(model, val_loader, DEVICE, criterion=criterion, class_weights_tensor=class_weights_tensor)
-                    test_epoch_loss = compute_loss(model, test_loader, DEVICE, criterion=criterion, class_weights_tensor=class_weights_tensor)
-                    val_losses.append(val_epoch_loss)
-                    test_losses.append(test_epoch_loss)
-                                
-                    (train_accuracy, train_insect_0_accuracy, train_insect_1_accuracy, 
-                     train_insect_0_meas_noise_accuracy, train_insect_1_meas_noise_accuracy, 
-                     train_insect_0_milabel_accuracy, train_insect_1_milabel_accuracy, 
-                     train_insect_0_good_accuracy, train_insect_1_good_accuracy) = compute_accuracy(model, train_loader, device=DEVICE)
-                    (val_accuracy, val_insect_0_accuracy, val_insect_1_accuracy, 
-                     val_insect_0_meas_noise_accuracy, val_insect_1_meas_noise_accuracy, 
-                     val_insect_0_milabel_accuracy, val_insect_1_milabel_accuracy,
-                     val_insect_0_good_accuracy, val_insect_1_good_accuracy) = compute_accuracy(model, val_loader, device=DEVICE)
-                    (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
-                     test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
-                     test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
-                     test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
-                    train_accuracies.append(train_accuracy.item())
-                    val_accuracies.append(val_accuracy.item())
-                    test_accuracies.append(test_accuracy.item())
-
-
-                    print('Epoch: %03d/%03d | Train: %.3f%% | Validation: %.3f%% | Test: %.3f%%' % (
-                        epoch+1, NUM_EPOCHS, 
-                        train_accuracy,
-                        val_accuracy,
-                        test_accuracy))
-                    print(f'Train {insect_classes[0]} Accuracy: %.2f%%' % train_insect_0_accuracy)
-                    print(f'Train {insect_classes[1]} Accuracy: %.2f%%' % train_insect_1_accuracy)
-                    print(f'Train {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % train_insect_0_meas_noise_accuracy)
-                    print(f'Train {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % train_insect_1_meas_noise_accuracy)
-                    print(f'Train {insect_classes[0]} Mislabel Accuracy: %.2f%%' % train_insect_0_milabel_accuracy)
-                    print(f'Train {insect_classes[1]} Mislabel Accuracy: %.2f%%' % train_insect_1_milabel_accuracy)
-                    print(f'Train {insect_classes[0]} Good Accuracy: %.2f%%' % train_insect_0_good_accuracy)
-                    print(f'Train {insect_classes[1]} Good Accuracy: %.2f%%' % train_insect_1_good_accuracy)
-
-                    print(f'Validation {insect_classes[0]} Accuracy: %.2f%%' % val_insect_0_accuracy)
-                    print(f'Validation {insect_classes[1]} Accuracy: %.2f%%' % val_insect_1_accuracy)
-                    print(f'Validation {insect_classes[0]} Meas. Noise Accuracy: %.2f%%' % val_insect_0_meas_noise_accuracy)
-                    print(f'Validation {insect_classes[1]} Meas. Noise Accuracy: %.2f%%' % val_insect_1_meas_noise_accuracy)
-                    print(f'Validation {insect_classes[0]} Mislabel Accuracy: %.2f%%' % val_insect_0_milabel_accuracy)
-                    print(f'Validation {insect_classes[1]} Mislabel Accuracy: %.2f%%' % val_insect_1_milabel_accuracy)
-                    print(f'Validation {insect_classes[0]} Good Accuracy: %.2f%%' % val_insect_0_good_accuracy)
-                    print(f'Validation {insect_classes[1]} Good Accuracy: %.2f%%' % val_insect_1_good_accuracy)
-
-                    print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
-                    print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
-
-                    lowest_val_class_accuracy = min(val_insect_0_accuracy, val_insect_1_accuracy)
-
-                    # Check if the validation accuracy improved
-                    valid_accuracy_improved = val_accuracy > best_val_accuracy
-
-                    # Check if the validation loss improved or if it is in the 10% percentile of the validation losses and the validation accuracy improved
-                    model_improved = (val_epoch_loss < best_val_loss) or (val_epoch_loss < np.percentile(val_losses, 20) and valid_accuracy_improved)
-
-                    if best_val_accuracy < val_accuracy:
-                        best_val_loss = val_epoch_loss
-                        best_val_accuracy = val_accuracy
-                        best_lowest_val_class_accuracy = lowest_val_class_accuracy
-                        torch.save(model.state_dict(), save_path_best)
-                        print(f"New best model saved at {save_path_best} with Validation Accuracy: {best_val_accuracy:.3f}% and lowest class accuracy: {best_lowest_val_class_accuracy:.3f}%")
-                        epochs_no_improve = 0  # reset patience counter
-                    else:
-                        epochs_no_improve += 1
-                        print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s)")
+                (val_epoch_loss, test_epoch_loss, 
+                 train_accuracy, val_accuracy, test_accuracy, 
+                 lowest_val_class_accuracy) = validate_epoch(
+                        model, 
+                        train_loader, val_loader, test_loader, 
+                        criterion, DEVICE, class_weights_tensor, 
+                        epoch, NUM_EPOCHS
+                    )
+                
+                val_losses.append(val_epoch_loss)
+                test_losses.append(test_epoch_loss)
+                
+                train_accuracies.append(train_accuracy)
+                val_accuracies.append(val_accuracy)
+                test_accuracies.append(test_accuracy)
+                
+                # Check if the validation accuracy improved
+                best_val_accuracy, epochs_no_improve = save_best_model(
+                    model, save_path_best, best_val_accuracy, val_accuracy, lowest_val_class_accuracy, epochs_no_improve)
 
                 print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
 
@@ -491,18 +500,9 @@ if __name__ == '__main__':
         ##########################
         # Load the best model
         model.load_state_dict(torch.load(save_path_best))
-        
-        model.eval()
-        with torch.set_grad_enabled(False): # save memory during inference
-            (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
-            test_insect_0_meas_noise_accuracy, test_insect_1_meas_noise_accuracy, 
-            test_insect_0_milabel_accuracy, test_insect_1_milabel_accuracy,
-            test_insect_0_good_accuracy, test_insect_1_good_accuracy) = compute_accuracy(model, test_loader, device=DEVICE)
-            print(f'Test accuracy: %.2f%%' % test_accuracy)
-            print(f'Test {insect_classes[0]} Accuracy: %.2f%%' % test_insect_0_accuracy)
-            print(f'Test {insect_classes[1]} Accuracy: %.2f%%' % test_insect_1_accuracy)
-            test_predictions, test_actuals, test_probs = compute_predictions(model, test_loader, device=DEVICE)
-        
+        (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
+        test_predictions, test_actuals, test_probs) = test_model(model, test_loader, DEVICE)
+
         prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
         os.makedirs(prob_distribution_path, exist_ok=True)
         plot_probability_distribution(
