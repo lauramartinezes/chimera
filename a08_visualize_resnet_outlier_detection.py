@@ -238,7 +238,8 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
     insect_classes = config["data_params"]["data_classes"]
-    model_name = 'resnet18'
+    data_dir = config["data_params"]["data_dir"]
+    model_name = config["model_params"]["name"]
     cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -257,15 +258,15 @@ if __name__ == '__main__':
             df_subsets = []
             for subset in subsets:
                 if 'adbench' in cnn_type:
-                    df_subset_path = os.path.join('data', f'df_{subset}_raw_{main_insect_class}.csv')
+                    df_subset_path = os.path.join(data_dir, f'df_{subset}_raw_{main_insect_class}.csv')
                 else:
-                    df_subset_path = os.path.join('data', f'df_{subset}_ae_{main_insect_class}.csv')
+                    df_subset_path = os.path.join(data_dir, f'df_{subset}_ae_{main_insect_class}.csv')
                 df_subset = pd.read_csv(df_subset_path)
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
             # CNN model
-            model_cnn = timm.create_model('resnet18', pretrained=True)
+            model_cnn = timm.create_model(model_name, pretrained=True)
             model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
             od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
                     
@@ -286,8 +287,8 @@ if __name__ == '__main__':
                     od_method=od_method
                 )
                 
-                os.makedirs(os.path.join('data', 'clean'), exist_ok=True)
-                os.makedirs(os.path.join('data', 'outliers'), exist_ok=True)
+                os.makedirs(os.path.join(data_dir, 'clean'), exist_ok=True)
+                os.makedirs(os.path.join(data_dir, 'outliers'), exist_ok=True)
                 
                 for subset in subsets:
                     if subset == 'train':
@@ -296,11 +297,11 @@ if __name__ == '__main__':
                     elif subset == 'val':
                         df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains('val')]
                         df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains('val')]
-                    df_subset_clean_path = os.path.join('data', 'clean', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_clean.csv')
+                    df_subset_clean_path = os.path.join(data_dir, 'clean', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_clean.csv')
                     df_subset_clean.to_csv(df_subset_clean_path, index=False)
                     print(f'Clean {main_insect_class} cnn {subset} dataset available')
 
-                    df_subset_outliers_path = os.path.join('data', 'outliers', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_outliers_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_outliers.csv')
                     df_subset_outliers.to_csv(df_subset_outliers_path, index=False)
                     print(f'Outliers {main_insect_class} cnn {subset} dataset available')
 
