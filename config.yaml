@@ -17,7 +17,7 @@ model_params:
   embedding_dim: 64
   img_size: 148
   in_channels: 3
-  name: VQVAE
+  name: resnet18
   num_embeddings: 512
 trainer_params:
   gpus:
