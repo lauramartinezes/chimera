@@ -82,6 +82,8 @@ if __name__ == '__main__':
     transform_cnn = set_feature_extraction_transform()
 
     device = config["trainer_params"]["device"]
+    raw_suffix = config["data_params"]["raw_suffix"]
+    swap_suffix = config["data_params"]["swap_suffix"]
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
@@ -92,8 +94,8 @@ if __name__ == '__main__':
         model_cnn.eval()
 
         # Resnet method
-        df_train_path = os.path.join(data_dir, f'df_train_ae_{main_insect_class}.csv')
-        df_val_path = os.path.join(data_dir, f'df_val_ae_{main_insect_class}.csv')
+        df_train_path = os.path.join(data_dir, f'df_train_{swap_suffix}_{main_insect_class}.csv')
+        df_val_path = os.path.join(data_dir, f'df_val_{swap_suffix}_{main_insect_class}.csv')
         df_train_ = pd.read_csv(df_train_path)
         df_val_ = pd.read_csv(df_val_path)
         df_train = pd.concat([df_train_, df_val_], ignore_index=True)       
@@ -123,8 +125,8 @@ if __name__ == '__main__':
         print('Metrics for CNN are available') 
 
         # Adbench method
-        df_train_path = os.path.join(data_dir, f'df_train_raw_{main_insect_class}.csv') 
-        df_val_path = os.path.join(data_dir, f'df_val_raw_{main_insect_class}.csv')
+        df_train_path = os.path.join(data_dir, f'df_train_{raw_suffix}_{main_insect_class}.csv') 
+        df_val_path = os.path.join(data_dir, f'df_val_{raw_suffix}_{main_insect_class}.csv')
         df_train_ = pd.read_csv(df_train_path)
         df_val_ = pd.read_csv(df_val_path)
         df_train = pd.concat([df_train_, df_val_], ignore_index=True)

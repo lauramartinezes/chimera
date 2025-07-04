@@ -243,7 +243,9 @@ if __name__ == '__main__':
     cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
     device = config["trainer_params"]["device"]
-    
+    raw_suffix = config["data_params"]["raw_suffix"]
+    swap_suffix = config["data_params"]["swap_suffix"]
+
     subsets = ['train', 'val']
 
     results = []
@@ -258,9 +260,9 @@ if __name__ == '__main__':
             df_subsets = []
             for subset in subsets:
                 if 'adbench' in cnn_type:
-                    df_subset_path = os.path.join(data_dir, f'df_{subset}_raw_{main_insect_class}.csv')
+                    df_subset_path = os.path.join(data_dir, f'df_{subset}_{raw_suffix}_{main_insect_class}.csv')
                 else:
-                    df_subset_path = os.path.join(data_dir, f'df_{subset}_ae_{main_insect_class}.csv')
+                    df_subset_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{main_insect_class}.csv')
                 df_subset = pd.read_csv(df_subset_path)
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)

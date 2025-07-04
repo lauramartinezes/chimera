@@ -74,6 +74,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["data_dir"]
+    raw_suffix = config["data_params"]["raw_suffix"]
     subsets = ['train', 'val']
     
     for i in range(len(insect_classes)):
@@ -81,7 +82,7 @@ if __name__ == '__main__':
         mislabeled_insect_class = insect_classes[1 - i]
         
         for subset in subsets:
-            df_subset_path = os.path.join(data_dir, f'df_{subset}_raw_{main_insect_class}.csv')
+            df_subset_path = os.path.join(data_dir, f'df_{subset}_{raw_suffix}_{main_insect_class}.csv')
             if not os.path.exists(df_subset_path):
                 df_subset = get_df_subset(main_insect_class, mislabeled_insect_class, subset, data_dir)
                 df_subset.to_csv(df_subset_path)

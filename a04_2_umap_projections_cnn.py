@@ -97,18 +97,19 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    df_test_path = os.path.join('data', f'df_test.csv')
-    df_test = pd.read_csv(df_test_path)
-
     insect_classes = config["data_params"]["data_classes"]
+    data_dir = config["data_params"]["data_dir"]
+    swap_suffix = config["data_params"]["swap_suffix"]
 
+    df_test_path = os.path.join(data_dir, f'df_test.csv')
+    df_test = pd.read_csv(df_test_path)
 
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
-        df_val_path = os.path.join('data', f'df_val_ae_{main_insect_class}.csv')
+        df_train_path = os.path.join(data_dir, f'df_train_{swap_suffix}_{main_insect_class}.csv')
+        df_val_path = os.path.join(data_dir, f'df_val_{swap_suffix}_{main_insect_class}.csv')
         df_train_ = pd.read_csv(df_train_path)
         df_val_ = pd.read_csv(df_val_path)
 

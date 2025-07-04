@@ -136,8 +136,8 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    in_suffix = 'raw'
-    out_suffix = 'ae' 
+    raw_suffix = config["data_params"]["raw_suffix"]
+    swap_suffix = config["data_params"]["swap_suffix"]
 
     ##########################
     ### BINARY CLASS INSECT DATASET
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
     model.to(device)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{in_suffix}_best_.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{raw_suffix}_best_.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             main_insect_class = insect_classes[i]
             mislabeled_insect_class = insect_classes[1 - i]
 
-            df_subset_path = os.path.join(data_dir, f'df_{subset}_{in_suffix}_{main_insect_class}.csv')
+            df_subset_path = os.path.join(data_dir, f'df_{subset}_{raw_suffix}_{main_insect_class}.csv')
             df_subset_i = pd.read_csv(df_subset_path)
             df_subset_i['noisy_outlier_label_original'] = df_subset_i.label
             
@@ -401,25 +401,25 @@ if __name__ == '__main__':
         df_insect_0['label'] = outlier_labels_insect_0
         df_insect_1['label'] = outlier_labels_insect_1
 
-        df_insect_0_path = os.path.join('data', f'df_{subset}_{out_suffix}_{insect_classes[0]}.csv')
+        df_insect_0_path = os.path.join('data', f'df_{subset}_{swap_suffix}_{insect_classes[0]}.csv')
         df_insect_0.to_csv(df_insect_0_path)
 
-        df_insect_1_path = os.path.join('data', f'df_{subset}_{out_suffix}_{insect_classes[1]}.csv')
+        df_insect_1_path = os.path.join('data', f'df_{subset}_{swap_suffix}_{insect_classes[1]}.csv')
         df_insect_1.to_csv(df_insect_1_path)
 
         print('')
     
     df_all_pred_counts = all_pred_counts[0] + all_pred_counts[1]
     print(df_all_pred_counts)
-    df_all_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_pred_counts_{model_name}_{in_suffix}.csv'))
+    df_all_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_pred_counts_{model_name}_{raw_suffix}.csv'))
 
     df_all_good_pred_counts = all_good_pred_counts[0] + all_good_pred_counts[1]
     print(df_all_good_pred_counts)
-    df_all_good_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_good_pred_counts_{model_name}_{in_suffix}.csv'))
+    df_all_good_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_good_pred_counts_{model_name}_{raw_suffix}.csv'))
 
     df_all_mislabels_pred_counts = all_mislabels_pred_counts[0] + all_mislabels_pred_counts[1]
     print(df_all_mislabels_pred_counts)
-    df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}_{in_suffix}.csv'))
+    df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}_{raw_suffix}.csv'))
     
     # Get total confusion matrix
     conf_matrix_total = sum(all_confusion_matrices)

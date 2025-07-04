@@ -181,9 +181,11 @@ if __name__ == '__main__':
     torch.manual_seed(config["exp_params"]["manual_seed"])
     random.seed(config["exp_params"]["manual_seed"])
     np.random.seed(config["exp_params"]["manual_seed"])
+    data_dir = config["data_params"]["data_dir"]
+    swap_suffix = config["data_params"]["swap_suffix"]
 
     # Load the test DataFrame
-    df_test_path = os.path.join('data', f'df_test.csv')
+    df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
     # Define the insect classes
@@ -202,7 +204,7 @@ if __name__ == '__main__':
         for main_insect_class in insect_classes:
             mislabeled_insect_class = [cls for cls in insect_classes if cls != main_insect_class][0]
 
-            df_train_path = os.path.join('data', f'df_train_ae_{main_insect_class}.csv')
+            df_train_path = os.path.join(data_dir, f'df_train_{swap_suffix}_{main_insect_class}.csv')
             df_train = pd.read_csv(df_train_path)
 
             # UMAP file paths
