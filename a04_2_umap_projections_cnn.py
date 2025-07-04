@@ -14,14 +14,12 @@ import yaml
 
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from datasets import CustomBinaryInsectDF, set_feature_extraction_transform
 from models import extract_features
 
 def get_train_test_umap(X_train, X_test, n_components=2):
     umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)
-    #umap_model = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=n_components, random_state=42)
 
     # Fit UMAP on the training data with labels
     X_train_embedding = umap_model.fit_transform(X_train)
@@ -71,7 +69,7 @@ def visualize_train_latent_space(train_features, labels_train, filename='', dirn
 
 
 
-def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
+def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory, shuffle=False):
     dataset = CustomBinaryInsectDF(
         df, 
         transform = transform, 
@@ -81,7 +79,7 @@ def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
     return DataLoader(
         dataset, 
         batch_size=batch_size, 
-        shuffle=False,
+        shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=pin_memory
     )
