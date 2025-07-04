@@ -1,6 +1,5 @@
 
 #TODO: project for both cnn and ad bench methods
-#TODO: before that we need to rename the df ae to df swap or something like that
 
 import os
 import random
