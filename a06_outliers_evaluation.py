@@ -74,6 +74,7 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
     data_dir = config["data_params"]["data_dir"]
     insect_classes = config["data_params"]["data_classes"]
+    model_name = config["model_params"]["name"]
 
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
 
-        model_cnn = timm.create_model('resnet18', pretrained=True)
+        model_cnn = timm.create_model(model_name, pretrained=True)
         model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
         model_cnn.eval()
 
