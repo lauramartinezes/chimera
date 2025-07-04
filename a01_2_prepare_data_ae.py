@@ -142,22 +142,11 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
-    # Choose between green->purple step or purple->green step
-    step_order = "purple_to_green"  # or "green_to_purple"
-    if step_order=="purple_to_green":
-        in_suffix = 'raw'
-        clean_suffix = ''
-        extra_in_suffix = ''
-        data_dir = 'data'
-        out_suffix = 'ae'
-    elif step_order=="green_to_purple":
-        in_suffix = 'adbench'
-        clean_suffix = 'clean_'
-        extra_in_suffix = '_DBSCAN_clean'
-        data_dir = os.path.join('data', 'clean')
-        out_suffix = 'inv_ae'
-    else:
-        raise ValueError("Invalid step order. Choose between 'purple_to_green' or 'green_to_purple'.")  
+    in_suffix = 'raw'
+    clean_suffix = ''
+    extra_in_suffix = ''
+    data_dir = 'data'
+    out_suffix = 'ae' 
 
     ##########################
     ### BINARY CLASS INSECT DATASET
@@ -175,7 +164,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{clean_suffix}{in_suffix}_best_.pth')#f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{clean_suffix}{in_suffix}_best_.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -432,16 +421,6 @@ if __name__ == '__main__':
 
         df_insect_1_path = os.path.join('data', f'df_{subset}_{out_suffix}_{insect_classes[1]}.csv')
         df_insect_1.to_csv(df_insect_1_path)
-
-        if step_order == "green_to_purple":
-            df_insect_0 = df_insect_0[df_insect_0[f'noisy_label_classification'] == 0]
-            df_insect_1 = df_insect_1[df_insect_1[f'noisy_label_classification'] == 1]
-            
-            df_insect_0_path = os.path.join('data', 'clean', f'df_{subset}_{out_suffix}_{insect_classes[0]}_DBSCAN_clean.csv')
-            df_insect_0.to_csv(df_insect_0_path)
-
-            df_insect_1_path = os.path.join('data', 'clean', f'df_{subset}_{out_suffix}_{insect_classes[1]}_DBSCAN_clean.csv')
-            df_insect_1.to_csv(df_insect_1_path)
 
         print('')
     
