@@ -134,11 +134,6 @@ if __name__ == '__main__':
             for index, row in df_analysis.iterrows():
                 plot_conf_matrix(row, index + f'_{od_method}_train_val', method, data_analysis_path)
             
-            # Sum both rows to create an overall confusion matrix
-            # df_analysis_overall = df_analysis.sum()
-
-            # Plot the confusion matrix for the summed data
-            # plot_conf_matrix(df_analysis_overall, f"all_data - {subset}", method, data_analysis_path)
             print('')
 
 
