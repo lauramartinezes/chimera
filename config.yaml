@@ -20,6 +20,7 @@ model_params:
   name: resnet18
   num_embeddings: 512
 trainer_params:
+  device: "cuda:0"
   gpus:
   - 1
   max_epochs: 100

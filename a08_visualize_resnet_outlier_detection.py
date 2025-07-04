@@ -242,7 +242,7 @@ if __name__ == '__main__':
     model_name = config["model_params"]["name"]
     cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = config["trainer_params"]["device"]
     
     subsets = ['train', 'val']
 

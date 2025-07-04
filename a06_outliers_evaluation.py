@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     transform_cnn = set_feature_extraction_transform()
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = config["trainer_params"]["device"]
     
     for i in range(len(insect_classes)):
         main_insect_class = insect_classes[i]

@@ -118,16 +118,10 @@ def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
 
 # Hyperparameters
 RANDOM_SEED = 1
-LEARNING_RATE = 0.001
 BATCH_SIZE = 512
-NUM_EPOCHS = 20
 
-# Architecture
-NUM_CLASSES = 2
 
-# Other
-DEVICE = "cuda:0"
-GRAYSCALE = True
+
 
 
 if __name__ == '__main__':
@@ -149,16 +143,18 @@ if __name__ == '__main__':
     ### BINARY CLASS INSECT DATASET
     ##########################    
     insect_classes = config["data_params"]["data_classes"]
+    num_classes = len(insect_classes)
     data_dir = config["data_params"]["data_dir"]
     model_name = config["model_params"]["name"] 
     subsets = ['train', 'val']
+    device = config["trainer_params"]["device"]
 
     ##########################
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
-    model.to(DEVICE)
+    model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
+    model.to(device)
 
     save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{in_suffix}_best_.pth')
     
@@ -223,8 +219,8 @@ if __name__ == '__main__':
         ##########################
         model.eval()
         with torch.set_grad_enabled(False): # save memory during inference
-            all_subset_predictions, all_subset_actuals, all_subset_probs = compute_predictions(model, loader, device=DEVICE)
-            accuracy = compute_accuracy(model, loader, device=DEVICE)
+            all_subset_predictions, all_subset_actuals, all_subset_probs = compute_predictions(model, loader, device=device)
+            accuracy = compute_accuracy(model, loader, device=device)
             print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
             print(f"Accuracy: {accuracy}")
 

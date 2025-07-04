@@ -312,12 +312,6 @@ LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001
 BATCH_SIZE = 64
 NUM_EPOCHS = 2 #1
 
-# Architecture
-NUM_CLASSES = 2
-
-# Other
-DEVICE = "cuda:0"
-
 
 if __name__ == '__main__':
     # Load the configuration
@@ -338,6 +332,7 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"] 
     num_classes = len(insect_classes)
     model_name = config["model_params"]["resnet18"] 
+    device = config["trainer_params"]["device"]
     method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
@@ -397,14 +392,14 @@ if __name__ == '__main__':
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
         model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
-        model.to(DEVICE)
+        model.to(device)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
         save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
 
         if not os.path.exists(save_path_best) or retrain_models==True:
             class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
-            class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(DEVICE)
+            class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
 
             optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
             criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
@@ -433,7 +428,7 @@ if __name__ == '__main__':
                 case = f'{method} cleaned'
 
             for epoch in range(NUM_EPOCHS):
-                train_epoch_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE, case, epoch, NUM_EPOCHS)
+                train_epoch_loss = train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, NUM_EPOCHS)
                 train_losses.append(train_epoch_loss)
 
                 (val_epoch_loss, test_epoch_loss, 
@@ -441,7 +436,7 @@ if __name__ == '__main__':
                  lowest_val_class_accuracy) = validate_epoch(
                         model, 
                         train_loader, val_loader, test_loader, 
-                        criterion, DEVICE, class_weights_tensor, 
+                        criterion, device, class_weights_tensor, 
                         epoch, NUM_EPOCHS
                     )
                 
@@ -492,7 +487,7 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(save_path_best))
             model.eval()
             with torch.set_grad_enabled(False): # save memory during inference
-                (best_val_accuracy, _, _, _, _, _, _, _, _) = compute_accuracy(model, val_loader, device=DEVICE)
+                (best_val_accuracy, _, _, _, _, _, _, _, _) = compute_accuracy(model, val_loader, device=device)
                 print('Best Validation accuracy: %.2f%%' % best_val_accuracy)
 
         ##########################
@@ -501,7 +496,7 @@ if __name__ == '__main__':
         # Load the best model
         model.load_state_dict(torch.load(save_path_best))
         (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
-        test_predictions, test_actuals, test_probs) = test_model(model, test_loader, DEVICE)
+        test_predictions, test_actuals, test_probs) = test_model(model, test_loader, device)
 
         prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
         os.makedirs(prob_distribution_path, exist_ok=True)
