@@ -43,14 +43,10 @@ if __name__ == '__main__':
         # df_analysis = pd.DataFrame({'insect_class': insect_classes})
         df_analysis = pd.DataFrame(index=insect_classes)
 
-        if method == 'ae' or method == 'adv_ae':
-            od_methods = ['DBSCAN', 'MCD']
-        elif method == 'adbench':
+        if method == 'adbench':
             od_methods = ['OCSVM']
         elif method == 'cnn':
             od_methods = ['DBSCAN', 'MCD']
-        elif method == 'resnet18':
-            od_methods = ['LODA']
         elif method == 'adbench_2d':
             od_methods = ['MCD']
 
