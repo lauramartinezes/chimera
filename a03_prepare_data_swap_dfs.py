@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from datasets import CustomBinaryInsectDF, set_test_transform
 from models import compute_accuracy, compute_predictions
-from a01_1_train_test_classifier import plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from a02_train_test_classifier import plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
 if torch.cuda.is_available():
