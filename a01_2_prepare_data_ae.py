@@ -143,28 +143,24 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
     in_suffix = 'raw'
-    clean_suffix = ''
-    extra_in_suffix = ''
-    data_dir = 'data'
     out_suffix = 'ae' 
 
     ##########################
     ### BINARY CLASS INSECT DATASET
     ##########################    
     insect_classes = config["data_params"]["data_classes"]
-    clean_dataset = ''
-    method = 'ae' 
+    data_dir = config["data_params"]["data_dir"]
+    model_name = config["model_params"]["name"] 
     subsets = ['train', 'val']
 
     ##########################
     ### RESNET-18 MODEL
     ##########################
     torch.manual_seed(RANDOM_SEED)
-    model_name = 'resnet18'
     model = timm.create_model(model_name, pretrained=False, num_classes=NUM_CLASSES)
     model.to(DEVICE)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{clean_suffix}{in_suffix}_best_.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{in_suffix}_best_.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -196,7 +192,7 @@ if __name__ == '__main__':
             main_insect_class = insect_classes[i]
             mislabeled_insect_class = insect_classes[1 - i]
 
-            df_subset_path = os.path.join(data_dir, f'df_{subset}_{in_suffix}_{main_insect_class}{extra_in_suffix}.csv')
+            df_subset_path = os.path.join(data_dir, f'df_{subset}_{in_suffix}_{main_insect_class}.csv')
             df_subset_i = pd.read_csv(df_subset_path)
             df_subset_i['noisy_outlier_label_original'] = df_subset_i.label
             
@@ -231,13 +227,6 @@ if __name__ == '__main__':
             accuracy = compute_accuracy(model, loader, device=DEVICE)
             print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
             print(f"Accuracy: {accuracy}")
-
-        # thresholded_predictions = np.array([
-        #     actual if max(probs) <= 0.8 else pred
-        #     for pred, probs, actual in zip(all_subset_predictions, all_subset_probs, all_subset_actuals)
-        # ])
-
-        # all_subset_predictions = thresholded_predictions
 
         all_probs.extend(all_subset_probs)
         all_actuals.extend(all_subset_actuals)
