@@ -87,8 +87,8 @@ def compute_predictions(model, data_loader, device):
         logits = model(images)
         probas = F.softmax(logits, dim=1)
         _, predicted_labels = torch.max(probas, 1)
-        all_predictions.extend(predicted_labels.cpu().numpy())
-        all_actuals.extend(labels.cpu().numpy())
-        all_probs.extend(probas.cpu().numpy())
+        all_predictions.extend(predicted_labels.detach().cpu().numpy())
+        all_actuals.extend(labels.detach().cpu().numpy())
+        all_probs.extend(probas.detach().cpu().numpy())
 
     return all_predictions, all_actuals, all_probs
