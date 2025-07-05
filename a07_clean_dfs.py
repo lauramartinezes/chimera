@@ -25,7 +25,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         df,
         transform,
         config["exp_params"]["manual_seed"],
-        config["data_params"][f"train_batch_size"],
+        config["data_params"][f"batch_size"],
         config["data_params"]["num_workers"],
         pin_memory,
     )

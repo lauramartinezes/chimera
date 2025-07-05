@@ -22,7 +22,7 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         df,
         transform,
         config["exp_params"]["manual_seed"],
-        config["data_params"][f"train_batch_size"],
+        config["data_params"][f"batch_size"],
         config["data_params"]["num_workers"],
         pin_memory,
     )
