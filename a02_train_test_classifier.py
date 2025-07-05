@@ -10,11 +10,9 @@ import torch
 import torch.nn as nn
 import yaml
 
-from matplotlib import pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight
-from torch.utils.data import DataLoader
 
-from datasets import CustomBinaryInsectDF, set_test_transform, set_train_transform, load_subset_df_classification
+from datasets import set_test_transform, set_train_transform, load_subset_df_classification
 from datasets.load_data import load_data_from_df
 from models.metrics import compute_accuracy
 from models.plot import plot_prediction_confidence_by_predicted_class, plot_probability_distribution, plot_training_curves
@@ -52,11 +50,6 @@ def get_args():
     parser.add_argument('--random_seed_1', type=int, default=1)
     parser.add_argument('--random_seed_2', type=int, default=1265)
     parser.add_argument('--learning_rate', type=float, default=0.0001)
-    parser.add_argument('--batch_size', type=int, default=64)
-    parser.add_argument('--num_epochs', type=int, default=10)
-    parser.add_argument('--num_classes', type=int, default=2)
-    parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--model_name', type=str, default='resnet18')
     parser.add_argument('--pretrained', type=bool, default=False)
     parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
     args = parser.parse_args()
@@ -70,7 +63,6 @@ def get_args():
 # Hyperparameters
 RANDOM_SEED = 1
 LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001 
-NUM_EPOCHS = 2 #1
 
 
 if __name__ == '__main__':
@@ -94,6 +86,7 @@ if __name__ == '__main__':
     model_name = config["model_params"]["resnet18"] 
     device = config["trainer_params"]["device"]
     batch_size = config["data_params"]["batch_size"]
+    num_epochs = config["trainer_params"]["num_epochs"]
     method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
@@ -190,8 +183,8 @@ if __name__ == '__main__':
             else:
                 case = f'{method} cleaned'
 
-            for epoch in range(NUM_EPOCHS):
-                train_epoch_loss = train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, NUM_EPOCHS)
+            for epoch in range(num_epochs):
+                train_epoch_loss = train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, num_epochs)
                 train_losses.append(train_epoch_loss)
 
                 (val_epoch_loss, test_epoch_loss, 
@@ -201,7 +194,7 @@ if __name__ == '__main__':
                         model, 
                         train_loader, val_loader, test_loader, 
                         criterion, device, class_weights_tensor, 
-                        epoch, NUM_EPOCHS
+                        epoch, num_epochs
                     )
                 
                 val_losses.append(val_epoch_loss)
