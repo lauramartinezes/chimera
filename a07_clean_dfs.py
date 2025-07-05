@@ -10,12 +10,10 @@ import yaml
 
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from datasets import set_feature_extraction_transform
+from datasets.load_data import load_data_from_df
 from outlier_detectors import UmapHdbscanOD, PYOD, metric
-from datasets import CustomBinaryInsectDF
 from models import extract_features
 
 
@@ -28,6 +26,7 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         config["data_params"][f"batch_size"],
         config["data_params"]["num_workers"],
         pin_memory,
+        shuffle=False
     )
     print(f"{phase.capitalize()} dataset correctly loaded")
 
@@ -118,22 +117,6 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         df_clean = df_clean[df_clean[f'noisy_label_classification'] == reference_label]
     
     return df_clean, df, metrics
-
-
-def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
-    dataset = CustomBinaryInsectDF(
-        df, 
-        transform = transform, 
-        seed=seed
-    )
-
-    return DataLoader(
-        dataset, 
-        batch_size=batch_size, 
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
 
 
 def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):

@@ -12,9 +12,9 @@ import seaborn as sns
 import yaml
 
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader
 
-from datasets import CustomBinaryInsectDF, set_feature_extraction_transform
+from datasets import set_feature_extraction_transform
+from datasets.load_data import load_data_from_df
 from models import extract_features
 
 def get_train_test_umap(X_train, X_test, n_components=2):
@@ -67,23 +67,6 @@ def visualize_train_latent_space(train_features, labels_train, filename='', dirn
     plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
 
-
-def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory, shuffle=False):
-    dataset = CustomBinaryInsectDF(
-        df, 
-        transform = transform, 
-        seed=seed
-    )
-
-    return DataLoader(
-        dataset, 
-        batch_size=batch_size, 
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
-
-
 if __name__ == '__main__':
     # Load the configuration
     with open("config.yaml", "r") as file:
@@ -115,22 +98,24 @@ if __name__ == '__main__':
         # Combine the training and validation dataframes
         df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
-        train_dataset = CustomBinaryInsectDF(df_train, transform = set_feature_extraction_transform(), seed=config["exp_params"]["manual_seed"])
-        test_dataset = CustomBinaryInsectDF(df_test, transform = set_feature_extraction_transform(), seed=config["exp_params"]["manual_seed"])
-
-        train_loader = DataLoader(
-            train_dataset, 
-            batch_size=config["data_params"]["batch_size"], 
-            shuffle=False,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+        train_loader = load_data_from_df(
+            df_train,
+            set_feature_extraction_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=False
         )
-        test_loader = DataLoader(
-            test_dataset, 
-            batch_size=config["data_params"]["batch_size"], 
-            shuffle=False,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+
+        test_loader = load_data_from_df(
+            df_train,
+            set_feature_extraction_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=False
         )
 
         print(f"{main_insect_class} dataset correctly loaded")

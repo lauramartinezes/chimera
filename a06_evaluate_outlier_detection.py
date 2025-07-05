@@ -5,15 +5,12 @@ import pandas as pd
 from sklearn.decomposition import PCA
 import timm
 import torch
-from tqdm import tqdm
 import umap
 import yaml
 
-from torch.utils.data import DataLoader
-
 from datasets import set_feature_extraction_transform
+from datasets.load_data import load_data_from_df
 from outlier_detectors import get_outlier_methods_csv
-from datasets import CustomBinaryInsectDF
 from models import extract_features
 
 
@@ -25,6 +22,7 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         config["data_params"][f"batch_size"],
         config["data_params"]["num_workers"],
         pin_memory,
+        shuffle=False
     )
     latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features(loader, model)
 
@@ -42,22 +40,6 @@ def process_data_cnn(df, model, device, config, transform, main_insect_class, ph
         mislabeled_cnn.astype(int),
         f'{cnn_type}_512d_{main_insect_class}_{phase}',
         dirname=config["logging_params"]["save_dir"]
-    )
-
-
-def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory):
-    dataset = CustomBinaryInsectDF(
-        df, 
-        transform = transform, 
-        seed=seed
-    )
-
-    return DataLoader(
-        dataset, 
-        batch_size=batch_size, 
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=pin_memory
     )
 
 

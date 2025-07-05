@@ -15,6 +15,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
 
 from datasets import CustomBinaryInsectDF, set_test_transform, set_train_transform, load_subset_df_classification
+from datasets.load_data import load_data_from_df
 from models.metrics import compute_accuracy
 from models.plot import plot_prediction_confidence_by_predicted_class, plot_probability_distribution, plot_training_curves
 from models.train_val_test import test_model, train_epoch, validate_epoch
@@ -118,32 +119,34 @@ if __name__ == '__main__':
         df_val = load_subset_df_classification(insect_classes, 'val', method, od_method, data_dir, clean_dataset)
         df_test = pd.read_csv(os.path.join(data_dir, f'df_test.csv'))
 
-        train_dataset = CustomBinaryInsectDF(df_train, transform = set_train_transform(), seed=config["exp_params"]["manual_seed"])
-        val_dataset = CustomBinaryInsectDF(df_val, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
-        test_dataset = CustomBinaryInsectDF(df_test, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
-
-        train_loader = DataLoader(
-            train_dataset, 
-            batch_size=batch_size, 
-            shuffle=True,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+        train_loader = load_data_from_df(
+            df_train,
+            set_train_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=True
         )
 
-        val_loader = DataLoader(
-            val_dataset, 
-            batch_size=batch_size, 
-            shuffle=False,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+        val_loader = load_data_from_df(
+            df_val,
+            set_test_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=False
         )
 
-        test_loader = DataLoader(
-            test_dataset, 
-            batch_size=batch_size, 
-            shuffle=False,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+        test_loader = load_data_from_df(
+            df_test,
+            set_test_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=False
         )
         
 

@@ -8,9 +8,8 @@ import yaml
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from torch.utils.data import DataLoader
-
-from datasets import CustomBinaryInsectDF, set_test_transform
+from datasets import set_test_transform
+from datasets.load_data import load_data_from_df
 from models import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
@@ -198,17 +197,16 @@ if __name__ == '__main__':
 
         df_subset['directory'] = df_subset['filepath'].apply(os.path.dirname)
 
-        # Prepare Dataset
-        dataset = CustomBinaryInsectDF(df_subset, transform = set_test_transform(), seed=config["exp_params"]["manual_seed"])
-        
-        loader = DataLoader(
-            dataset, 
-            batch_size=config["data_params"]["batch_size"], 
-            shuffle=False,
-            num_workers=config["data_params"]["num_workers"],
-            pin_memory=pin_memory
+        loader = load_data_from_df(
+            df_subset,
+            set_test_transform(),
+            config["exp_params"]["manual_seed"],
+            config["data_params"][f"batch_size"],
+            config["data_params"]["num_workers"],
+            pin_memory,
+            shuffle=False
         )
-
+        
         ##########################
         ### INFERENCE
         ##########################
