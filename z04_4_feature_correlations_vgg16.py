@@ -183,7 +183,7 @@ if __name__ == '__main__':
         train_dataset = CustomBinaryInsectDF(df_train, transform = transform, seed=config["exp_params"]["manual_seed"])
         train_loader = DataLoader(
             train_dataset, 
-            batch_size=config["data_params"]["train_batch_size"], 
+            batch_size=config["data_params"]["batch_size"], 
             shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
