@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
 from datasets import CustomBinaryInsectDF, set_test_transform
-from models import compute_accuracy, compute_predictions
-from a02_train_test_classifier import plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from models import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
 
 
 if torch.cuda.is_available():
@@ -118,10 +117,6 @@ def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
 
 # Hyperparameters
 RANDOM_SEED = 1
-BATCH_SIZE = 512
-
-
-
 
 
 if __name__ == '__main__':
