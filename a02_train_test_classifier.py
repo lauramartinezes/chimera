@@ -47,22 +47,13 @@ def set_seed(seed):
 def get_args():
     parser = argparse.ArgumentParser(
         description='Training and Testing Classifier')
-    parser.add_argument('--random_seed_1', type=int, default=1)
-    parser.add_argument('--random_seed_2', type=int, default=1265)
-    parser.add_argument('--learning_rate', type=float, default=0.0001)
     parser.add_argument('--pretrained', type=bool, default=False)
     parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
     args = parser.parse_args()
     return args
 
-
-##########################
-### SETTINGS
-##########################
-
 # Hyperparameters
 RANDOM_SEED = 1
-LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001 
 
 
 if __name__ == '__main__':
@@ -86,7 +77,9 @@ if __name__ == '__main__':
     model_name = config["model_params"]["resnet18"] 
     device = config["trainer_params"]["device"]
     batch_size = config["data_params"]["batch_size"]
+    learning_rate = config["exp_params"]["LR"]
     num_epochs = config["trainer_params"]["num_epochs"]
+
     method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
@@ -157,7 +150,7 @@ if __name__ == '__main__':
             class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
             class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
 
-            optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=0)  
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0)  
             criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
                     
             ##########################

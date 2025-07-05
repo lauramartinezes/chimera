@@ -7,7 +7,7 @@ data_params:
   raw_suffix: raw
   swap_suffix: swap
 exp_params:
-  LR: 0.001
+  LR: 0.00001
   manual_seed: 1265
   weight_decay: 0.0
 logging_params:
