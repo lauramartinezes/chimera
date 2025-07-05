@@ -34,6 +34,7 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     insect_classes = config["data_params"]["data_classes"]
+    data_dir = config["data_params"]["data_dir"]
     method_datasets = ['adbench', 'cnn'] #'ae', 'adv_ae', 'resnet18' 'adbench_2d'
     subsets = ['train', 'val']
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 
                 df_subsets = []
                 for subset in subsets:
-                    df_subset_path = os.path.join('data', 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
                 df = pd.concat(df_subsets)
@@ -96,7 +97,7 @@ if __name__ == '__main__':
                 mislabeled_insect_class = insect_classes[1 - i]  
                 df_subsets = []
                 for subset in subsets:
-                    df_subset_path = os.path.join('data', 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
                 df = pd.concat(df_subsets)
