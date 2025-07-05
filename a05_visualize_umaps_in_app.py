@@ -190,7 +190,7 @@ if __name__ == '__main__':
 
     # Define the insect classes
     insect_classes = ['wmv', 'wrl']
-    feature_ext_methods = ['cnn', 'resnet18']
+    feature_ext_methods = ['cnn', 'adbench']
 
     # Prepare dictionaries for dropdown-based selection
     train_features_dict = {}

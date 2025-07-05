@@ -81,119 +81,124 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["data_dir"]
-    swap_suffix = config["data_params"]["swap_suffix"]
 
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    for i in range(len(insect_classes)):
-        main_insect_class = insect_classes[i]
-        mislabeled_insect_class = insect_classes[1 - i]
+    methods = ['cnn', 'adbench']
+    for method in methods:
+        if method == 'adbench':
+            suffix = config["data_params"]["raw_suffix"]
+        else:
+            suffix = config["data_params"]["swap_suffix"]
+        for i in range(len(insect_classes)):
+            main_insect_class = insect_classes[i]
+            mislabeled_insect_class = insect_classes[1 - i]
 
-        df_train_path = os.path.join(data_dir, f'df_train_{swap_suffix}_{main_insect_class}.csv')
-        df_val_path = os.path.join(data_dir, f'df_val_{swap_suffix}_{main_insect_class}.csv')
-        df_train_ = pd.read_csv(df_train_path)
-        df_val_ = pd.read_csv(df_val_path)
+            df_train_path = os.path.join(data_dir, f'df_train_{suffix}_{main_insect_class}.csv')
+            df_val_path = os.path.join(data_dir, f'df_val_{suffix}_{main_insect_class}.csv')
+            df_train_ = pd.read_csv(df_train_path)
+            df_val_ = pd.read_csv(df_val_path)
 
-        # Combine the training and validation dataframes
-        df_train = pd.concat([df_train_, df_val_], ignore_index=True)
+            # Combine the training and validation dataframes
+            df_train = pd.concat([df_train_, df_val_], ignore_index=True)
 
-        train_loader = load_data_from_df(
-            df_train,
-            set_feature_extraction_transform(),
-            config["exp_params"]["manual_seed"],
-            config["data_params"][f"batch_size"],
-            config["data_params"]["num_workers"],
-            pin_memory,
-            shuffle=False
-        )
-
-        test_loader = load_data_from_df(
-            df_train,
-            set_feature_extraction_transform(),
-            config["exp_params"]["manual_seed"],
-            config["data_params"][f"batch_size"],
-            config["data_params"]["num_workers"],
-            pin_memory,
-            shuffle=False
-        )
-
-        print(f"{main_insect_class} dataset correctly loaded")
-
-        
-        # Resnet method
-        model = timm.create_model('resnet18', pretrained=True)
-        model = torch.nn.Sequential(*(list(model.children())[:-1]))
-        model.eval()
-
-        print(f"{main_insect_class} model correctly initialized")
-
-        # Extract features from encoding latents
-        umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-        os.makedirs(umap_folder, exist_ok=True)
-        umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_cnn_train.npy')
-        umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_cnn_test.npy')
-        labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_cnn_train.npy')
-        labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_cnn_test.npy')
-
-
-        if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
-            os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name): 
-            latents_2d_train = np.load(umap_train_file_name)
-            latents_2d_test = np.load(umap_test_file_name)
-            labels_noise_train = np.load(labels_umap_train_file_name)
-            labels_cnn_test = np.load(labels_umap_test_file_name)
-        else:            
-            (
-                latents_cnn_test, 
-                labels_cnn_test, 
-                real_labels_cnn_test, 
-                measurement_noise_cnn_test, 
-                mislabeled_cnn_test
-            ) = extract_features(test_loader, model)
-            
-            (
-                latents_cnn_train, 
-                labels_cnn_train, 
-                real_labels_cnn_train, 
-                measurement_noise_cnn_train, 
-                mislabeled_cnn_train
-            ) = extract_features(train_loader, model)
-
-
-            measurement_noise_cnn_train = measurement_noise_cnn_train.astype(int)*2
-            mislabeled_cnn_train = mislabeled_cnn_train.astype(int)
-            labels_noise_train = measurement_noise_cnn_train + mislabeled_cnn_train
-
-            # Reduce dimensions to 2D for visualization
-            latents_2d_train, latents_2d_test = get_train_test_umap(
-                latents_cnn_train, 
-                latents_cnn_test, 
-                n_components=2
+            train_loader = load_data_from_df(
+                df_train,
+                set_feature_extraction_transform(),
+                config["exp_params"]["manual_seed"],
+                config["data_params"][f"batch_size"],
+                config["data_params"]["num_workers"],
+                pin_memory,
+                shuffle=False
             )
+
+            test_loader = load_data_from_df(
+                df_train,
+                set_feature_extraction_transform(),
+                config["exp_params"]["manual_seed"],
+                config["data_params"][f"batch_size"],
+                config["data_params"]["num_workers"],
+                pin_memory,
+                shuffle=False
+            )
+
+            print(f"{main_insect_class} dataset correctly loaded")
+
             
-            np.save(umap_train_file_name, latents_2d_train)
-            np.save(umap_test_file_name, latents_2d_test)
-            np.save(labels_umap_train_file_name, labels_noise_train)
-            np.save(labels_umap_test_file_name, labels_cnn_test)
+            # Resnet method
+            model = timm.create_model('resnet18', pretrained=True)
+            model = torch.nn.Sequential(*(list(model.children())[:-1]))
+            model.eval()
 
-        visualize_test_latent_space_wrt_train(
-            main_insect_class, 
-            mislabeled_insect_class, 
-            latents_2d_train,
-            latents_2d_test, 
-            labels_noise_train, 
-            labels_cnn_test, 
-            insect_classes,
-            f'cnn_{main_insect_class}_test', 
-            config["logging_params"]["save_dir"]
-        )
+            print(f"{main_insect_class} model correctly initialized")
 
-        visualize_train_latent_space(
-            latents_2d_train, 
-            labels_noise_train, 
-            f'cnn_{main_insect_class}_train', 
-            config["logging_params"]["save_dir"]
-        )
+            # Extract features from encoding latents
+            umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
+            os.makedirs(umap_folder, exist_ok=True)
+            umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_train.npy')
+            umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_test.npy')
+            labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_train.npy')
+            labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_test.npy')
 
-        print('')
+
+            if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
+                os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name): 
+                latents_2d_train = np.load(umap_train_file_name)
+                latents_2d_test = np.load(umap_test_file_name)
+                labels_noise_train = np.load(labels_umap_train_file_name)
+                labels_cnn_test = np.load(labels_umap_test_file_name)
+            else:            
+                (
+                    latents_cnn_test, 
+                    labels_cnn_test, 
+                    real_labels_cnn_test, 
+                    measurement_noise_cnn_test, 
+                    mislabeled_cnn_test
+                ) = extract_features(test_loader, model)
+                
+                (
+                    latents_cnn_train, 
+                    labels_cnn_train, 
+                    real_labels_cnn_train, 
+                    measurement_noise_cnn_train, 
+                    mislabeled_cnn_train
+                ) = extract_features(train_loader, model)
+
+
+                measurement_noise_cnn_train = measurement_noise_cnn_train.astype(int)*2
+                mislabeled_cnn_train = mislabeled_cnn_train.astype(int)
+                labels_noise_train = measurement_noise_cnn_train + mislabeled_cnn_train
+
+                # Reduce dimensions to 2D for visualization
+                latents_2d_train, latents_2d_test = get_train_test_umap(
+                    latents_cnn_train, 
+                    latents_cnn_test, 
+                    n_components=2
+                )
+                
+                np.save(umap_train_file_name, latents_2d_train)
+                np.save(umap_test_file_name, latents_2d_test)
+                np.save(labels_umap_train_file_name, labels_noise_train)
+                np.save(labels_umap_test_file_name, labels_cnn_test)
+
+            visualize_test_latent_space_wrt_train(
+                main_insect_class, 
+                mislabeled_insect_class, 
+                latents_2d_train,
+                latents_2d_test, 
+                labels_noise_train, 
+                labels_cnn_test, 
+                insect_classes,
+                f'{method}_{main_insect_class}_test', 
+                config["logging_params"]["save_dir"]
+            )
+
+            visualize_train_latent_space(
+                latents_2d_train, 
+                labels_noise_train, 
+                f'{method}_{main_insect_class}_train', 
+                config["logging_params"]["save_dir"]
+            )
+
+            print('')
