@@ -14,6 +14,7 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from datasets import set_test_transform, set_train_transform, load_subset_df_classification
 from datasets.load_data import load_data_from_df
+from models.save_best_model import save_best_model
 from models.metrics import compute_accuracy
 from models.plot import plot_prediction_confidence_by_predicted_class, plot_probability_distribution, plot_training_curves
 from models.train_val_test import test_model, train_epoch, validate_epoch
@@ -21,19 +22,6 @@ from models.train_val_test import test_model, train_epoch, validate_epoch
 
 if torch.cuda.is_available():
     torch.backends.cudnn.deterministic = True
-
-
-def save_best_model(model, save_path_best, best_val_accuracy, val_accuracy, lowest_val_class_accuracy, epochs_no_improve):
-    if best_val_accuracy < val_accuracy:
-        best_val_accuracy = val_accuracy
-        best_lowest_val_class_accuracy = lowest_val_class_accuracy
-        torch.save(model.state_dict(), save_path_best)
-        print(f"New best model saved at {save_path_best} with Validation Accuracy: {best_val_accuracy:.3f}% and lowest class accuracy: {best_lowest_val_class_accuracy:.3f}%")
-        epochs_no_improve = 0  # reset patience counter
-    else:
-        epochs_no_improve += 1
-        print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s)")
-    return best_val_accuracy, epochs_no_improve
 
 
 def set_seed(seed):
