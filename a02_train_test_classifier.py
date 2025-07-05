@@ -69,7 +69,6 @@ def get_args():
 # Hyperparameters
 RANDOM_SEED = 1
 LEARNING_RATE = 0.00001 #0.0001 #80, 81 0.00001 
-BATCH_SIZE = 64
 NUM_EPOCHS = 2 #1
 
 
@@ -93,6 +92,7 @@ if __name__ == '__main__':
     num_classes = len(insect_classes)
     model_name = config["model_params"]["resnet18"] 
     device = config["trainer_params"]["device"]
+    batch_size = config["data_params"]["batch_size"]
     method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
         train_loader = DataLoader(
             train_dataset, 
-            batch_size=BATCH_SIZE, 
+            batch_size=batch_size, 
             shuffle=True,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
         val_loader = DataLoader(
             val_dataset, 
-            batch_size=BATCH_SIZE, 
+            batch_size=batch_size, 
             shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
         test_loader = DataLoader(
             test_dataset, 
-            batch_size=BATCH_SIZE, 
+            batch_size=batch_size, 
             shuffle=False,
             num_workers=config["data_params"]["num_workers"],
             pin_memory=pin_memory
