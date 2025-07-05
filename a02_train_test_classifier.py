@@ -55,10 +55,6 @@ if __name__ == '__main__':
     set_seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
-
-    ##########################
-    ### BINARY CLASS INSECT DATASET
-    ##########################
     data_dir = config["data_params"]["data_dir"]
     insect_classes = config["data_params"]["data_classes"] 
     num_classes = len(insect_classes)
@@ -235,27 +231,6 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(save_path_best))
         (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
         test_predictions, test_actuals, test_probs) = test_model(insect_classes, model, test_loader, device)
-
-        prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
-        os.makedirs(prob_distribution_path, exist_ok=True)
-        plot_probability_distribution(
-            np.array(test_probs), 
-            np.array(test_actuals), 
-            start=0, end=1.0, step=0.1,
-            filename_suffix='test',
-            save_path=prob_distribution_path,
-            clean_dataset=clean_dataset,
-            method=method
-            )
-        
-        plot_prediction_confidence_by_predicted_class(
-            np.array(test_probs), 
-            start=0.5, end=1.0, step=0.1,
-            filename_suffix='test',
-            save_path=prob_distribution_path,
-            clean_dataset=clean_dataset,
-            method=method
-            )
 
         results.append({
             "clean_dataset": not(clean_dataset==''),
