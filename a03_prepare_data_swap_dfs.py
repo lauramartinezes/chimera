@@ -372,9 +372,9 @@ if __name__ == '__main__':
         print(f"{insect_classes[1]}_pred_mislabels_orig_mislabels_probas_counts: \n", insect_1_pred_mislabels_orig_mislabels_probas_counts)
 
         # update mislabeled column
-        df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"data/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"data/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
+        df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
 
-        df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"data/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"data/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
+        df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
 
         # add Best Alternative Class (BAC) column
         df_insect_0['bac'] = 1 - df_insect_0.label
