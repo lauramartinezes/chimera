@@ -16,7 +16,7 @@ from datasets import set_test_transform, set_train_transform, load_subset_df_cla
 from datasets.load_data import load_data_from_df
 from models.save_best_model import save_best_model
 from models.metrics import compute_accuracy
-from models.plot import plot_prediction_confidence_by_predicted_class, plot_probability_distribution, plot_training_curves
+from models.plot import plot_training_curves
 from models.train_val_test import test_model, train_epoch, validate_epoch
 
 
