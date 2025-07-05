@@ -4,7 +4,6 @@ data_params:
   num_workers: 0
   patch_size: 148
   train_batch_size: 64
-  val_batch_size: 64
   raw_suffix: raw
   swap_suffix: swap
 exp_params:
