@@ -1,13 +1,19 @@
 data_params:
-  data_dir: data/
-  data_classes: ['wmv', 'wrl']
-  nature_split: [60 , 20, 20]
-  num_workers: 0
   batch_size: 64
+  data_classes:
+  - wmv
+  - wrl
+  nature_split:
+  - 60
+  - 20
+  - 20
+  num_workers: 0
+  original_data_dir: data/phoneboxdata
   raw_suffix: raw
+  splitted_data_dir: data/split_60_20_20
   swap_suffix: swap
 exp_params:
-  LR: 0.00001
+  LR: 1.0e-05
   manual_seed: 1265
   weight_decay: 0.0
 logging_params:
@@ -17,7 +23,7 @@ model_params:
   name: resnet18
   num_embeddings: 512
 trainer_params:
-  device: "cuda:0"
+  device: cuda:0
   gpus:
   - 1
   num_epochs: 25

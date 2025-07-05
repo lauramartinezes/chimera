@@ -181,7 +181,7 @@ if __name__ == '__main__':
     torch.manual_seed(config["exp_params"]["manual_seed"])
     random.seed(config["exp_params"]["manual_seed"])
     np.random.seed(config["exp_params"]["manual_seed"])
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     swap_suffix = config["data_params"]["swap_suffix"]
 
     # Load the test DataFrame

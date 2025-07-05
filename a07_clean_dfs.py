@@ -221,7 +221,7 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
     insect_classes = config["data_params"]["data_classes"]
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     model_name = config["model_params"]["name"]
     cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 

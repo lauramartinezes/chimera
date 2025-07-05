@@ -34,7 +34,7 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     insect_classes = config["data_params"]["data_classes"]
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     method_datasets = ['adbench', 'cnn'] #'ae', 'adv_ae', 'resnet18' 'adbench_2d'
     subsets = ['train', 'val']
 

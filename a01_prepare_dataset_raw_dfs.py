@@ -73,7 +73,7 @@ if __name__ == '__main__':
     np.random.seed(42)
 
     insect_classes = config["data_params"]["data_classes"]
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     raw_suffix = config["data_params"]["raw_suffix"]
     subsets = ['train', 'val']
     

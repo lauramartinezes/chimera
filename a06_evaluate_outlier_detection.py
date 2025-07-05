@@ -54,7 +54,7 @@ if __name__ == '__main__':
     np.random.seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     insect_classes = config["data_params"]["data_classes"]
     model_name = config["model_params"]["name"]
 

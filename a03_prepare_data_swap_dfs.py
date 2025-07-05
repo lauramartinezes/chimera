@@ -138,7 +138,7 @@ if __name__ == '__main__':
     ##########################    
     insect_classes = config["data_params"]["data_classes"]
     num_classes = len(insect_classes)
-    data_dir = config["data_params"]["data_dir"]
+    data_dir = config["data_params"]["splitted_data_dir"]
     model_name = config["model_params"]["name"] 
     subsets = ['train', 'val']
     device = config["trainer_params"]["device"]
