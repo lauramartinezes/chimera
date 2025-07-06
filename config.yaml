@@ -15,7 +15,7 @@ data_params:
   trash_class: not_insect
 exp_params:
   LR: 1.0e-05
-  manual_seed: 1265
+  manual_seed: 1
   weight_decay: 0.0
 logging_params:
   name: VQVAE
