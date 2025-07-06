@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    method_datasets = ['adbench', 'cnn'] #'ae', 'adv_ae', 'resnet18' 'adbench_2d'
+    method_datasets = ['cnn', 'adbench', 'adbench_2d'] 
     subsets = ['train', 'val']
 
 
