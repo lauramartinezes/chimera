@@ -4,24 +4,13 @@ import numpy as np
 import pandas as pd
 import timm
 import torch
-import umap
 import yaml
 
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
+from umaps.get_train_test_umap import get_train_test_umap
 from umaps.plot import plot_test_latent_space_wrt_train, plot_train_latent_space
-
-def get_train_test_umap(X_train, X_test, n_components=2):
-    umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)
-
-    # Fit UMAP on the training data with labels
-    X_train_embedding = umap_model.fit_transform(X_train)
-
-    # Transform the test data into the existing UMAP embedding
-    X_test_embedding = umap_model.transform(X_test)
-
-    return X_train_embedding, X_test_embedding
 
 
 if __name__ == '__main__':
@@ -35,7 +24,6 @@ if __name__ == '__main__':
     np.random.seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
-
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
 
