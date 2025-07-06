@@ -52,7 +52,7 @@ if __name__ == '__main__':
         exp_suffix = '_initial'
 
     elif experiments == 'all_cases':
-        method_datasets = ['raw', 'cleaning_benchmark', 'adbench', 'cnn']
+        method_datasets = ['cnn', 'adbench', 'raw', 'cleaning_benchmark']
         exp_suffix = ''
     else:
         raise ValueError(f"Unknown experiment type: {experiments}")
@@ -81,7 +81,7 @@ if __name__ == '__main__':
             clean_dataset='_clean'
 
         if method == 'cnn':
-            od_method = '_DBSCAN'
+            od_method = '_UmapHdbscanOD'
         elif method == 'adbench':
             od_method = '_OCSVM'
         else:   
