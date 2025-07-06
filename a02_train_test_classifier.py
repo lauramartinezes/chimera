@@ -64,7 +64,6 @@ if __name__ == '__main__':
     pin_memory = len(config['trainer_params']['gpus']) != 0
     data_dir = config["data_params"]["splitted_data_dir"]
     insect_classes = config["data_params"]["data_classes"] 
-    num_classes = len(insect_classes)
     model_name = config["model_params"]["name"] 
     device = config["trainer_params"]["device"]
     batch_size = config["data_params"]["batch_size"]
@@ -128,8 +127,8 @@ if __name__ == '__main__':
         ##########################
         ### RESNET-18 MODEL
         ##########################
-        torch.manual_seed(random_seed) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=num_classes)
+        torch.manual_seed(random_seed) 
+        model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=len(insect_classes))
         model.to(device)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}{exp_suffix}.pth')
