@@ -6,7 +6,6 @@ files=(
   "a02_train_test_classifier.py"
   "a03_prepare_data_swap_dfs.py" 
   "a04_generate_umaps.py"
-  "a05_visualize_umaps_in_app.py"
   "a06_evaluate_outlier_detection.py"
   "a07_clean_dfs.py" 
   "a08_analyze_meas_label_noise.py" 
