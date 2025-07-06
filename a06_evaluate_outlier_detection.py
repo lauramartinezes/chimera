@@ -80,7 +80,7 @@ if __name__ == '__main__':
                 latents_cnn,
                 measurement_noise_cnn.astype(int),
                 mislabeled_cnn.astype(int),
-                f'{cnn_type}_512d_{main_insect_class}_train',
+                f'{cnn_type}_{main_insect_class}_train',
                 dirname=config["logging_params"]["save_dir"]
             )
  
