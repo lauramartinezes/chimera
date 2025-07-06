@@ -150,7 +150,7 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
     model.to(device)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{raw_suffix}_best_.pth')
+    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{raw_suffix}_best_initial.pth')
     
     # Load the model
     if os.path.exists(save_path_best):
