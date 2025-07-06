@@ -139,7 +139,7 @@ if __name__ == '__main__':
             class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
             class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0)  
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=config["exp_params"]["weight_decay"])  
             criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
                     
             ##########################
