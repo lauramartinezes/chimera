@@ -394,10 +394,10 @@ if __name__ == '__main__':
         df_insect_0['label'] = outlier_labels_insect_0
         df_insect_1['label'] = outlier_labels_insect_1
 
-        df_insect_0_path = os.path.join('data', f'df_{subset}_{swap_suffix}_{insect_classes[0]}.csv')
+        df_insect_0_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{insect_classes[0]}.csv')
         df_insect_0.to_csv(df_insect_0_path)
 
-        df_insect_1_path = os.path.join('data', f'df_{subset}_{swap_suffix}_{insect_classes[1]}.csv')
+        df_insect_1_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{insect_classes[1]}.csv')
         df_insect_1.to_csv(df_insect_1_path)
 
         print('')
