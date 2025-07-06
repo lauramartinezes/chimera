@@ -12,6 +12,7 @@ data_params:
   raw_suffix: raw
   splitted_data_dir: data/split_60_20_20
   swap_suffix: swap
+  trash_class: not_insect
 exp_params:
   LR: 1.0e-05
   manual_seed: 1265
