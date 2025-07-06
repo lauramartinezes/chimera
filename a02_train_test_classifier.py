@@ -39,9 +39,6 @@ def get_args():
     args = parser.parse_args()
     return args
 
-# Hyperparameters
-RANDOM_SEED = 1
-
 
 if __name__ == '__main__':
     # Load the configuration
@@ -49,21 +46,30 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     args = get_args()
+    experiments = args.experiments
+    if experiments == 'noisy_vs_cleaning_benchmark':
+        method_datasets = ['raw', 'cleaning_benchmark']
+        exp_suffix = '_initial'
+
+    elif experiments == 'all_cases':
+        method_datasets = ['raw', 'cleaning_benchmark', 'adbench', 'cnn']
+        exp_suffix = ''
+    else:
+        raise ValueError(f"Unknown experiment type: {experiments}")
 
     # Set manual seed for reproducibility
-    set_seed(config["exp_params"]["manual_seed"])
+    random_seed = config["exp_params"]["manual_seed"]
+    set_seed(random_seed)
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
     data_dir = config["data_params"]["splitted_data_dir"]
     insect_classes = config["data_params"]["data_classes"] 
     num_classes = len(insect_classes)
-    model_name = config["model_params"]["resnet18"] 
+    model_name = config["model_params"]["name"] 
     device = config["trainer_params"]["device"]
     batch_size = config["data_params"]["batch_size"]
     learning_rate = config["exp_params"]["LR"]
     num_epochs = config["trainer_params"]["num_epochs"]
-
-    method_datasets = ['adbench', 'cnn', 'raw', 'cleaning_benchmark']
     retrain_models = True
 
     results = []
@@ -91,7 +97,7 @@ if __name__ == '__main__':
         train_loader = load_data_from_df(
             df_train,
             set_train_transform(),
-            config["exp_params"]["manual_seed"],
+            random_seed,
             config["data_params"][f"batch_size"],
             config["data_params"]["num_workers"],
             pin_memory,
@@ -101,7 +107,7 @@ if __name__ == '__main__':
         val_loader = load_data_from_df(
             df_val,
             set_test_transform(),
-            config["exp_params"]["manual_seed"],
+            random_seed,
             config["data_params"][f"batch_size"],
             config["data_params"]["num_workers"],
             pin_memory,
@@ -111,7 +117,7 @@ if __name__ == '__main__':
         test_loader = load_data_from_df(
             df_test,
             set_test_transform(),
-            config["exp_params"]["manual_seed"],
+            random_seed,
             config["data_params"][f"batch_size"],
             config["data_params"]["num_workers"],
             pin_memory,
@@ -122,12 +128,12 @@ if __name__ == '__main__':
         ##########################
         ### RESNET-18 MODEL
         ##########################
-        torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
+        torch.manual_seed(random_seed) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
         model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=num_classes)
         model.to(device)
 
-        save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best.pth')
+        save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}{exp_suffix}.pth')
+        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best{exp_suffix}.pth')
 
         if not os.path.exists(save_path_best) or retrain_models==True:
             class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
@@ -188,7 +194,7 @@ if __name__ == '__main__':
 
                 if epoch > 1:
                     # Plot the training and validation accuracy
-                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}')
+                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}{exp_suffix}')
                     os.makedirs(train_curves_path, exist_ok=True)
 
                     plot_training_curves(
@@ -233,7 +239,7 @@ if __name__ == '__main__':
 
         results.append({
             "clean_dataset": not(clean_dataset==''),
-            "best_val_accuracy": round(best_val_accuracy.item(), 2),
+            "best_val_accuracy": round(best_val_accuracy, 2),
             "test_accuracy": round(test_accuracy.item(), 2),
             f"test_{insect_classes[0]}_accuracy": round(test_insect_0_accuracy.item(), 2),
             f"test_{insect_classes[1]}_accuracy": round(test_insect_1_accuracy.item(), 2),
@@ -241,7 +247,7 @@ if __name__ == '__main__':
         })
         df_results = pd.DataFrame(results)
         only_test_results = '_only_test' if retrain_models==False else ''
-        results_file_name = f'df_{model_name}_results{only_test_results}.csv'
+        results_file_name = f'df_{model_name}_results{only_test_results}{exp_suffix}.csv'
         df_results.to_csv(os.path.join(config["logging_params"]["save_dir"],results_file_name), index=False)
     print(df_results)
-    print('')
+
