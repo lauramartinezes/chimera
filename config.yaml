@@ -23,6 +23,7 @@ logging_params:
 model_params:
   name: resnet18
   num_embeddings: 512
+  pretrained: true
 trainer_params:
   device: cuda:0
   gpus:

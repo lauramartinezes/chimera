@@ -35,7 +35,6 @@ def set_seed(seed):
 def get_args():
     parser = argparse.ArgumentParser(
         description='Training and Testing Classifier')
-    parser.add_argument('--pretrained', type=bool, default=False)
     parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
     args = parser.parse_args()
     return args
@@ -124,7 +123,7 @@ if __name__ == '__main__':
         ### RESNET-18 MODEL
         ##########################
         torch.manual_seed(RANDOM_SEED) # Apparently at some point I decided to change the seed to RANDOM_SEED, this is the one that matters
-        model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
+        model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=num_classes)
         model.to(device)
 
         save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}.pth')

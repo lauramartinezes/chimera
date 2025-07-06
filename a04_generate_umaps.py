@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
             
             # Resnet method
-            model = timm.create_model('resnet18', pretrained=True)
+            model = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
             model = torch.nn.Sequential(*(list(model.children())[:-1]))
             model.eval()
 

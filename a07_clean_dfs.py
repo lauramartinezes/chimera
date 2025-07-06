@@ -251,7 +251,7 @@ if __name__ == '__main__':
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
             # CNN model
-            model_cnn = timm.create_model(model_name, pretrained=True)
+            model_cnn = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"])
             model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
             od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
                     

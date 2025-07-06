@@ -71,7 +71,7 @@ if __name__ == '__main__':
         main_insect_class = insect_classes[i]
         mislabeled_insect_class = insect_classes[1 - i]
 
-        model_cnn = timm.create_model(model_name, pretrained=True)
+        model_cnn = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"])
         model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
         model_cnn.eval()
 
