@@ -9,7 +9,6 @@ import umap
 import yaml
 
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
 
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
@@ -99,13 +98,6 @@ def clean_df(df, model, device, config, transform, pin_memory, main_insect_class
         dirname=config["logging_params"]["save_dir"]
     )
 
-    get_confusion_matrix(
-        y_true, 
-        y_pred, 
-        filename=f'{method}_{main_insect_class}_{phase}_{od_method}', 
-        dirname=config["logging_params"]["save_dir"]
-    )
-
     # Mark outliers in the dataframe and transform them from integer to boolean
     df['outlier_detected'] = y_pred
     df['outlier_detected'] = df['outlier_detected'].astype(bool)
@@ -177,35 +169,6 @@ def plot_y_true_vs_y_od_pred_umap(features, measurement_noises, label_noises, y_
     plt.tight_layout()
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.png'), format='png')
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
-
-
-def get_confusion_matrix(y_true, y_pred, filename=None, dirname=None):
-    matrices_folder = os.path.join(dirname, 'True vs Pred Confusion Matrices')
-    os.makedirs(matrices_folder, exist_ok=True)
-
-    class_names = ['Inlier', 'Outlier']  # 0: Inlier, 1: Outlier
-    cm = confusion_matrix(y_true, y_pred)
-
-    # Normalize by row (true class)
-    cm_normalized = cm.astype('float') / cm.sum(axis=1, keepdims=True)
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-    
-    # Set consistent color scale
-    sns.heatmap(cm_normalized, annot=cm, fmt='d', cmap='Blues', ax=ax, xticklabels=class_names, 
-                yticklabels=class_names, vmin=0, vmax=1)
-
-    ax.set_xlabel('Predicted labels')
-    ax.set_ylabel('True labels')
-    ax.set_title('Confusion Matrix (Normalized Colors)')
-    
-    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.png'), format='png')
-    plt.savefig(os.path.join(matrices_folder, f'{filename}_confusion_matrix.svg'), format='svg')
-    # plt.show()
-
-    # Save the confusion matrix as a numpy array
-    np.save(os.path.join(matrices_folder, f"{filename}_confusion_matrix.npy"), cm)
-
 
 
 if __name__ == '__main__':
