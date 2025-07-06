@@ -42,7 +42,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    cnn_types = ['cnn', 'cnn_2d', 'adbench', 'adbench_2d', 'adbench_napoletano']
+    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_napoletano']
     
     for i, main_insect_class in enumerate(insect_classes):
         mislabeled_insect_class = insect_classes[1 - i]
