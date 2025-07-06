@@ -47,9 +47,9 @@ if __name__ == '__main__':
         if method == 'adbench':
             od_methods = ['OCSVM']
         elif method == 'cnn':
-            od_methods = ['DBSCAN', 'MCD']
+            od_methods = ['UmapHdbscanOD', 'MCD']
         elif method == 'adbench_2d':
-            od_methods = ['MCD']
+            od_methods = ['OCSVM']
 
         print(f'Analyzing {method} method')
         for od_method in od_methods:
