@@ -89,7 +89,6 @@ class UmapHdbscanOD:
         fig.tight_layout()
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Relative_Validity.png"))
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Relative_Validity.svg"))
-        plt.close(fig)
 
     def _plot_final_clusters(self, data, best_dim, best_mcs, best_ms):
         embedding = UMAP(n_components=best_dim, random_state=42, n_jobs=1).fit_transform(data)
@@ -110,7 +109,6 @@ class UmapHdbscanOD:
 
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Final_HDBSCAN_2D.png"))
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Final_HDBSCAN_2D.svg"))
-        plt.close(fig)
 
 
 if __name__ == "__main__":
