@@ -1,81 +1,31 @@
 #!/bin/bash
 
-# Execute the first script
-echo "Running a02_1_train_adversarial_ae.py"
-python "a02_1_train_adversarial_ae.py"
+files=(
+  "a00_split_dataset_raw_dfs.py"
+  "a01_prepare_dataset_raw_dfs.py"
+  "a02_train_test_classifier.py"
+  "a03_prepare_data_swap_dfs.py" 
+  "a04_generate_umaps.py"
+  "a05_visualize_umaps_in_app.py"
+  "a06_evaluate_outlier_detection.py"
+  "a07_clean_dfs.py" 
+  "a08_analyze_meas_label_noise.py" 
+)
+
+for file in "${files[@]}"; do
+    echo "Running $file"
+    python "$file"
+    if [ $? -ne 0 ]; then
+        echo "$file failed. Exiting."
+        exit 1
+    fi
+done
+
+echo "Running a02_train_test_classifier.py for all cases"
+python "a02_train_test_classifier.py" --experiments all_cases
 if [ $? -ne 0 ]; then
-    echo "a02_1_train_adversarial_ae.py failed. Exiting."
+    echo "a02_train_test_classifier.py failed. Exiting."
     exit 1
 fi
-
-echo "Running a02_2_train_ae.py"
-python "a02_2_train_ae.py"
-if [ $? -ne 0 ]; then
-    echo "a02_2_train_ae.py failed. Exiting."
-    exit 1
-fi
-
-echo "Running a03_visualize_reconstructions_ae.py"
-python "a03_visualize_reconstructions_ae.py"
-if [ $? -ne 0 ]; then
-    echo "a03_visualize_reconstructions_ae.py failed. Exiting."
-    exit 1
-fi
-
-echo "Running a04_1_umap_projections_ae.py"
-python "a04_1_umap_projections_ae.py"
-if [ $? -ne 0 ]; then
-    echo "a04_1_umap_projections_ae.py failed. Exiting."
-    exit 1
-fi
-
-echo "Running a04_2_umap_projections_cnn.py"
-python "a04_2_umap_projections_cnn.py"
-if [ $? -ne 0 ]; then
-    echo "a04_2_umap_projections_cnn.py failed. Exiting."
-    exit 1
-fi
-
-echo "a04_3_umap_projections_vgg16.py"
-python "a04_3_umap_projections_vgg16.py"
-if [ $? -ne 0 ]; then
-    echo "a04_3_umap_projections_vgg16.py failed. Exiting."
-    exit 1
-fi
-
-# echo "Running a06_outliers_evaluation.py"
-# python "a06_outliers_evaluation.py"
-# if [ $? -ne 0 ]; then
-#     echo "a06_outliers_evaluation.py failed. Exiting."
-#     exit 1
-# fi
-
-# echo "Running a07_clean_data.py"
-# python "a07_clean_data.py"
-# if [ $? -ne 0 ]; then
-#     echo "a07_clean_data.py failed. Exiting."
-#     exit 1
-# fi
-
-# echo "Running a08_visualize_resnet_outlier_detection.py"
-# python "a08_visualize_resnet_outlier_detection.py"
-# if [ $? -ne 0 ]; then
-#     echo "a08_visualize_resnet_outlier_detection.py failed. Exiting."
-#     exit 1
-# fi
-
-# echo "Running a09_analyze_meas_label_noise.py"
-# python "a09_analyze_meas_label_noise.py"
-# if [ $? -ne 0 ]; then
-#     echo "a09_analyze_meas_label_noise.py failed. Exiting."
-#     exit 1
-# fi
-
-# echo "Running a01_train_test_classifier.py"
-# python "a01_1_train_test_classifier.py"
-# if [ $? -ne 0 ]; then
-#     echo "a01_train_test_classifier.py failed. Exiting."
-#     exit 1
-# fi
 
 echo "All scripts executed successfully!"
