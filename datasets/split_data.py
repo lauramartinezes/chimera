@@ -17,6 +17,10 @@ def get_df(folder):
 
     return df
 
+def determine_min_class_size(class_file_dict):
+        min_class_size = min([len(v) for v in class_file_dict.values()])
+        return int(min_class_size / 100) * 100
+
 def split_column_with_simulated_annealing(df, column, targets, max_iter=10000, temp=1000, cooling_rate=0.003, random_seed=None):
     """
     Splits a DataFrame into subsets based on unique values of a specified column using Simulated Annealing 
