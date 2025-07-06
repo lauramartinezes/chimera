@@ -17,10 +17,18 @@ class UmapHdbscanOD:
                             min_cluster_size_values=[5, 10, 20], min_samples_values=[1, 5, 10]):
         scores = []
 
+        # Check that none of the dims are larger than the number of features
+        original_dim = data.shape[1]
+        dims = [d for d in dims if d <= original_dim]
+
         for d in dims:
-            print(f"\nFitting UMAP with {d} dimensions...")
-            reducer = UMAP(n_components=d, random_state=42, n_jobs=1)
-            embedding = reducer.fit_transform(data)
+            if d == original_dim:
+                print(f"Using original dimension {d} without UMAP...")
+                embedding = data
+            else:
+                print(f"\nFitting UMAP with {d} dimensions...")
+                reducer = UMAP(n_components=d, random_state=42, n_jobs=1)
+                embedding = reducer.fit_transform(data)
 
             for mcs in min_cluster_size_values:
                 for ms in min_samples_values:
