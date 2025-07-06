@@ -1,6 +1,3 @@
-
-#TODO: project for both cnn and ad bench methods
-
 import os
 import random
 import numpy as np
@@ -8,14 +5,12 @@ import pandas as pd
 import timm
 import torch
 import umap
-import seaborn as sns
 import yaml
-
-from matplotlib import pyplot as plt
 
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
+from umaps.plot import plot_test_latent_space_wrt_train, plot_train_latent_space
 
 def get_train_test_umap(X_train, X_test, n_components=2):
     umap_model = umap.UMAP(n_components=n_components, random_state=42, n_jobs=1)
@@ -27,44 +22,6 @@ def get_train_test_umap(X_train, X_test, n_components=2):
     X_test_embedding = umap_model.transform(X_test)
 
     return X_train_embedding, X_test_embedding
-
-def visualize_test_latent_space_wrt_train(main_insect_class, mislabeled_insect_class, train_features, test_features, labels_train, labels_test, insect_classes, filename='', dirname=''):
-    umap_folder = os.path.join(dirname, 'UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
-    
-    # Dictionary to map numbers to text labels
-    label_mapping_train = {0: f"Normal Sample ({main_insect_class})", 1: f"Label Noise ({mislabeled_insect_class})", 2: "Measurement Noise"}
-    txt_labels_train = [label_mapping_train[label] for label in labels_train]
-    
-    label_mapping_test = {0: f"{insect_classes[0]}_test", 1: f"{insect_classes[1]}_test"}
-    txt_labels_test = [label_mapping_test[label] for label in labels_test]
-
-    # Plot UMAP results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=test_features[:, 0], y=test_features[:, 1], hue=txt_labels_test, palette=sns.color_palette("Set2", len(label_mapping_test)), marker='o', legend='full')
-    sns.scatterplot(x=train_features[:, 0], y=train_features[:, 1], hue=txt_labels_train, palette=sns.color_palette("hsv", len(label_mapping_train)), marker='x', s=15, legend='full')
-    plt.title("Latent Space UMAP Visualization")
-    plt.xlabel("UMAP dimension 1")
-    plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
-
-def visualize_train_latent_space(train_features, labels_train, filename='', dirname=''):
-    umap_folder = os.path.join(dirname, 'UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
-    
-    # Dictionary to map numbers to text labels
-    label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
-    txt_noise_labels = [label_mapping[label] for label in labels_train]
-
-    # Plot UMAP results
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=train_features[:, 0], y=train_features[:, 1], hue=txt_noise_labels, palette=sns.color_palette("hsv", 3), legend='full')
-    plt.title("Latent Space UMAP Visualization")
-    plt.xlabel("UMAP dimension 1")
-    plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
 
 if __name__ == '__main__':
@@ -179,7 +136,7 @@ if __name__ == '__main__':
                 np.save(labels_umap_train_file_name, labels_noise_train)
                 np.save(labels_umap_test_file_name, labels_cnn_test)
 
-            visualize_test_latent_space_wrt_train(
+            plot_test_latent_space_wrt_train(
                 main_insect_class, 
                 mislabeled_insect_class, 
                 latents_2d_train,
@@ -191,11 +148,9 @@ if __name__ == '__main__':
                 config["logging_params"]["save_dir"]
             )
 
-            visualize_train_latent_space(
+            plot_train_latent_space(
                 latents_2d_train, 
                 labels_noise_train, 
                 f'{method}_{main_insect_class}_train', 
                 config["logging_params"]["save_dir"]
             )
-
-            print('')
