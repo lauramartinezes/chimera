@@ -36,7 +36,7 @@ class UmapHdbscanOD:
             max_rv = np.max(valid_scores[:, 3])
             top_candidates = valid_scores[valid_scores[:, 3] == max_rv]
             best_idx = np.argmin(top_candidates[:, 0])  # Choose lowest dimension
-            best_dim, best_mcs, best_ms = top_candidates[best_idx, :3]
+            best_dim, best_mcs, best_ms = [int(x) for x in top_candidates[best_idx, :3]]
         else:
             print("No valid clustering found. Using highest relative validity among all scores as fallback.")
             best_idx = np.argmax(scores[:, 3])
