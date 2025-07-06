@@ -85,6 +85,11 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
+    # Resnet method
+    model = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
+    model = torch.nn.Sequential(*(list(model.children())[:-1]))
+    model.eval()
+
     methods = ['cnn', 'adbench']
     for method in methods:
         if method == 'adbench':
@@ -114,7 +119,7 @@ if __name__ == '__main__':
             )
 
             test_loader = load_data_from_df(
-                df_train,
+                df_test,
                 set_feature_extraction_transform(),
                 config["exp_params"]["manual_seed"],
                 config["data_params"][f"batch_size"],
@@ -124,14 +129,6 @@ if __name__ == '__main__':
             )
 
             print(f"{main_insect_class} dataset correctly loaded")
-
-            
-            # Resnet method
-            model = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
-            model = torch.nn.Sequential(*(list(model.children())[:-1]))
-            model.eval()
-
-            print(f"{main_insect_class} model correctly initialized")
 
             # Extract features from encoding latents
             umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
