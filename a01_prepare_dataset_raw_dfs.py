@@ -14,8 +14,7 @@ if __name__ == '__main__':
     raw_suffix = config["data_params"]["raw_suffix"]
     subsets = ['train', 'val']
     
-    for i in range(len(insect_classes)):
-        main_insect_class = insect_classes[i]
+    for i, main_insect_class in enumerate(insect_classes):
         mislabeled_insect_class = insect_classes[1 - i]
         
         for subset in subsets:
