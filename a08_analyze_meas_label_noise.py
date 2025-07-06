@@ -22,7 +22,7 @@ def plot_conf_matrix(row, title, method, path):
     plt.title(f'Confusion Matrix - {method} - {title}')
     plt.xlabel("Predicted Label")
     plt.ylabel("Actual Label")
-    # plt.show()
+
     plt.savefig(os.path.join(path, f'confusion_matrix_{method}_{title}.png'))
     plt.savefig(os.path.join(path, f'confusion_matrix_{method}_{title}.svg'))
 
@@ -131,7 +131,6 @@ if __name__ == '__main__':
             for index, row in df_analysis.iterrows():
                 plot_conf_matrix(row, index + f'_{od_method}_train_val', method, data_analysis_path)
             
-            print('')
 
 
                     
