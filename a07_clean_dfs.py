@@ -222,8 +222,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    model_name = config["model_params"]["name"]
-    cnn_types = ['cnn']#'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
+    cnn_types = ['cnn', 'adbench', 'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
 
     device = config["trainer_params"]["device"]
     raw_suffix = config["data_params"]["raw_suffix"]
@@ -233,11 +232,16 @@ if __name__ == '__main__':
 
     results = []
 
-    for cnn_type in cnn_types:
-        transform_cnn = set_feature_extraction_transform()
+    # CNN model
+    model_cnn = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
+    model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
+    model_cnn.eval()
+    print("Model correctly initialized")
 
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
+    transform_cnn = set_feature_extraction_transform()
+
+    for cnn_type in cnn_types:
+        for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
 
             df_subsets = []
@@ -250,14 +254,8 @@ if __name__ == '__main__':
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-            # CNN model
-            model_cnn = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"])
-            model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
             od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
-                    
-            model_cnn.eval()
-            print("Model correctly initialized")
-
+            
             for od_method in od_methods:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
                     df_train_val, 
@@ -276,19 +274,16 @@ if __name__ == '__main__':
                 os.makedirs(os.path.join(data_dir, 'outliers'), exist_ok=True)
                 
                 for subset in subsets:
-                    if subset == 'train':
-                        df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains('train')]
-                        df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains('train')]
-                    elif subset == 'val':
-                        df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains('val')]
-                        df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains('val')]
+                    df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains(subset)]
+                    df_subset_outliers = df_train_val_outliers[df_train_val_outliers.filepath.str.contains(subset)]
+
                     df_subset_clean_path = os.path.join(data_dir, 'clean', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_clean.csv')
                     df_subset_clean.to_csv(df_subset_clean_path, index=False)
-                    print(f'Clean {main_insect_class} cnn {subset} dataset available')
+                    print(f'Clean {main_insect_class} {cnn_type} {subset} dataset available')
 
                     df_subset_outliers_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{cnn_type}_{main_insect_class}_{od_method}_outliers.csv')
                     df_subset_outliers.to_csv(df_subset_outliers_path, index=False)
-                    print(f'Outliers {main_insect_class} cnn {subset} dataset available')
+                    print(f'Outliers {main_insect_class} {cnn_type} {subset} dataset available')
 
                 # Add more information to the metrics dictionary
                 metrics['method'] = cnn_type
