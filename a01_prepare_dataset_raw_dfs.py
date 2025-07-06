@@ -1,8 +1,5 @@
 import os
-import random
 
-import numpy as np
-import torch
 import yaml
 
 from datasets.get_raw_dfs import get_df_subset, get_df_test
@@ -11,11 +8,6 @@ from datasets.get_raw_dfs import get_df_subset, get_df_test
 if __name__ == '__main__':
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
-
-    # Set manual seed for reproducibility
-    torch.manual_seed(42)
-    random.seed(42)
-    np.random.seed(42)
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
