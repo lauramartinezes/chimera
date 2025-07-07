@@ -8,20 +8,9 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 
 
 def set_seed(seed):
-    # os.environ['PYTHONHASHSEED'] = str(seed)
-    # os.environ['TF_CUDNN_DETERMINISTIC'] = 'true'
-    # os.environ['TF_DETERMINISTIC_OPS'] = 'true'
-
     # basic seed
     np.random.seed(seed)
     random.seed(seed)
-
-    # tensorflow seed
-    # try:
-    #     tf.random.set_seed(seed) # for tf >= 2.0
-    # except:
-    #     tf.set_random_seed(seed)
-    #     tf.random.set_random_seed(seed)
 
     # pytorch seed
     torch.manual_seed(seed)
