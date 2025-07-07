@@ -1,2 +1,2 @@
-from .plot import plot_test_latent_space_wrt_train, plot_train_latent_space
+from .plot import plot_test_latent_space_wrt_train, plot_train_latent_space, plot_latent_space_with_tooltips
 from .get_train_test_umap import get_train_test_umap
