@@ -159,7 +159,7 @@ if __name__ == '__main__':
     else:
         print("Model not found")
 
-    conf_matrix_path = os.path.join('logs', 'initial_confusion_matrices')
+    conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
     os.makedirs(conf_matrix_path, exist_ok=True)
 
     all_pred_counts = []

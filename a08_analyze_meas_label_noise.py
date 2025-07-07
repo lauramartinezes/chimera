@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 df_analysis.loc[mislabeled_insect_class, 'meas_noise_pred_mislabels'] += meas_noise_transferred_pred_mislabels
                 df_analysis.loc[mislabeled_insect_class, 'meas_noise_pred_meas_noise'] += meas_noise_transferred_pred_meas_noise
 
-            data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'confusion_matrices_after_data_cleaning')
+            data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'Conf_Mat_after_cleaning')
             os.makedirs(data_analysis_path, exist_ok=True)
             df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{method}_{od_method}_train_val.csv'))
 

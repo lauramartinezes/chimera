@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
                 if epoch > 1:
                     # Plot the training and validation accuracy
-                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'training_curves_{model_name}{exp_suffix}')
+                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'Training_Curves_{model_name}{exp_suffix}')
                     os.makedirs(train_curves_path, exist_ok=True)
 
                     plot_training_curves(
