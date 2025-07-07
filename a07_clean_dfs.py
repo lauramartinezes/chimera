@@ -2,18 +2,16 @@ import os
 import random
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import timm
 import torch
 import umap
 import yaml
 
-from matplotlib import pyplot as plt
-
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
-from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from models import extract_features
+from outlier_detectors import UmapHdbscanOD, PYOD, metric
+from outlier_detectors.plot import plot_y_true_vs_y_od_pred_umap
 
 
 def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
@@ -120,55 +118,6 @@ def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
     anomaly_binary_scores = pyod_model.predict_binary_score(X_train)
 
     return anomaly_binary_scores, metrics
-
-
-def plot_y_true_vs_y_od_pred_umap(features, measurement_noises, label_noises, y_pred, filename=None, dirname=None, detected_label_noises=None):
-    umap_folder = os.path.join(dirname, 'True vs Pred UMAPS')
-    os.makedirs(umap_folder, exist_ok=True)
-
-    # UMAP transformation (shared latent space for both plots)
-    print(f'Starting UMAP 2D reduction')
-    reducer_2d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-    #reducer_2d = cuml.manifold.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-    latents_2d = reducer_2d.fit_transform(features)
-
-    measurement_noises = measurement_noises.astype(int)*2
-    label_noises = label_noises.astype(int)
-    if detected_label_noises is not None:
-        detected_label_noises = detected_label_noises.astype(int)*3
-        noises = measurement_noises + label_noises + detected_label_noises
-    else:
-        noises = measurement_noises + label_noises
-
-    # Dictionary to map numbers to text labels
-    true_label_mapping = {0: "Normal Sample", 1: "Label Noise", 2: "Measurement Noise"}
-    if detected_label_noises is not None:
-        true_label_mapping[3] = "Detected Label Noise"
-    txt_true_labels = [true_label_mapping[label] for label in noises]
-    
-    pred_label_mapping = {0: "Normal Sample", 1: "Outlier"}
-    txt_pred_labels = [pred_label_mapping[label] for label in y_pred]
-
-    # Create side-by-side subplots
-    fig, axes = plt.subplots(1, 2, figsize=(20, 8))
-
-    # Plot for y_true
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_true_labels, palette=sns.color_palette("hsv", len(true_label_mapping)), ax=axes[0], legend='full')
-    axes[0].set_title("Latent Space UMAP: True Labels")
-    axes[0].set_xlabel("UMAP dimension 1")
-    axes[0].set_ylabel("UMAP dimension 2")
-
-    # Plot for y_pred
-    sns.scatterplot(x=latents_2d[:, 0], y=latents_2d[:, 1], hue=txt_pred_labels, palette=sns.color_palette("hsv", 2), ax=axes[1], legend='full')
-    axes[1].set_title("Latent Space UMAP: Predicted Labels")
-    axes[1].set_xlabel("UMAP dimension 1")
-    axes[1].set_ylabel("UMAP dimension 2")
-
-    # Save the figure
-    fig.suptitle(filename, fontsize=18)
-    plt.tight_layout()
-    plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.png'), format='png')
-    plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
 
 
 if __name__ == '__main__':
