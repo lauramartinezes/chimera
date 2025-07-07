@@ -27,21 +27,24 @@ pip install -r requirements.txt
 ```
 
 ## How-to
-Main steps:
+### Main steps
 
-1. Create a `data` folder in this repo. Inside it, add the folders:
+1. Create a `data` folder inside this repo. 
+
+2. Add the following folders to `data`:
    - [`phoneboxdata`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/phoneboxdata?csf=1&web=1&e=dFP3tJ)
    - [`split_60_20_20`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/split_60_20_20?csf=1&web=1&e=to8rQM)
 
-2. Run the bash script `run_pipeline.sh` from terminal
+
+3. Run the bash script `run_pipeline.sh` from terminal
     ```
     bash run_pipeline.sh
     ```
 
-3. Check the  results stored in the `logs` folder
+4. Check the  results stored in the `logs` folder
 
-*(Optional)*
+### *(Optional)*
 
-4. If you want to try other datasets, splitting proportions or other configurations, update `config.yaml`
+5. If you want to try other datasets, splitting proportions or other configurations, update `config.yaml`
 
-5. Repeat step 2 and 3
+6. Repeat step 3 and 4
