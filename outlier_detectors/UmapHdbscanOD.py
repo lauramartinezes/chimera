@@ -7,11 +7,12 @@ from umap import UMAP
 
 
 class UmapHdbscanOD:
-    def __init__(self, main_class_name=None, save_dir=None):
+    def __init__(self, main_class_name=None, save_dir=None, seed=42):
         self.main_class_name = main_class_name
         self.save_dir = save_dir
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
+        self.seed = seed
 
     def find_optimal_params(self, data, dims=[2 ** i for i in range(1, 9)],
                             min_cluster_size_values=[5, 10, 20], min_samples_values=[1, 5, 10]):
@@ -27,7 +28,7 @@ class UmapHdbscanOD:
                 embedding = data
             else:
                 print(f"\nFitting UMAP with {d} dimensions...")
-                reducer = UMAP(n_components=d, random_state=42, n_jobs=1)
+                reducer = UMAP(n_components=d, random_state=self.seed, n_jobs=1)
                 embedding = reducer.fit_transform(data)
 
             for mcs in min_cluster_size_values:
@@ -60,7 +61,7 @@ class UmapHdbscanOD:
     def predict_outliers(self, data, dim, mcs, ms):
         original_dim = data.shape[1]
         if dim < original_dim:
-            reducer = UMAP(n_components=dim, random_state=42, n_jobs=1)
+            reducer = UMAP(n_components=dim, random_state=self.seed, n_jobs=1)
             embedding = reducer.fit_transform(data)
         else:
             embedding = data
@@ -91,9 +92,9 @@ class UmapHdbscanOD:
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Relative_Validity.svg"))
 
     def _plot_final_clusters(self, data, best_dim, best_mcs, best_ms):
-        embedding = UMAP(n_components=best_dim, random_state=42, n_jobs=1).fit_transform(data)
+        embedding = UMAP(n_components=best_dim, random_state=self.seed, n_jobs=1).fit_transform(data)
         embedding_2d = (
-            UMAP(n_components=2, random_state=42, n_jobs=1).fit_transform(data)
+            UMAP(n_components=2, random_state=self.seed, n_jobs=1).fit_transform(data)
             if best_dim != 2 else embedding
         )
 

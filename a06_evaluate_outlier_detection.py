@@ -67,7 +67,8 @@ if __name__ == '__main__':
                 measurement_noise_cnn.astype(int),
                 mislabeled_cnn.astype(int),
                 f'{cnn_type}_{main_insect_class}_train',
-                dirname=config["logging_params"]["save_dir"]
+                dirname=config["logging_params"]["save_dir"],
+                seed=42
             )
  
             print(f'Metrics for {cnn_type} are available')  

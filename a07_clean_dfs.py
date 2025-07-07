@@ -41,7 +41,8 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
 
     umap_hdbscan_od = UmapHdbscanOD(
         main_class_name=main_insect_class, 
-        save_dir=os.path.join(config["logging_params"]["save_dir"], "UMAP_HDBSCAN_Analysis", method)
+        save_dir=os.path.join(config["logging_params"]["save_dir"], "UMAP_HDBSCAN_Analysis", method),
+        seed=42
     )
 
     N = len(latents)
