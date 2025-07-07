@@ -1,6 +1,4 @@
 import os
-import random
-import numpy as np
 import pandas as pd
 import timm
 import torch
@@ -10,6 +8,7 @@ from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
 from outlier_detectors import get_outlier_methods_csv, preprocess_latents_for_outlier_detection
+from utils import set_seed
 
 
 if __name__ == '__main__':
@@ -29,13 +28,14 @@ if __name__ == '__main__':
     df_test = pd.read_csv(df_test_path)
 
     cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_napoletano']
+    subsets = ['train', 'val']
+    
+    model_cnn = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
+    model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
+    model_cnn.eval()
     
     for i, main_insect_class in enumerate(insect_classes):
         mislabeled_insect_class = insect_classes[1 - i]
-
-        model_cnn = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
-        model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-        model_cnn.eval()
 
         for cnn_type in cnn_types:
             if 'adbench' in cnn_type:
@@ -43,14 +43,18 @@ if __name__ == '__main__':
             else:
                 suffix = config["data_params"]["swap_suffix"]
             
-            df_train_path = os.path.join(data_dir, f'df_train_{suffix}_{main_insect_class}.csv')
-            df_val_path = os.path.join(data_dir, f'df_val_{suffix}_{main_insect_class}.csv')
-            df_train_ = pd.read_csv(df_train_path)
-            df_val_ = pd.read_csv(df_val_path)
-            df_train = pd.concat([df_train_, df_val_], ignore_index=True)   
+            dfs_subsets = []
+            for subset in subsets:
+                df_subset_path = os.path.join(
+                    data_dir, 
+                    f'df_{subset}_{suffix}_{main_insect_class}.csv'
+                )
+                df_subset = pd.read_csv(df_subset_path)
+                dfs_subsets.append(df_subset)
+            df_train_val = pd.concat(dfs_subsets, ignore_index=True) 
 
             loader = load_data_from_df(
-                df_train,
+                df_train_val,
                 set_feature_extraction_transform(),
                 config["exp_params"]["manual_seed"],
                 config["data_params"][f"batch_size"],
@@ -58,7 +62,13 @@ if __name__ == '__main__':
                 pin_memory,
                 shuffle=False
             )
-            latents_cnn, labels_cnn, real_labels_cnn, measurement_noise_cnn, mislabeled_cnn = extract_features(loader, model_cnn) 
+            (
+                latents_cnn, 
+                labels_cnn, 
+                real_labels_cnn, 
+                measurement_noise_cnn, 
+                mislabeled_cnn
+            ) = extract_features(loader, model_cnn) 
 
             latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, cnn_type)
 
