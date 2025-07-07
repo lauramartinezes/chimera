@@ -115,7 +115,6 @@ if __name__ == '__main__':
         ##########################
         ### RESNET-18 MODEL
         ##########################
-        torch.manual_seed(random_seed) 
         model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=len(insect_classes))
         model.to(device)
 
@@ -134,12 +133,8 @@ if __name__ == '__main__':
             ##########################
             best_val_accuracy = 0
             best_lowest_val_class_accuracy = 0
-            train_accuracies = []
-            val_accuracies = []
-            test_accuracies = []
-            train_losses = []
-            val_losses = []
-            test_losses = []
+            train_accuracies, val_accuracies, test_accuracies = [], [], []
+            train_losses, val_losses, test_losses = [], [], []
             start_time = time.time()
 
             patience = 5  
