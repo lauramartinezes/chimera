@@ -36,25 +36,29 @@ if __name__ == '__main__':
     model.eval()
 
     methods = ['cnn', 'adbench']
+    subsets = ['train', 'val']
+    
     for method in methods:
         if method == 'adbench':
             suffix = config["data_params"]["raw_suffix"]
         else:
             suffix = config["data_params"]["swap_suffix"]
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
+        for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
 
-            df_train_path = os.path.join(data_dir, f'df_train_{suffix}_{main_insect_class}.csv')
-            df_val_path = os.path.join(data_dir, f'df_val_{suffix}_{main_insect_class}.csv')
-            df_train_ = pd.read_csv(df_train_path)
-            df_val_ = pd.read_csv(df_val_path)
+            dfs_subsets = []
+            for subset in subsets:
+                df_subset_path = os.path.join(
+                    data_dir, 
+                    f'df_{subset}_{suffix}_{main_insect_class}.csv'
+                )
+                df_subset = pd.read_csv(df_subset_path)
+                dfs_subsets.append(df_subset)
 
-            # Combine the training and validation dataframes
-            df_train = pd.concat([df_train_, df_val_], ignore_index=True)
-
+            df_train_val = pd.concat(dfs_subsets, ignore_index=True)
+        
             train_loader = load_data_from_df(
-                df_train,
+                df_train_val,
                 set_feature_extraction_transform(),
                 config["exp_params"]["manual_seed"],
                 config["data_params"][f"batch_size"],
