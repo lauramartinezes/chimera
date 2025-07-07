@@ -4,13 +4,10 @@ import pandas as pd
 import yaml
 
 from datasets.split_data import *
+from utils import is_dir_empty
 
 pd.set_option('display.max_rows', None)
 
-def is_dir_empty(path):
-    if not os.path.isdir(path):
-        return True  
-    return not any(os.scandir(path))
 
 if __name__ == "__main__":
     # Load the configuration
