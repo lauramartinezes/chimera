@@ -20,7 +20,6 @@ if __name__ == '__main__':
 
     for method in method_datasets:
         # Generate a df with rows for each insect class
-        # df_analysis = pd.DataFrame({'insect_class': insect_classes})
         df_analysis = pd.DataFrame(index=insect_classes)
 
         if method == 'adbench':
