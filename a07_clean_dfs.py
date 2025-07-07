@@ -14,7 +14,7 @@ from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from outlier_detectors.plot import plot_y_true_vs_y_od_pred_umap
 
 
-def clean_df(df, model, device, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
+def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -172,7 +172,6 @@ if __name__ == '__main__':
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
                     df_train_val, 
                     model_cnn, 
-                    device, 
                     config, 
                     transform_cnn, 
                     pin_memory, 
