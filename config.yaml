@@ -18,7 +18,6 @@ exp_params:
   manual_seed: 1
   weight_decay: 0.0
 logging_params:
-  name: VQVAE
   save_dir: logs/
 model_params:
   name: resnet18
