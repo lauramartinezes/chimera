@@ -9,7 +9,7 @@ pd.set_option('display.max_rows', None)
 
 def is_dir_empty(path):
     if not os.path.isdir(path):
-        return False  # or raise an error, or return None, depending on what you prefer
+        return True  
     return not any(os.scandir(path))
 
 if __name__ == "__main__":
