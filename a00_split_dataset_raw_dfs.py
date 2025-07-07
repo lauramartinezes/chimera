@@ -34,9 +34,8 @@ if __name__ == "__main__":
             cls_path = os.path.join(src_dir, insect_class)
             class_file_dict[insect_class] = glob.glob(os.path.join(cls_path, '*.png'))
 
-        # Get files for the trash class
+        # Get the trash class path
         trash_path = os.path.join(src_dir, trash_class)
-        trash_files = glob.glob(os.path.join(trash_path, '*.png'))
 
         # Determine minimal number of files for balanced splitting
         total_samples = determine_min_class_size(class_file_dict)
@@ -81,10 +80,10 @@ if __name__ == "__main__":
             
             dest_folders = []
             for subset in ['train', 'val']:
-                dest_folders.append(f"{subset}/{insect_class}/{insect_class}_good")             # good samples
-                dest_folders.append(f"{subset}/{other_class}/{insect_class}_for_{other_class}") # mislabelled samples
+                dest_folders.append(os.path.join(subset, insect_class, f"{insect_class}_good"))             # good samples
+                dest_folders.append(os.path.join(subset, other_class, f"{insect_class}_for_{other_class}")) # mislabelled samples
                 if subset == 'train':
-                    dest_folders.append(f"test/{insect_class}")  # test samples are not mislabelled
+                    dest_folders.append(os.path.join("test",insect_class))  # test samples are not mislabelled
 
             copy_files_to_dest(df_class_subsets[insect_class], dest_dir, dest_folders)
 
@@ -92,6 +91,6 @@ if __name__ == "__main__":
         trash_dest_folders = []
         for subset in ['train', 'val']:
             for insect_class in insect_classes:
-                trash_dest_folders.append(f"{subset}/{insect_class}/{insect_class}_trash")
+                trash_dest_folders.append(os.path.join(subset, insect_class, f"{insect_class}_trash"))
 
         copy_files_to_dest(df_trash_subsets, dest_dir, trash_dest_folders)
