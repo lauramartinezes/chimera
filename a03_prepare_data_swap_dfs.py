@@ -11,10 +11,8 @@ import matplotlib.pyplot as plt
 from datasets import set_test_transform
 from datasets.load_data import load_data_from_df
 from models import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from utils import set_seed
 
-
-if torch.cuda.is_available():
-    torch.backends.cudnn.deterministic = True
 
 def update_mislabeled_flags(row, mislabeled_col, insect_0_value, insect_classes):
     if row[mislabeled_col]:
@@ -110,13 +108,6 @@ def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
     plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
 
 
-##########################
-### SETTINGS
-##########################
-
-# Hyperparameters
-RANDOM_SEED = 1
-
 
 if __name__ == '__main__':
     # Load the configuration
@@ -124,9 +115,8 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
+    random_seed = config["exp_params"]["manual_seed"]
+    set_seed(random_seed)
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 
@@ -142,11 +132,11 @@ if __name__ == '__main__':
     model_name = config["model_params"]["name"] 
     subsets = ['train', 'val']
     device = config["trainer_params"]["device"]
+    random_seed = config["exp_params"]["manual_seed"]
 
     ##########################
     ### RESNET-18 MODEL
     ##########################
-    torch.manual_seed(RANDOM_SEED)
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
     model.to(device)
 
@@ -178,8 +168,7 @@ if __name__ == '__main__':
     for subset in subsets:
         dfs_subset = []
 
-        for i in range(len(insect_classes)):
-            main_insect_class = insect_classes[i]
+        for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
 
             df_subset_path = os.path.join(data_dir, f'df_{subset}_{raw_suffix}_{main_insect_class}.csv')
@@ -231,8 +220,8 @@ if __name__ == '__main__':
         all_probs_no_noise.extend(all_subset_probs_no_noise)
         all_actuals_no_noise.extend(all_subset_actuals_no_noise)
 
-        prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
-        os.makedirs(prob_distribution_path, exist_ok=True)
+        # prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
+        # os.makedirs(prob_distribution_path, exist_ok=True)
         # plot_probability_distribution(
         #     np.array(all_subset_probs), 
         #     np.array(all_subset_actuals), 

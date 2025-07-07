@@ -11,6 +11,7 @@ from datasets.load_data import load_data_from_df
 from models import extract_features
 from umaps.get_train_test_umap import get_train_test_umap
 from umaps.plot import plot_test_latent_space_wrt_train, plot_train_latent_space
+from utils import set_seed
 
 
 if __name__ == '__main__':
@@ -19,9 +20,8 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
+    random_seed = config["exp_params"]["manual_seed"]
+    set_seed(random_seed)
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
     insect_classes = config["data_params"]["data_classes"]

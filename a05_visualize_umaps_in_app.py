@@ -7,6 +7,7 @@ import torch
 import yaml
 
 from umaps.plot import plot_latent_space_with_tooltips
+from utils import set_seed
 
 
 if __name__ == '__main__':
@@ -15,9 +16,9 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
+    random_seed = config["exp_params"]["manual_seed"]
+    set_seed(random_seed)
+    
     data_dir = config["data_params"]["splitted_data_dir"]
     raw_suffix = config["data_params"]["raw_suffix"]
     swap_suffix = config["data_params"]["swap_suffix"]

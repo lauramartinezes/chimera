@@ -12,6 +12,7 @@ from datasets.load_data import load_data_from_df
 from models import extract_features
 from outlier_detectors import UmapHdbscanOD, PYOD, metric
 from outlier_detectors.plot import plot_y_true_vs_y_od_pred_umap
+from utils import set_seed
 
 
 def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase="train", method='ae', od_method='UmapHdbscanOD'):
@@ -126,9 +127,8 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
 
     # Set manual seed for reproducibility
-    torch.manual_seed(config["exp_params"]["manual_seed"])
-    random.seed(config["exp_params"]["manual_seed"])
-    np.random.seed(config["exp_params"]["manual_seed"])
+    random_seed = config["exp_params"]["manual_seed"]
+    set_seed(random_seed)
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
 

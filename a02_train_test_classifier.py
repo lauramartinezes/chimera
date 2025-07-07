@@ -1,6 +1,5 @@
 import argparse
 import os
-import random
 import time
 
 import numpy as np
@@ -18,18 +17,7 @@ from models.save_best_model import save_best_model
 from models.metrics import compute_accuracy
 from models.plot import plot_training_curves
 from models.train_val_test import test_model, train_epoch, validate_epoch
-
-
-if torch.cuda.is_available():
-    torch.backends.cudnn.deterministic = True
-
-
-def set_seed(seed):
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+from utils import set_seed
 
 
 def get_args():
