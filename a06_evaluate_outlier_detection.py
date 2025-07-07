@@ -2,28 +2,15 @@ import os
 import random
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
 import timm
 import torch
-import umap
 import yaml
 
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
-from outlier_detectors import get_outlier_methods_csv
 from models import extract_features
+from outlier_detectors import get_outlier_methods_csv, preprocess_latents_for_outlier_detection
 
-
-def preprocess_latents_for_outlier_detection(latents_cnn, cnn_type):
-    if '2d' in cnn_type:
-        reducer_2_d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
-        return reducer_2_d.fit_transform(latents_cnn)
-
-    elif 'napoletano' in cnn_type:
-        pca = PCA(n_components=0.95)
-        return pca.fit_transform(latents_cnn)
-    else:
-        return latents_cnn
 
 if __name__ == '__main__':
     # Load the configuration
