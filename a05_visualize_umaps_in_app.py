@@ -31,12 +31,9 @@ if __name__ == '__main__':
     feature_ext_methods = ['cnn', 'adbench']
 
     # Prepare dictionaries for dropdown-based selection
-    train_features_dict = {}
-    test_features_dict = {}
-    labels_train_dict = {}
-    labels_test_dict = {}
-    df_train_dict = {}
-    df_test_dict = {}
+    train_features_dict, test_features_dict = {}, {}
+    labels_train_dict, labels_test_dict = {}, {}
+    df_train_dict, df_test_dict = {}, {}
 
     for feature_ext_method in feature_ext_methods:
         suffix = raw_suffix if feature_ext_method == 'adbench' else swap_suffix
