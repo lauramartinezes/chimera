@@ -28,7 +28,7 @@ if __name__ == '__main__':
     df_test = pd.read_csv(df_test_path)
 
     # Define the insect classes
-    insect_classes = ['wmv', 'wrl']
+    insect_classes = config["data_params"]["data_classes"]
     feature_ext_methods = ['cnn', 'adbench']
 
     # Prepare dictionaries for dropdown-based selection
