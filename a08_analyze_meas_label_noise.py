@@ -31,8 +31,7 @@ if __name__ == '__main__':
 
         print(f'Analyzing {method} method')
         for od_method in od_methods:
-            for i in range(len(insect_classes)):
-                main_insect_class = insect_classes[i]
+            for i, main_insect_class in enumerate(insect_classes):
                 mislabeled_insect_class = insect_classes[1 - i]
 
                 df_subsets = []
@@ -102,7 +101,7 @@ if __name__ == '__main__':
                 df_analysis.loc[mislabeled_insect_class, 'meas_noise_pred_mislabels'] += meas_noise_transferred_pred_mislabels
                 df_analysis.loc[mislabeled_insect_class, 'meas_noise_pred_meas_noise'] += meas_noise_transferred_pred_meas_noise
 
-            data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'data_analysis')
+            data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'confusion_matrices_after_data_cleaning')
             os.makedirs(data_analysis_path, exist_ok=True)
             df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{method}_{od_method}_train_val.csv'))
 
