@@ -38,6 +38,9 @@ if __name__ == '__main__':
     methods = ['cnn', 'adbench']
     subsets = ['train', 'val']
 
+    umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
+    os.makedirs(umap_folder, exist_ok=True)
+
     for method in methods:
         if method == 'adbench':
             suffix = config["data_params"]["raw_suffix"]
@@ -80,13 +83,10 @@ if __name__ == '__main__':
             print(f"{main_insect_class} dataset correctly loaded")
 
             # Extract features from encoding latents
-            umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-            os.makedirs(umap_folder, exist_ok=True)
             umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_train.npy')
             umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_test.npy')
             labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_train.npy')
             labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_test.npy')
-
 
             if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
                 os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name): 
