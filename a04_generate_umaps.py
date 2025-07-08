@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     methods = ['cnn', 'adbench']
     subsets = ['train', 'val']
-    
+
     for method in methods:
         if method == 'adbench':
             suffix = config["data_params"]["raw_suffix"]
@@ -98,7 +98,6 @@ if __name__ == '__main__':
                 (
                     latents_cnn_test, 
                     labels_cnn_test, 
-                    real_labels_cnn_test, 
                     measurement_noise_cnn_test, 
                     mislabeled_cnn_test
                 ) = extract_features(test_loader, model)
@@ -106,7 +105,6 @@ if __name__ == '__main__':
                 (
                     latents_cnn_train, 
                     labels_cnn_train, 
-                    real_labels_cnn_train, 
                     measurement_noise_cnn_train, 
                     mislabeled_cnn_train
                 ) = extract_features(train_loader, model)

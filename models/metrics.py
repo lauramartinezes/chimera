@@ -14,8 +14,7 @@ def compute_accuracy(model, data_loader, device):
     correct_pred_label_noise_class_0, correct_pred_label_noise_class_1 = 0, 0
     correct_pred_good_class_0, correct_pred_good_class_1 = 0, 0
 
-    for i, (images, labels, _, measurement_noise, label_noise, _) in enumerate(data_loader):
-            
+    for images, labels, measurement_noise, label_noise  in tqdm.tqdm(data_loader, desc="Computing accuracy", total=len(data_loader)):        
         images = images.to(device)
         labels = labels.to(device)
         measurement_noise = measurement_noise.to(device)
@@ -59,7 +58,7 @@ def compute_accuracy(model, data_loader, device):
 
 def compute_loss(model, data_loader, device, criterion=None, class_weights_tensor=None):
     epoch_loss = 0
-    for batch_idx, (images, labels, _, _, _, _) in enumerate(data_loader):
+    for batch_idx, (images, labels, _, _) in enumerate(data_loader):
         images = images.to(device)
         labels = labels.to(device)
         
@@ -79,8 +78,7 @@ def compute_predictions(model, data_loader, device):
     all_actuals = []
     all_probs = []
 
-    for images, labels, real_label, measurement_noise, label_noise, outlier  in tqdm.tqdm(data_loader, desc="Computing predictions", total=len(data_loader)):
-            
+    for images, labels, _, _  in tqdm.tqdm(data_loader, desc="Computing predictions", total=len(data_loader)):  
         images = images.to(device)
         labels = labels.to(device)
 

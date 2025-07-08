@@ -32,7 +32,6 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     (
         latents, 
         labels_cnn, 
-        real_labels_cnn, 
         measurement_noise, 
         mislabel_noise 
     ) = extract_features(loader, model)

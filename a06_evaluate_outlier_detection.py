@@ -65,7 +65,6 @@ if __name__ == '__main__':
             (
                 latents_cnn, 
                 labels_cnn, 
-                real_labels_cnn, 
                 measurement_noise_cnn, 
                 mislabeled_cnn
             ) = extract_features(loader, model_cnn) 

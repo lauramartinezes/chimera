@@ -7,8 +7,7 @@ from models.metrics import compute_accuracy, compute_loss, compute_predictions
 def train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, num_epochs):
     model.train()
     epoch_loss = 0
-    for batch_idx, (images, labels, _, _, _, _) in enumerate(train_loader):
-        
+    for batch_idx, (images, labels, _, _) in enumerate(train_loader):
         images = images.to(device)
         labels = labels.to(device)
             
