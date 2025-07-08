@@ -28,7 +28,7 @@ if __name__ == "__main__":
         yaml.dump(config, f)
 
     if is_dir_empty(dest_dir):
-        # Get all PNG files for each insect class
+        # Get all files for each insect class
         class_file_dict = {}
         for insect_class in insect_classes:
             cls_path = os.path.join(src_dir, insect_class)
@@ -42,14 +42,8 @@ if __name__ == "__main__":
         print(f'Total samples per class: {total_samples}')
 
         # Prepare split distribution
-        train_composition = {
-            'good': split[0]/100, 
-            'mislabel': split[1]/100, 
-            'other': split[2]/100
-        }
+        train_composition = {k: v / 100 for k, v in zip(['good', 'mislabel', 'other'], split)}
         split_result = calculate_custom_splits(total_samples, train_composition)
-        split_result['train']['other'] = split_result['train']['mislabel']
-        split_result['validation']['other'] = split_result['validation']['mislabel']
         print(f'Split result: {split_result}')
 
         # Split each insect class
@@ -80,7 +74,7 @@ if __name__ == "__main__":
 
         # Copy files for insect classes
         for i, insect_class in enumerate(insect_classes):
-            other_class = insect_classes[1 - i]  # valid because we assume 2 classes
+            other_class = insect_classes[1 - i]  
             
             dest_folders = []
             for subset in ['train', 'val']:

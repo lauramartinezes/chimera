@@ -205,7 +205,7 @@ def calculate_custom_splits(total_samples, train_composition):
     train_counts = {
         'good': round(good_prop * T),
         'mislabel': round(mislabel_prop * T),
-        'other': 0  # optionally add this if needed elsewhere
+        'other': round(mislabel_prop * T)  # set other equal to mislabel
     }
 
     val_good = round(0.125 * T)
@@ -213,7 +213,7 @@ def calculate_custom_splits(total_samples, train_composition):
     val_counts = {
         'good': val_good,
         'mislabel': round(mislabel_prop * val_fraction),
-        'other': 0
+        'other': round(mislabel_prop * val_fraction)
     }
 
     test_counts = {'good': val_good, 'mislabel': 0, 'other': 0}
