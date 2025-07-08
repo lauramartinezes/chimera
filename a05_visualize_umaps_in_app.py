@@ -44,11 +44,26 @@ if __name__ == '__main__':
             df_train = pd.read_csv(df_train_path)
 
             # UMAP file paths
-            umap_folder = os.path.join(config["logging_params"]["save_dir"], 'UMAPS')
-            umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{feature_ext_method}_train.npy')
-            umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{feature_ext_method}_test.npy')
-            labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_train.npy')
-            labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_test.npy')
+            umap_folder = os.path.join(
+                config["logging_params"]["save_dir"], 
+                'UMAPS'
+            )
+            umap_train_file_name = os.path.join(
+                umap_folder, 
+                f'umap_vect_{main_insect_class}_{feature_ext_method}_train.npy'
+            )
+            umap_test_file_name = os.path.join(
+                umap_folder, 
+                f'umap_vect_{main_insect_class}_{feature_ext_method}_test.npy'
+            )
+            labels_umap_train_file_name = os.path.join(
+                umap_folder, 
+                f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_train.npy'
+            )
+            labels_umap_test_file_name = os.path.join(
+                umap_folder, 
+                f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_test.npy'
+            )
 
             # Check if files exist, then load
             if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
