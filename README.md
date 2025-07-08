@@ -47,4 +47,4 @@ pip install -r requirements.txt
 
 5. To look at the umap projections in an interactive manner, run `a05_visualize_umaps_in_app.py`
 
-5. To try other datasets, splitting proportions or other configurations, update `config.yaml` and repeat step 3 and 4
+5. To try other datasets, splitting proportions or other configurations, update `config.yaml` and repeat steps 3 and 4
