@@ -1,3 +1,4 @@
+from .clean_df import clean_df
 from .datasets import NoisyImageDataset
 from .load_data import load_subset_df_classification, load_data_from_df
 from .plot import *
