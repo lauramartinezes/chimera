@@ -144,3 +144,5 @@ output/*
 data/*
 outputs/*
 logs/*
+
+run_pipeline_hook.sh
