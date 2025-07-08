@@ -23,7 +23,12 @@ from utils import set_seed
 def get_args():
     parser = argparse.ArgumentParser(
         description='Training and Testing Classifier')
-    parser.add_argument('--experiments', type=str, default='noisy_vs_cleaning_benchmark', help='noisy_vs_cleaning_benchmark, all_cases')
+    parser.add_argument(
+        '--experiments', 
+        type=str, 
+        default='noisy_vs_cleaning_benchmark', 
+        help='noisy_vs_cleaning_benchmark, all_cases'
+    )
     args = parser.parse_args()
     return args
 
@@ -54,8 +59,6 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"] 
     model_name = config["model_params"]["name"] 
     device = config["trainer_params"]["device"]
-    batch_size = config["data_params"]["batch_size"]
-    learning_rate = config["exp_params"]["LR"]
     num_epochs = config["trainer_params"]["num_epochs"]
     retrain_models = True
 
@@ -111,21 +114,38 @@ if __name__ == '__main__':
             shuffle=False
         )
         
-
         ##########################
         ### RESNET-18 MODEL
         ##########################
-        model = timm.create_model(model_name, pretrained=config["model_params"]["pretrained"], num_classes=len(insect_classes))
+        model = timm.create_model(
+            model_name, 
+            pretrained=config["model_params"]["pretrained"], 
+            num_classes=len(insect_classes)
+        )
         model.to(device)
 
-        save_path = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}{exp_suffix}.pth')
-        save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier{clean_dataset}_{method}_best{exp_suffix}.pth')
+        save_path = os.path.join(
+            config["logging_params"]["save_dir"], 
+            f'{model_name}_classifier{clean_dataset}_{method}{exp_suffix}.pth'
+        )
+        save_path_best = os.path.join(
+            config["logging_params"]["save_dir"], 
+            f'{model_name}_classifier{clean_dataset}_{method}_best{exp_suffix}.pth'
+        )
 
         if not os.path.exists(save_path_best) or retrain_models==True:
-            class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(df_train.label), y=df_train.label.to_numpy())
+            class_weights = compute_class_weight(
+                class_weight='balanced', 
+                classes=np.unique(df_train.label), 
+                y=df_train.label.to_numpy()
+            )
             class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=config["exp_params"]["weight_decay"])  
+            optimizer = torch.optim.Adam(
+                model.parameters(), 
+                lr=config["exp_params"]["LR"], 
+                weight_decay=config["exp_params"]["weight_decay"]
+            )  
             criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
                     
             ##########################
@@ -137,7 +157,6 @@ if __name__ == '__main__':
             train_losses, val_losses, test_losses = [], [], []
             start_time = time.time()
 
-            patience = 5  
             epochs_no_improve = 0
 
             if method == 'raw':
@@ -175,8 +194,10 @@ if __name__ == '__main__':
                 print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
 
                 if epoch > 1:
-                    # Plot the training and validation accuracy
-                    train_curves_path = os.path.join(config["logging_params"]["save_dir"], f'Training_Curves_{model_name}{exp_suffix}')
+                    train_curves_path = os.path.join(
+                        config["logging_params"]["save_dir"], 
+                        f'Training_Curves_{model_name}{exp_suffix}'
+                    )
                     os.makedirs(train_curves_path, exist_ok=True)
 
                     plot_training_curves(
