@@ -30,7 +30,10 @@ if __name__ == '__main__':
     cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_napoletano']
     subsets = ['train', 'val']
     
-    model_cnn = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
+    model_cnn = timm.create_model(
+        config["model_params"]["name"], 
+        pretrained=config["model_params"]["pretrained"]
+    )
     model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
     model_cnn.eval()
     
