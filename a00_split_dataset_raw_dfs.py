@@ -42,7 +42,11 @@ if __name__ == "__main__":
         print(f'Total samples per class: {total_samples}')
 
         # Prepare split distribution
-        train_composition = {'good': split[0]/100, 'mislabel': split[1]/100, 'other': split[2]/100}
+        train_composition = {
+            'good': split[0]/100, 
+            'mislabel': split[1]/100, 
+            'other': split[2]/100
+        }
         split_result = calculate_custom_splits(total_samples, train_composition)
         split_result['train']['other'] = split_result['train']['mislabel']
         split_result['validation']['other'] = split_result['validation']['mislabel']
