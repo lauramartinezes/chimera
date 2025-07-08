@@ -35,7 +35,11 @@ if __name__ == '__main__':
 
                 df_subsets = []
                 for subset in subsets:
-                    df_subset_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_path = os.path.join(
+                        data_dir, 
+                        'outliers', 
+                        f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv'
+                    )
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
                 df = pd.concat(df_subsets)
@@ -73,7 +77,11 @@ if __name__ == '__main__':
                 mislabeled_insect_class = insect_classes[1 - i]  
                 df_subsets = []
                 for subset in subsets:
-                    df_subset_path = os.path.join(data_dir, 'outliers', f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv')
+                    df_subset_path = os.path.join(
+                        data_dir, 
+                        'outliers', 
+                        f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv'
+                    )
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
                 df = pd.concat(df_subsets)
