@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 
-class CustomBinaryInsectDF(Dataset):
+class NoisyImageDataset(Dataset):
     def __init__(self, df, transform=None, seed=None):
         # Set the seed for reproducibility
         if seed is not None:

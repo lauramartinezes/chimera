@@ -4,7 +4,7 @@ import pandas as pd
 
 from torch.utils.data import DataLoader
 
-from datasets.datasets import CustomBinaryInsectDF
+from datasets.datasets import NoisyImageDataset
 
 
 def load_subset_df_classification(insect_classes, subset, method, od_method, root_dir, clean_dataset=''):
@@ -33,7 +33,7 @@ def load_subset_df_classification(insect_classes, subset, method, od_method, roo
 
 
 def load_data_from_df(df, transform, seed, batch_size, num_workers, pin_memory, shuffle=False):
-    dataset = CustomBinaryInsectDF(
+    dataset = NoisyImageDataset(
         df, 
         transform = transform, 
         seed=seed

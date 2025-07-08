@@ -1,4 +1,4 @@
-from .datasets import CustomBinaryInsectDF
+from .datasets import NoisyImageDataset
 from .load_data import load_subset_df_classification, load_data_from_df
 from .plot import *
 from .split_data import *
