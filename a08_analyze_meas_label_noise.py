@@ -17,7 +17,6 @@ if __name__ == '__main__':
     method_datasets = ['cnn', 'adbench', 'adbench_2d'] 
     subsets = ['train', 'val']
 
-
     for method in method_datasets:
         # Generate a df with rows for each insect class
         df_analysis = pd.DataFrame(index=insect_classes)
