@@ -20,7 +20,7 @@ if __name__ == "__main__":
     src_dir = config["data_params"]["original_data_dir"]
     root_dir = os.path.dirname(os.path.relpath(src_dir))
 
-    dest_dir = os.path.join(root_dir, f'split_{split[0]}_{split[1]}_{split[2]}')
+    dest_dir = os.path.join(root_dir, f"split_{'_'.join(map(str, split))}")
     config["data_params"]["splitted_data_dir"] = dest_dir
 
     # Write back full config
