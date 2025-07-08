@@ -1,9 +1,7 @@
 # Configuration parameters from the YAML-like file
 import os
-import random
 import numpy as np
 import pandas as pd
-import torch
 import yaml
 
 from umaps.plot import plot_latent_space_with_tooltips
