@@ -11,14 +11,16 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    raw_suffix = config["data_params"]["raw_suffix"]
     subsets = ['train', 'val']
     
     for i, main_insect_class in enumerate(insect_classes):
         mislabeled_insect_class = insect_classes[1 - i]
         
         for subset in subsets:
-            df_subset_path = os.path.join(data_dir, f'df_{subset}_{raw_suffix}_{main_insect_class}.csv')
+            df_subset_path = os.path.join(
+                data_dir, 
+                f'df_{subset}_{config["data_params"]["raw_suffix"]}_{main_insect_class}.csv'
+            )
             if not os.path.exists(df_subset_path):
                 df_subset = get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class)
                 df_subset.to_csv(df_subset_path)
