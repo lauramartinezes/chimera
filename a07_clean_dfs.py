@@ -26,7 +26,7 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
     
-    cnn_types = ['cnn', 'adbench', 'adbench_2d']# 'cnn']  # 'adbench' is used for the AdBench method 
+    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan']
     subsets = ['train', 'val']
 
     results = []
@@ -54,7 +54,14 @@ if __name__ == '__main__':
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-            od_methods = ['UmapHdbscanOD', 'MCD'] if cnn_type == 'cnn' else ['OCSVM']
+            if cnn_type == 'cnn':
+                od_methods = ['UmapHdbscanOD']  
+            elif cnn_type == 'adbench':
+                od_methods = ['OCSVM']
+            elif cnn_type == 'adbench_2d':
+                od_methods = ['MCD']
+            elif cnn_type == 'adbench_xd_hdbscan':
+                od_methods = ['UmapHdbscanOD']
             
             for od_method in od_methods:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
