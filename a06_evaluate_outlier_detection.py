@@ -27,7 +27,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_napoletano']
+    cnn_types = ['cnn', 'adbench', 'adbench_2d']
     subsets = ['train', 'val']
     
     model_cnn = timm.create_model(
