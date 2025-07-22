@@ -22,10 +22,16 @@ if __name__ == '__main__':
                 f'df_{subset}_{config["data_params"]["raw_suffix"]}_{main_insect_class}.csv'
             )
             if not os.path.exists(df_subset_path):
+                print(f"Creating DataFrame for {subset} subset of {main_insect_class}...")
                 df_subset = get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class)
                 df_subset.to_csv(df_subset_path)
+            else:
+                print(f"DataFrame for {subset} subset of {main_insect_class} already exists at {df_subset_path}. Skipping creation.")
     
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     if not os.path.exists(df_test_path):
+        print("Creating DataFrame for test subset...")
         df_test = get_df_test(insect_classes, data_dir)
         df_test.to_csv(df_test_path)
+    else:
+        print(f"DataFrame for test subset already exists at {df_test_path}. Skipping creation.")

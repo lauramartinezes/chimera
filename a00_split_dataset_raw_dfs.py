@@ -28,6 +28,7 @@ if __name__ == "__main__":
         yaml.dump(config, f)
 
     if is_dir_empty(dest_dir):
+        print(f"Destination directory {dest_dir} is empty. Proceeding with dataset splitting...")
         # Get all files for each insect class
         class_file_dict = {}
         for insect_class in insect_classes:
@@ -92,3 +93,6 @@ if __name__ == "__main__":
                 trash_dest_folders.append(os.path.join(subset, insect_class, f"{insect_class}_trash"))
 
         copy_files_to_dest(df_trash_subsets, dest_dir, trash_dest_folders)
+    
+    else:
+        print(f"Destination directory {dest_dir} is not empty. Skipping dataset splitting.")
