@@ -15,11 +15,11 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
 
     metrics_list = []
     
-    models = ['IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM', aom considers scores from ensemble 
+    models = ['SOS', 'IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM', aom considers scores from ensemble 
         'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
-        'LMDD', 'LODA', 'LOF', 'LOCI', #'LSCP', 'MAD', lscp needs a detector list, MAD algorithm is just for univariate data. Got Data with 2 Dimensions
-        'MCD', 'PCA', 'ROD', 'SOD', 'SOS', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD' xgbod also needs an estimator list for unsupervised
-        'MOGAAL', 'DetMCD'] #'SOGAAL' there is a bug related to mismatching batch sizes in the lib
+        'LMDD', 'LODA', 'LOF', #'LOCI', 'LSCP', 'MAD', loci takes a lifetime, lscp needs a detector list, MAD algorithm is just for univariate data. Got Data with 2 Dimensions
+        'MCD', 'PCA', 'SOD', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD' xgbod also needs an estimator list for unsupervised
+        'MOGAAL'] #'ROD', 'SOGAAL' rod blocks the pc, sogaal there is a bug related to mismatching batch sizes in the lib
     
     for model in models:
         if model!='UmapHdbscanOD':
