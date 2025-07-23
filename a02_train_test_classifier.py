@@ -70,10 +70,12 @@ if __name__ == '__main__':
         else:
             clean_dataset='_clean'
 
-        if method == 'cnn':
+        if method == 'cnn' or method == 'adbench_xd_hdbscan':
             od_method = '_UmapHdbscanOD'
         elif method == 'adbench':
             od_method = '_OCSVM'
+        elif method == 'adbench_2d':
+            od_method = '_MCD'
         else:   
             od_method = ''
             
