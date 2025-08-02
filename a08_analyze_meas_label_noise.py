@@ -24,7 +24,7 @@ if __name__ == '__main__':
         if method == 'cnn':
             od_methods = ['UmapHdbscanOD']  
         elif method == 'adbench':
-            od_methods = ['OCSVM']
+            od_methods = ['ECOD']
         elif method == 'adbench_2d':
             od_methods = ['MCD']
         elif method == 'adbench_xd_hdbscan':

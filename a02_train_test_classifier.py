@@ -73,7 +73,7 @@ if __name__ == '__main__':
         if method == 'cnn' or method == 'adbench_xd_hdbscan':
             od_method = '_UmapHdbscanOD'
         elif method == 'adbench':
-            od_method = '_OCSVM'
+            od_method = '_ECOD'
         elif method == 'adbench_2d':
             od_method = '_MCD'
         else:   
