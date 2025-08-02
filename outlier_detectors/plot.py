@@ -27,7 +27,7 @@ def plot_y_true_vs_y_od_pred_umap(features, measurement_noises, label_noises, y_
         true_label_mapping[3] = "Detected Label Noise"
     txt_true_labels = [true_label_mapping[label] for label in noises]
     
-    pred_label_mapping = {0: "Normal Sample", 1: "Outlier"}
+    pred_label_mapping = {0: "Inlier", 1: "Outlier"}
     txt_pred_labels = [pred_label_mapping[label] for label in y_pred]
 
     # Create side-by-side subplots
