@@ -44,7 +44,7 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     if method == 'adbench':
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
-    elif method == 'adbench_2d':
+    elif 'adbench_2d' in method:
         optimal_dim = 2
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
@@ -65,11 +65,15 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
         if method !='adbench':
             reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
             latents = reducer_optimd.fit_transform(latents)
+        if 'contamination' in method:
+            contamination = 0.2
+        else:
+            contamination = 0.1
         y_pred, metrics = get_outlier_predictions(
             latents,
             y_true,
             model=od_method,
-            # contamination= 0.2
+            contamination=contamination
         )
 
     elif od_method == 'UmapHdbscanOD':

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
     
-    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan']
+    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan']
     subsets = ['train', 'val']
 
     results = []
@@ -58,7 +58,7 @@ if __name__ == '__main__':
                 od_methods = ['UmapHdbscanOD']  
             elif cnn_type == 'adbench':
                 od_methods = ['ECOD']
-            elif cnn_type == 'adbench_2d':
+            elif 'adbench_2d' in cnn_type:
                 od_methods = ['MCD']
             elif cnn_type == 'adbench_xd_hdbscan':
                 od_methods = ['UmapHdbscanOD']

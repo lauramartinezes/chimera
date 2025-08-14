@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    method_datasets = ['cnn', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan'] 
+    method_datasets = ['cnn', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan'] 
     subsets = ['train', 'val']
 
     for method in method_datasets:
@@ -25,7 +25,7 @@ if __name__ == '__main__':
             od_methods = ['UmapHdbscanOD']  
         elif method == 'adbench':
             od_methods = ['ECOD']
-        elif method == 'adbench_2d':
+        elif 'adbench_2d' in method:
             od_methods = ['MCD']
         elif method == 'adbench_xd_hdbscan':
             od_methods = ['UmapHdbscanOD']
