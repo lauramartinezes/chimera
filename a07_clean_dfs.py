@@ -26,7 +26,7 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
     
-    cnn_types = ['cnn', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan']
+    cnn_types = ['cnn', 'cnn_corrected_mislabels','adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan']
     subsets = ['train', 'val']
 
     results = []
@@ -54,7 +54,7 @@ if __name__ == '__main__':
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-            if cnn_type == 'cnn':
+            if 'cnn' in cnn_type:
                 od_methods = ['UmapHdbscanOD']  
             elif cnn_type == 'adbench':
                 od_methods = ['ECOD']

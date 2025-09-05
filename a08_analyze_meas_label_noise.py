@@ -14,14 +14,14 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    method_datasets = ['cnn', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan'] 
+    method_datasets = ['cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan'] 
     subsets = ['train', 'val']
 
     for method in method_datasets:
         # Generate a df with rows for each insect class
         df_analysis = pd.DataFrame(index=insect_classes)
 
-        if method == 'cnn':
+        if 'cnn' in method:
             od_methods = ['UmapHdbscanOD']  
         elif method == 'adbench':
             od_methods = ['ECOD']

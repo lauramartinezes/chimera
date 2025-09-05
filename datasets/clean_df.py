@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import umap
 from datasets.load_data import load_data_from_df
 from models import extract_features
@@ -99,11 +100,23 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     df['outlier_detected'] = df['outlier_detected'].astype(bool)
 
     # Filter the dataframe to have only the clean samples
-    df_clean = df[y_pred == 0]
-    if f'noisy_label_classification' in df_clean.columns:
+    # Remove outliers
+    df_no_outliers = df[y_pred == 0]
+
+    # Remove samples whose predicted label does not coincide with the original one
+    if f'noisy_label_classification' in df_no_outliers.columns:
         reference_label = 0 if main_insect_class == 'wmv' else 1
-        df_clean = df_clean[df_clean[f'noisy_label_classification'] == reference_label]
-    
+        df_good = df_no_outliers[df_no_outliers[f'noisy_label_classification'] == reference_label]
+        df_mislabels = df_no_outliers[df_no_outliers[f'noisy_label_classification'] != reference_label]
+        df_mislabels[f'noisy_label_classification'] = reference_label
+
+        if 'corrected_mislabels' in method:
+            df_clean = pd.concat([df_good, df_mislabels], ignore_index=True)
+        else:
+            df_clean = df_good
+    else:
+        df_clean = df_no_outliers
+        
     return df_clean, df, metrics
 
 
