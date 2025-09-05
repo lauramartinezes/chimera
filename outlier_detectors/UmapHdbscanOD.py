@@ -52,7 +52,7 @@ class UmapHdbscanOD:
             best_dim, best_mcs, best_ms = [int(x) for x in scores[best_idx, :3]]
 
         if self.save_dir:
-            self._plot_scores(scores, dims, min_cluster_size_values, min_samples_values, best_dim)
+            self._plot_scores(scores, dims, min_cluster_size_values, min_samples_values, best_dim, best_mcs, best_ms)
             self._plot_final_clusters(data, best_dim, best_mcs, best_ms)
 
         print(f"\nOptimal: dim={best_dim}, mcs={best_mcs}, ms={best_ms}")
@@ -75,7 +75,7 @@ class UmapHdbscanOD:
         largest_cluster = unique[np.argmax(counts)]
         return np.where(labels != largest_cluster, 1, 0)
 
-    def _plot_scores(self, scores, dims, mcs_values, ms_values, best_dim):
+    def _plot_scores(self, scores, dims, mcs_values, ms_values, best_dim, best_mcs, best_ms):
         fig, ax = plt.subplots(figsize=(10, 6))
         scores = np.array(scores)
         for ms in ms_values:
@@ -83,7 +83,7 @@ class UmapHdbscanOD:
                 subset = scores[(scores[:, 1] == mcs) & (scores[:, 2] == ms)]
                 ax.plot(subset[:, 0], subset[:, 3], label=f"mcs={mcs}, ms={ms}", marker='o')
 
-        ax.axvline(best_dim, color='red', linestyle='--', label=f"Best Dim: {best_dim}")
+        ax.axvline(best_dim, color='red', linestyle='--', label=f"Best dim: {best_dim}, mcs: {best_mcs}, ms: {best_ms}")
         ax.set(title="Relative Validity", xlabel="UMAP Dimensions", ylabel="Relative Validity")
         ax.grid(True)
         ax.legend()
