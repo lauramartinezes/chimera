@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from a04_generate_umaps import init_umap_filenames
 from umaps.plot import plot_latent_space_with_tooltips
 from utils import set_seed
 
@@ -43,31 +44,20 @@ if __name__ == '__main__':
             df_train_path = os.path.join(data_dir, f'df_train_{suffix}_{main_insect_class}.csv')
             df_train = pd.read_csv(df_train_path)
 
-            # UMAP file paths
             umap_folder = os.path.join(
                 config["logging_params"]["save_dir"], 
                 'UMAPS'
             )
-            umap_train_file_name = os.path.join(
-                umap_folder, 
-                f'umap_vect_{main_insect_class}_{feature_ext_method}_train.npy'
-            )
-            umap_test_file_name = os.path.join(
-                umap_folder, 
-                f'umap_vect_{main_insect_class}_{feature_ext_method}_test.npy'
-            )
-            labels_umap_train_file_name = os.path.join(
-                umap_folder, 
-                f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_train.npy'
-            )
-            labels_umap_test_file_name = os.path.join(
-                umap_folder, 
-                f'labels_umap_vect_{main_insect_class}_{feature_ext_method}_test.npy'
-            )
+
+            # UMAP file paths
+            umap_files = init_umap_filenames(umap_folder, main_insect_class, feature_ext_method)
+            umap_train_file_name = umap_files["umap_train"]
+            umap_test_file_name = umap_files["umap_test"]
+            labels_umap_train_file_name = umap_files["labels_train"]
+            labels_umap_test_file_name = umap_files["labels_test"]
 
             # Check if files exist, then load
-            if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
-            os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name):
+            if all(os.path.exists(p) for p in umap_files.values()):
                 latents_2d_train = np.load(umap_train_file_name)
                 latents_2d_test = np.load(umap_test_file_name)
                 labels_noise_train = np.load(labels_umap_train_file_name)
