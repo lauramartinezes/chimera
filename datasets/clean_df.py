@@ -45,19 +45,23 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     if method == 'adbench':
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
+        optimal_eps=0.0
     elif 'adbench_2d' in method:
         optimal_dim = 2
         optimal_min_cluster_size = default_min_cluster_size
         optimal_min_samples = default_min_samples
+        optimal_eps=0.0
     else:
         min_cluster_size_values = [max(5, int(p * N)) for p in [0.005, 0.01, 0.02, 0.05]]
         min_samples_values = [max(5, int(p * N)) for p in [0.002, 0.005, 0.01]]
+        eps_factors = [0.0, 0.5, 1.0, 2.0]
 
         optimal_dim, optimal_min_cluster_size, optimal_min_samples = umap_hdbscan_od.find_optimal_params(
             latents, 
             dims=[2 ** i for i in range(1, 9)],
             min_cluster_size_values=min_cluster_size_values,
             min_samples_values=min_samples_values,
+            #eps_factors=eps_factors
         )
 
     y_true = (measurement_noise + mislabel_noise).astype(int)
@@ -118,6 +122,13 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
         df_clean = df_no_outliers
         
     return df_clean, df, metrics
+
+def clean_df_no_od(df, main_insect_class):
+    df['outlier_detected'] = False
+    reference_label = 0 if main_insect_class == 'wmv' else 1
+    df_good = df[df[f'noisy_label_classification'] == reference_label]
+
+    return df_good, df, {}
 
 
 def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
