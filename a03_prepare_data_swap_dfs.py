@@ -138,7 +138,10 @@ if __name__ == '__main__':
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
     model.to(device)
 
-    save_path_best = os.path.join(config["logging_params"]["save_dir"], f'{model_name}_classifier_{raw_suffix}_best_initial.pth')
+    save_path_best = os.path.join(
+        config["logging_params"]["save_dir"], 
+        f'{model_name}_classifier_{raw_suffix}_best_initial.pth'
+    )
     
     # Load the model
     if os.path.exists(save_path_best):
@@ -150,18 +153,9 @@ if __name__ == '__main__':
     conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
     os.makedirs(conf_matrix_path, exist_ok=True)
 
-    all_pred_counts = []
-    all_good_pred_counts = []
-    all_mislabels_pred_counts = []
-    all_confusion_matrices = []
-
-    all_predictions = []
-    all_actuals = []
-    all_probs = []
-
-    all_actuals_no_noise = []
-    all_probs_no_noise = []
-    all_predictions_no_noise = []
+    all_pred_counts, all_good_pred_counts, all_mislabels_pred_counts, all_confusion_matrices = [], [], [], []
+    all_predictions, all_actuals, all_probs = [], [], []
+    all_actuals_no_noise, all_probs_no_noise, all_predictions_no_noise = [], [], []
 
     for subset in subsets:
         dfs_subset = []
