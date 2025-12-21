@@ -45,7 +45,7 @@ if __name__ == '__main__':
         exp_suffix = '_initial'
 
     elif experiments == 'all_cases':
-        method_datasets = ['cnn_no_od', 'cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 'raw', 'cleaning_benchmark']
+        method_datasets = ['cnn_no_od', 'cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan', 'raw', 'cleaning_benchmark']
         exp_suffix = ''
     else:
         raise ValueError(f"Unknown experiment type: {experiments}")

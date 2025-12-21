@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    method_datasets = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan'] 
+    method_datasets = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan'] 
     subsets = ['train', 'val']
 
     for method in method_datasets:

@@ -66,15 +66,10 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
         if method !='adbench':
             reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
             latents = reducer_optimd.fit_transform(latents)
-        if 'contamination' in method:
-            contamination = 0.2
-        else:
-            contamination = 0.1
         y_pred, metrics = get_outlier_predictions(
             latents,
             y_true,
             model=od_method,
-            contamination=contamination
         )
 
     elif od_method == 'UmapHdbscanOD':
@@ -127,9 +122,9 @@ def clean_df_no_od(df, main_insect_class):
     return df_good, df, {}
 
 
-def get_outlier_predictions(X_train, y_train, model='MCD', contamination=0.1):
+def get_outlier_predictions(X_train, y_train, model='MCD'):
     print(f'{model} outlier extraction')
-    pyod_model = PYOD(seed=42, model_name=model, contamination=contamination)
+    pyod_model = PYOD(seed=42, model_name=model)
     pyod_model.fit(X_train, [])
     anomaly_scores = pyod_model.predict_score(X_train)
     metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)

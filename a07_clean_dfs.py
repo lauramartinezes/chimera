@@ -28,8 +28,7 @@ if __name__ == '__main__':
     
     # TODO check that all cases here are relevant
     cnn_types = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od',
-                 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 
-                 'adbench_xd_hdbscan', 'cnn_no_noise']
+                 'adbench', 'adbench_2d', 'adbench_xd_hdbscan', 'cnn_no_noise']
     subsets = ['train', 'val']
 
     results = []
