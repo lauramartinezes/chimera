@@ -185,7 +185,6 @@ if __name__ == '__main__':
         
         conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
         all_confusion_matrices.append(conf_matrix)
-        plot_conf_matrix_after_swap(conf_matrix, subtitle=subset, path=conf_matrix_path)
 
         df_subset['pred_label'] = all_subset_predictions
         df_subset['pred_probas'] = all_subset_probs
