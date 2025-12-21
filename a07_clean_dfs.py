@@ -27,7 +27,10 @@ if __name__ == '__main__':
     data_dir = config["data_params"]["splitted_data_dir"]
     
     # TODO check that all cases here are relevant
-    cnn_types = ['cnn_no_noise', 'cnn', 'cnn_corrected_mislabels','cnn_no_od','adbench_xd_hdbscan','adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 'cnn_no_noise']
+    cnn_types = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od',
+                 'adbench_xd_hdbscan','adbench', 'adbench_2d', 
+                 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 
+                 'cnn_no_noise']
     subsets = ['train', 'val']
 
     results = []
