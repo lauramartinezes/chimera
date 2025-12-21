@@ -13,6 +13,47 @@ from models import compute_accuracy, compute_predictions
 from utils import set_seed
 
 
+# Step 5: Plotting
+def plot_conf_matrix_after_swap(conf_matrix, subtitle=None, path='.'):
+    plt.figure(figsize=(10, 8))
+
+    # Normalize the values row-wise for color scaling
+    normalized = conf_matrix.div(conf_matrix.sum(axis=1), axis=0).fillna(0)
+
+    # Plot the heatmap with normalized colors but integer annotations
+    sns.heatmap(
+        normalized,
+        annot=conf_matrix,          # Show actual counts
+        fmt="d",                    # Format annotation as integer
+        cmap="Blues",
+        vmin=0, vmax=1              # Row-wise normalization is in [0,1]
+    )
+
+    plt.xticks(rotation=0)# 20, ha="right")  # Make x-axis labels easier to read
+    plt.yticks(rotation=0)               # Keep y-axis labels straight
+
+    plt.title(f"Confusion Matrix ({subtitle.title()})" if subtitle else "Confusion Matrix")
+    plt.xlabel("Predicted Class")
+    plt.ylabel("True Class and Nature")
+    plt.tight_layout()
+    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
+
+
+# Compute confusion matrix
+def build_extended_confusion_matrix(df, all_predictions, insect_classes):
+    true_cats, pred_cats = get_category_lists(insect_classes)
+    conf_matrix = pd.DataFrame(0, index=true_cats, columns=pred_cats)
+
+    for idx, row in df.iterrows():
+        true_cat = get_true_category(row, insect_classes)
+        pred_label = all_predictions[idx]
+        pred_cat = get_predicted_category(true_cat, pred_label, insect_classes)
+        if pred_cat in conf_matrix.columns:
+            conf_matrix.loc[true_cat, pred_cat] += 1
+    
+    return conf_matrix
+
+
 # Step 1: Define categories using df-consistent terminology
 def get_category_lists(insect_classes):
     true_categories = []
@@ -49,52 +90,9 @@ def get_true_category(row, insect_classes):
         return f"{cls}_good"
 
 
-
 # Step 3: Determine the predicted category based on classifier output and true nature
 def get_predicted_category(true_cat, pred_label, insect_classes):
     return insect_classes[pred_label]
-
-
-# Step 4: Compute confusion matrix
-def build_extended_confusion_matrix(df, all_predictions, insect_classes):
-    true_cats, pred_cats = get_category_lists(insect_classes)
-    conf_matrix = pd.DataFrame(0, index=true_cats, columns=pred_cats)
-
-    for idx, row in df.iterrows():
-        true_cat = get_true_category(row, insect_classes)
-        pred_label = all_predictions[idx]
-        pred_cat = get_predicted_category(true_cat, pred_label, insect_classes)
-        if pred_cat in conf_matrix.columns:
-            conf_matrix.loc[true_cat, pred_cat] += 1
-    
-    return conf_matrix
-
-
-# Step 5: Plotting
-def plot_conf_matrix_after_swap(conf_matrix, subtitle=None, path='.'):
-    plt.figure(figsize=(10, 8))
-
-    # Normalize the values row-wise for color scaling
-    normalized = conf_matrix.div(conf_matrix.sum(axis=1), axis=0).fillna(0)
-
-    # Plot the heatmap with normalized colors but integer annotations
-    sns.heatmap(
-        normalized,
-        annot=conf_matrix,          # Show actual counts
-        fmt="d",                    # Format annotation as integer
-        cmap="Blues",
-        vmin=0, vmax=1              # Row-wise normalization is in [0,1]
-    )
-
-    plt.xticks(rotation=0)# 20, ha="right")  # Make x-axis labels easier to read
-    plt.yticks(rotation=0)               # Keep y-axis labels straight
-
-    plt.title(f"Confusion Matrix ({subtitle.title()})" if subtitle else "Confusion Matrix")
-    plt.xlabel("Predicted Class")
-    plt.ylabel("True Class and Nature")
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
-
 
 
 if __name__ == '__main__':
