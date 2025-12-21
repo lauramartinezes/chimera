@@ -88,7 +88,6 @@ class UmapHdbscanOD:
         ax.grid(True)
         ax.legend()
         fig.tight_layout()
-        fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Relative_Validity.png"))
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Relative_Validity.svg"))
 
     def _plot_final_clusters(self, data, best_dim, best_mcs, best_ms):

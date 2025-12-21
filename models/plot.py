@@ -13,9 +13,7 @@ def plot_training_curves(train_vals, val_vals, test_vals, ylabel, title, filenam
     plt.ylabel(ylabel)
     plt.title(title)
     plt.legend()
-    png_path = os.path.join(save_path, f'{filename_suffix}_{clean_dataset}_{method}.png')
     svg_path = os.path.join(save_path, f'{filename_suffix}_{clean_dataset}_{method}.svg')
-    plt.savefig(png_path)
     plt.savefig(svg_path)
     plt.close()
 

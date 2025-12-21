@@ -103,7 +103,6 @@ def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
     plt.xlabel("Predicted Class")
     plt.ylabel("True Class and Nature")
     plt.tight_layout()
-    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.png'))
     plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
 
 

@@ -26,7 +26,6 @@ def plot_test_latent_space_wrt_train(main_insect_class, mislabeled_insect_class,
     plt.title("Latent Space UMAP Visualization")
     plt.xlabel("UMAP dimension 1")
     plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
     plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
 
@@ -44,7 +43,6 @@ def plot_train_latent_space(train_features, labels_train, filename='', dirname='
     plt.title("Latent Space UMAP Visualization")
     plt.xlabel("UMAP dimension 1")
     plt.ylabel("UMAP dimension 2")
-    plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.png'), format='png')
     plt.savefig(os.path.join(umap_folder, f'umap_plot_{filename}.svg'), format='svg')
 
 

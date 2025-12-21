@@ -22,5 +22,4 @@ def plot_conf_matrix_after_data_cleaning(row, title, method, path):
     plt.xlabel("Predicted Label")
     plt.ylabel("Actual Label")
 
-    plt.savefig(os.path.join(path, f'confusion_matrix_{method}_{title}.png'))
     plt.savefig(os.path.join(path, f'confusion_matrix_{method}_{title}.svg'))

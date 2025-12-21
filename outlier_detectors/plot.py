@@ -48,5 +48,4 @@ def plot_y_true_vs_y_od_pred_umap(features, measurement_noises, label_noises, y_
     # Save the figure
     fig.suptitle(filename, fontsize=18)
     plt.tight_layout()
-    plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.png'), format='png')
     plt.savefig(os.path.join(umap_folder, f'true_vs_pred_{filename}.svg'), format='svg')
