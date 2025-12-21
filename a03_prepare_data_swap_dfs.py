@@ -130,7 +130,6 @@ if __name__ == '__main__':
     model_name = config["model_params"]["name"] 
     subsets = ['train', 'val']
     device = config["trainer_params"]["device"]
-    random_seed = config["exp_params"]["manual_seed"]
 
     ##########################
     ### RESNET-18 MODEL
@@ -153,9 +152,7 @@ if __name__ == '__main__':
     conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
     os.makedirs(conf_matrix_path, exist_ok=True)
 
-    all_pred_counts, all_good_pred_counts, all_mislabels_pred_counts, all_confusion_matrices = [], [], [], []
-    all_predictions, all_actuals, all_probs = [], [], []
-    all_actuals_no_noise, all_probs_no_noise, all_predictions_no_noise = [], [], []
+    all_confusion_matrices = []
 
     for subset in subsets:
         dfs_subset = []
@@ -196,61 +193,7 @@ if __name__ == '__main__':
             all_subset_predictions, all_subset_actuals, all_subset_probs = compute_predictions(model, loader, device=device)
             accuracy = compute_accuracy(model, loader, device=device)
             print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
-            print(f"Accuracy: {accuracy}")
-
-        all_probs.extend(all_subset_probs)
-        all_actuals.extend(all_subset_actuals)
-
-        # Remove noisy samples from the predictions
-        meas_noise_samples = df_subset[df_subset['measurement_noise'] == True].index
-        mislabel_samples = df_subset[df_subset['mislabeled'] == True].index
-        all_noisy_samples = meas_noise_samples.union(mislabel_samples) 
-
-        all_subset_probs_no_noise = np.delete(np.array(all_subset_probs), all_noisy_samples, axis=0)
-        all_subset_actuals_no_noise = np.delete(all_subset_actuals, all_noisy_samples)
-
-        all_probs_no_noise.extend(all_subset_probs_no_noise)
-        all_actuals_no_noise.extend(all_subset_actuals_no_noise)
-
-        # prob_distribution_path = os.path.join(config["logging_params"]["save_dir"], f'prob_distribution_{model_name}')
-        # os.makedirs(prob_distribution_path, exist_ok=True)
-        # plot_probability_distribution(
-        #     np.array(all_subset_probs), 
-        #     np.array(all_subset_actuals), 
-        #     start=0, end=1.0, step=0.1,
-        #     filename_suffix=subset,
-        #     save_path=prob_distribution_path,
-        #     clean_dataset=clean_dataset,
-        #     method=method
-        #     )
-        
-        # plot_prediction_confidence_by_predicted_class(
-        #     np.array(all_subset_probs), 
-        #     start=0.5, end=1.0, step=0.1,
-        #     filename_suffix=subset,
-        #     save_path=prob_distribution_path,
-        #     clean_dataset=clean_dataset,
-        #     method=method
-        #     )
-        
-        # do plot for no noisy samples
-        # plot_probability_distribution(
-        #     np.array(all_subset_probs_no_noise),
-        #     np.array(all_subset_actuals_no_noise),
-        #     start=0, end=1.0, step=0.1,
-        #     filename_suffix=f'{subset}_no_noise',
-        #     save_path=prob_distribution_path,
-        #     clean_dataset=clean_dataset,
-        #     method=method
-        #     )
-        # plot_prediction_confidence_by_predicted_class(
-        #     np.array(all_subset_probs_no_noise),
-        #     start=0.5, end=1.0, step=0.1,
-        #     filename_suffix=f'{subset}_no_noise',
-        #     save_path=prob_distribution_path,
-        #     clean_dataset=clean_dataset,
-        #     method=method
-        #     )
+            print(f"Accuracy: {accuracy}") 
         
         conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
         all_confusion_matrices.append(conf_matrix)
@@ -261,53 +204,6 @@ if __name__ == '__main__':
 
         df_insect_0 = df_subset[df_subset['pred_label'] == 0]
         df_insect_1 = df_subset[df_subset['pred_label'] == 1]
-
-        df_insect_0_directory_counts = df_insect_0.directory.value_counts()
-        pred_good_samples_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_good|{os.sep}{insect_classes[0]}_for_{insect_classes[1]}')].sum()
-        pred_good_samples_orig_good_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_good')].sum()
-        pred_good_samples_orig_mislabeled_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}')].sum()
-        pred_mislabels_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_good|{os.sep}{insect_classes[1]}_for_{insect_classes[0]}')].sum()
-        pred_mislabels_orig_good_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_good')].sum()
-        pred_mislabels_orig_mislabeled_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}')].sum()
-        pred_measurement_noise_insect_0 = df_insect_0_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
-
-        df_insect_1_directory_counts = df_insect_1.directory.value_counts()
-        pred_good_samples_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_good|{os.sep}{insect_classes[1]}_for_{insect_classes[0]}')].sum()
-        pred_good_samples_orig_good_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_good')].sum()
-        pred_good_samples_orig_mislabeled_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}')].sum()
-        pred_mislabels_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_good|{os.sep}{insect_classes[0]}_for_{insect_classes[1]}')].sum()
-        pred_mislabels_orig_good_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_good')].sum()
-        pred_mislabels_orig_mislabeled_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}')].sum()
-        pred_measurement_noise_insect_1 = df_insect_1_directory_counts.loc[lambda x: x.index.str.contains('trash')].sum()
-        
-
-        # Generate df with rows good samples, mislabels and measurement noise and columns wmv and c
-        df_pred_counts = pd.DataFrame({
-            'predicted good_samples': [pred_good_samples_insect_0, pred_good_samples_insect_1],
-            'predicted mislabels': [pred_mislabels_insect_0, pred_mislabels_insect_1],
-            'predicted measurement_noise': [pred_measurement_noise_insect_0, pred_measurement_noise_insect_1]
-        }, index=[insect_classes[0], insect_classes[1]])
-
-        print(df_pred_counts)
-        all_pred_counts.append(df_pred_counts)
-
-        # Generate df that shows proportion of good samples that were originally good and mislabeled
-        df_pred_good = pd.DataFrame({
-            'orig_good_samples': [pred_good_samples_orig_good_insect_0, pred_good_samples_orig_good_insect_1],
-            'orig_mislabels': [pred_good_samples_orig_mislabeled_insect_0, pred_good_samples_orig_mislabeled_insect_1],
-            'total': [pred_good_samples_insect_0, pred_good_samples_insect_1]
-        }, index=[insect_classes[0], insect_classes[1]])
-        all_good_pred_counts.append(df_pred_good)
-
-        df_pred_mislabels = pd.DataFrame({
-            'orig_good_samples': [pred_mislabels_orig_good_insect_0, pred_mislabels_orig_good_insect_1],
-            'orig_mislabels': [pred_mislabels_orig_mislabeled_insect_0, pred_mislabels_orig_mislabeled_insect_1],
-            'total': [pred_mislabels_insect_0, pred_mislabels_insect_1]
-        }, index=[insect_classes[0], insect_classes[1]])
-        all_mislabels_pred_counts.append(df_pred_mislabels)
-
-        print('Predicted Good:\n',df_pred_good)
-        print('Predicted Mislabels: \n' ,df_pred_mislabels)
 
         ########################## Probas counts
         df_insect_0_pred_good_orig_good_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good', case=False, na=False)]
@@ -354,7 +250,6 @@ if __name__ == '__main__':
 
         # update mislabeled column
         df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
-
         df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
 
         # update labels column to be outlier or inlier
@@ -375,59 +270,8 @@ if __name__ == '__main__':
 
         print('')
     
-    df_all_pred_counts = all_pred_counts[0] + all_pred_counts[1]
-    print(df_all_pred_counts)
-    df_all_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_pred_counts_{model_name}_{raw_suffix}.csv'))
-
-    df_all_good_pred_counts = all_good_pred_counts[0] + all_good_pred_counts[1]
-    print(df_all_good_pred_counts)
-    df_all_good_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_good_pred_counts_{model_name}_{raw_suffix}.csv'))
-
-    df_all_mislabels_pred_counts = all_mislabels_pred_counts[0] + all_mislabels_pred_counts[1]
-    print(df_all_mislabels_pred_counts)
-    df_all_mislabels_pred_counts.to_csv(os.path.join('logs', f'df_{model_name}_all_mislabels_pred_counts_{model_name}_{raw_suffix}.csv'))
-    
     # Get total confusion matrix
     conf_matrix_total = sum(all_confusion_matrices)
     plot_confusion_matrix(conf_matrix_total, subtitle='total', path=conf_matrix_path)
-
-    # Get total probability distribution
-    # plot_probability_distribution(
-    #     np.array(all_probs), 
-    #     np.array(all_actuals), 
-    #     start=0, end=1.0, step=0.1,
-    #     filename_suffix='train_val',
-    #     save_path=prob_distribution_path,
-    #     clean_dataset=clean_dataset,
-    #     method=method
-    #     )
-    
-    # plot_prediction_confidence_by_predicted_class(
-    #     np.array(all_probs), 
-    #     start=0.5, end=1.0, step=0.1,
-    #     filename_suffix='train_val',
-    #     save_path=prob_distribution_path,
-    #     clean_dataset=clean_dataset,
-    #     method=method
-    #     )
-    
-    # # do plot for no noisy samples
-    # plot_probability_distribution(
-    #     np.array(all_probs_no_noise),
-    #     np.array(all_actuals_no_noise),
-    #     start=0, end=1.0, step=0.1,
-    #     filename_suffix='train_val_no_noise',
-    #     save_path=prob_distribution_path,
-    #     clean_dataset=clean_dataset,
-    #     method=method
-    #     )
-    # plot_prediction_confidence_by_predicted_class(
-    #     np.array(all_probs_no_noise),
-    #     start=0.5, end=1.0, step=0.1,
-    #     filename_suffix='train_val_no_noise',
-    #     save_path=prob_distribution_path,
-    #     clean_dataset=clean_dataset,
-    #     method=method
-    #     )
 
     print('')
