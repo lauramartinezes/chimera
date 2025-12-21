@@ -71,7 +71,7 @@ def build_extended_confusion_matrix(df, all_predictions, insect_classes):
 
 
 # Step 5: Plotting
-def plot_confusion_matrix(conf_matrix, subtitle=None, path='.'):
+def plot_conf_matrix_after_swap(conf_matrix, subtitle=None, path='.'):
     plt.figure(figsize=(10, 8))
 
     # Normalize the values row-wise for color scaling
@@ -187,7 +187,7 @@ if __name__ == '__main__':
         
         conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
         all_confusion_matrices.append(conf_matrix)
-        plot_confusion_matrix(conf_matrix, subtitle=subset, path=conf_matrix_path)
+        plot_conf_matrix_after_swap(conf_matrix, subtitle=subset, path=conf_matrix_path)
 
         df_subset['pred_label'] = all_subset_predictions
         df_subset['pred_probas'] = all_subset_probs
@@ -213,5 +213,5 @@ if __name__ == '__main__':
     
     # Get total confusion matrix
     conf_matrix_total = sum(all_confusion_matrices)
-    plot_confusion_matrix(conf_matrix_total, subtitle='total', path=conf_matrix_path)
+    plot_conf_matrix_after_swap(conf_matrix_total, subtitle='total', path=conf_matrix_path)
 
