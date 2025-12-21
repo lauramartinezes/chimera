@@ -205,49 +205,6 @@ if __name__ == '__main__':
         df_insect_0 = df_subset[df_subset['pred_label'] == 0]
         df_insect_1 = df_subset[df_subset['pred_label'] == 1]
 
-        ########################## Probas counts
-        df_insect_0_pred_good_orig_good_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good', case=False, na=False)]
-        insect_0_pred_good_orig_good_probas = df_insect_0_pred_good_orig_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_good_probas_orig_good_counts = insect_0_pred_good_orig_good_probas.apply(lambda x: list(x)).value_counts()
-        
-        df_insect_0_pred_good_orig_mislabels_samples = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
-        insect_0_pred_good_orig_mislabels_probas = df_insect_0_pred_good_orig_mislabels_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_good_probas_orig_mislabels_counts = insect_0_pred_good_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
-
-
-        df_insect_0_pred_mislabels_orig_good = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good', case=False, na=False)]
-        insect_0_pred_mislabels_probas_orig_good = df_insect_0_pred_mislabels_orig_good.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_mislabels_probas_orig_good_counts = insect_0_pred_mislabels_probas_orig_good.apply(lambda x: list(x)).value_counts()
-
-        df_insect_0_pred_mislabels_orig_mislabels = df_insect_0[df_insect_0['directory'].str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
-        insect_0_pred_mislabels_probas_orig_mislabels = df_insect_0_pred_mislabels_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_0_pred_mislabels_probas_orig_mislabels_counts = insect_0_pred_mislabels_probas_orig_mislabels.apply(lambda x: list(x)).value_counts()
-
-        df_insect_1_pred_good_orig_good_samples = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[1]}_good', case=False, na=False)]
-        insect_1_pred_good_orig_good_probas = df_insect_1_pred_good_orig_good_samples.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_good_probas_orig_good_counts = insect_1_pred_good_orig_good_probas.apply(lambda x: list(x)).value_counts()
-
-        df_insect_1_pred_good_orig_mislabels = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[1]}_for_{insect_classes[0]}', case=False, na=False)]
-        insect_1_pred_good_orig_mislabels_probas = df_insect_1_pred_good_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_good_probas_orig_mislabels_counts = insect_1_pred_good_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
-
-        df_insect_1_pred_mislabels_orig_good = df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[0]}_good', case=False, na=False)]
-        insect_1_pred_mislabels_orig_good_probas = df_insect_1_pred_mislabels_orig_good.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_mislabels_orig_good_probas_counts = insect_1_pred_mislabels_orig_good_probas.apply(lambda x: list(x)).value_counts()
-
-        df_insect_1_pred_mislabels_orig_mislabels= df_insect_1[df_insect_1['directory'].str.contains(f'{os.sep}{insect_classes[0]}_for_{insect_classes[1]}', case=False, na=False)]
-        insect_1_pred_mislabels_orig_mislabels_probas = df_insect_1_pred_mislabels_orig_mislabels.pred_probas.apply(lambda x: np.round(x, 1))
-        insect_1_pred_mislabels_orig_mislabels_probas_counts = insect_1_pred_mislabels_orig_mislabels_probas.apply(lambda x: list(x)).value_counts()
-
-        print(f"{insect_classes[0]}_pred_good_probas_orig_good_counts: \n", insect_0_pred_good_probas_orig_good_counts)
-        print(f"{insect_classes[0]}_pred_good_probas_orig_mislabel_counts: \n", insect_0_pred_good_probas_orig_mislabels_counts)
-        print(f"{insect_classes[0]}_pred_mislabels_probas_orig_good_counts: \n", insect_0_pred_mislabels_probas_orig_mislabels_counts)
-        print(f"{insect_classes[0]}_pred_mislabels_probas_orig_mislabels_counts: \n", insect_0_pred_mislabels_probas_orig_mislabels_counts)
-        print(f"{insect_classes[1]}_pred_good_probas_orig_good_counts: \n", insect_1_pred_good_probas_orig_good_counts)
-        print(f"{insect_classes[1]}_pred_good_probas_orig_mislabels_counts: \n", insect_1_pred_good_probas_orig_mislabels_counts)
-        print(f"{insect_classes[1]}_pred_mislabels_orig_good_probas_counts: \n", insect_1_pred_mislabels_orig_good_probas_counts)
-        print(f"{insect_classes[1]}_pred_mislabels_orig_mislabels_probas_counts: \n", insect_1_pred_mislabels_orig_mislabels_probas_counts)
-
         # update mislabeled column
         df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
         df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
