@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from datasets import set_test_transform
 from datasets.load_data import load_data_from_df
-from models import compute_accuracy, compute_predictions, plot_prediction_confidence_by_predicted_class, plot_probability_distribution
+from models import compute_accuracy, compute_predictions
 from utils import set_seed
 
 
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     device = config["trainer_params"]["device"]
 
     ##########################
-    ### RESNET-18 MODEL
+    ### MODEL LOADING
     ##########################
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
     model.to(device)
@@ -155,8 +155,10 @@ if __name__ == '__main__':
     all_confusion_matrices = []
 
     for subset in subsets:
+        ##########################
+        ### DATA LOADING
+        ##########################
         dfs_subset = []
-
         for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
 
@@ -170,9 +172,7 @@ if __name__ == '__main__':
             df_subset_i[f'mislabeled_{mislabeled_insect_class}'] = False
 
             dfs_subset.append(df_subset_i)
-        
         df_subset = pd.concat(dfs_subset, ignore_index=True)
-
         df_subset['directory'] = df_subset['filepath'].apply(os.path.dirname)
 
         loader = load_data_from_df(
@@ -193,7 +193,7 @@ if __name__ == '__main__':
             all_subset_predictions, all_subset_actuals, all_subset_probs = compute_predictions(model, loader, device=device)
             accuracy = compute_accuracy(model, loader, device=device)
             print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
-            print(f"Accuracy: {accuracy}") 
+            print(f"Accuracy: {accuracy[0]}") 
         
         conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
         all_confusion_matrices.append(conf_matrix)
@@ -202,33 +202,26 @@ if __name__ == '__main__':
         df_subset['pred_label'] = all_subset_predictions
         df_subset['pred_probas'] = all_subset_probs
 
-        df_insect_0 = df_subset[df_subset['pred_label'] == 0]
-        df_insect_1 = df_subset[df_subset['pred_label'] == 1]
+        for i, main_insect_class in enumerate(insect_classes):
+            mislabeled_insect_class = insect_classes[1 - i]
 
-        # update mislabeled column
-        df_insect_0['mislabeled'] = df_insect_0["directory"].isin([f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[1]}_for_{insect_classes[0]}", f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[1]}_good"])
-        df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
+            df_out = df_subset[df_subset["pred_label"] == i].copy()
 
-        # update labels column to be outlier or inlier
-        df_insect_0['noisy_label_classification'] = df_insect_0['label']
-        df_insect_1['noisy_label_classification'] = df_insect_1['label']
+            # update mislabeled column
+            df_out["mislabeled"] = df_out["directory"].isin([
+                os.path.join(data_dir, subset, main_insect_class, f"{mislabeled_insect_class}_for_{main_insect_class}"),
+                os.path.join(data_dir, subset, mislabeled_insect_class, f"{mislabeled_insect_class}_good"),
+            ])
 
-        outlier_labels_insect_0 = ((df_insect_0['measurement_noise']==True) | (df_insect_0['mislabeled'])).astype(int)
-        outlier_labels_insect_1 = ((df_insect_1['measurement_noise']==True) | (df_insect_1['mislabeled'])).astype(int)
+            # keep original label, then overwrite label with outlier/inlier
+            df_out["noisy_label_classification"] = df_out["label"]
+            df_out["label"] = (df_out["measurement_noise"] | df_out["mislabeled"]).astype(int)
 
-        df_insect_0['label'] = outlier_labels_insect_0
-        df_insect_1['label'] = outlier_labels_insect_1
-
-        df_insect_0_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{insect_classes[0]}.csv')
-        df_insect_0.to_csv(df_insect_0_path)
-
-        df_insect_1_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{insect_classes[1]}.csv')
-        df_insect_1.to_csv(df_insect_1_path)
-
-        print('')
+            # save
+            out_path = os.path.join(data_dir, f"df_{subset}_{swap_suffix}_{main_insect_class}.csv")
+            df_out.to_csv(out_path, index=False)
     
     # Get total confusion matrix
     conf_matrix_total = sum(all_confusion_matrices)
     plot_confusion_matrix(conf_matrix_total, subtitle='total', path=conf_matrix_path)
 
-    print('')
