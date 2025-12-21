@@ -12,6 +12,16 @@ from umaps.get_train_test_umap import get_train_test_umap
 from umaps.plot import plot_test_latent_space_wrt_train, plot_train_latent_space
 from utils import set_seed
 
+def init_umap_filenames(umap_folder, main_insect_class, method):
+    stem = f"{main_insect_class}_{method}"
+    files = {}
+
+    for kind, prefix in {"umap": "umap_vect_", "labels": "labels_umap_vect_"}.items():
+        for split in ("train", "test"):
+            files[f"{kind}_{split}"] = os.path.join(umap_folder, f"{prefix}{stem}_{split}.npy")
+
+    return files
+
 
 if __name__ == '__main__':
     # Load the configuration
@@ -56,39 +66,30 @@ if __name__ == '__main__':
                 )
                 df_subset = pd.read_csv(df_subset_path)
                 dfs_subsets.append(df_subset)
-
             df_train_val = pd.concat(dfs_subsets, ignore_index=True)
-        
-            train_loader = load_data_from_df(
-                df_train_val,
-                set_feature_extraction_transform(),
-                config["exp_params"]["manual_seed"],
-                config["data_params"][f"batch_size"],
-                config["data_params"]["num_workers"],
-                pin_memory,
-                shuffle=False
-            )
 
-            test_loader = load_data_from_df(
-                df_test,
-                set_feature_extraction_transform(),
-                config["exp_params"]["manual_seed"],
-                config["data_params"][f"batch_size"],
-                config["data_params"]["num_workers"],
-                pin_memory,
+            loader_kwargs = dict(
+                transform=set_feature_extraction_transform(),
+                seed=config["exp_params"]["manual_seed"],
+                batch_size=config["data_params"]["batch_size"],
+                num_workers=config["data_params"]["num_workers"],
+                pin_memory=pin_memory,
                 shuffle=False
             )
+        
+            train_loader = load_data_from_df(df=df_train_val, **loader_kwargs)
+            test_loader = load_data_from_df(df=df_test, **loader_kwargs)
 
             print(f"{main_insect_class} dataset correctly loaded")
 
             # Extract features from encoding latents
-            umap_train_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_train.npy')
-            umap_test_file_name = os.path.join(umap_folder, f'umap_vect_{main_insect_class}_{method}_test.npy')
-            labels_umap_train_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_train.npy')
-            labels_umap_test_file_name = os.path.join(umap_folder, f'labels_umap_vect_{main_insect_class}_{method}_test.npy')
+            umap_files = init_umap_filenames(umap_folder, main_insect_class, method)
+            umap_train_file_name = umap_files["umap_train"]
+            umap_test_file_name = umap_files["umap_test"]
+            labels_umap_train_file_name = umap_files["labels_train"]
+            labels_umap_test_file_name = umap_files["labels_test"]
 
-            if os.path.exists(umap_train_file_name) and os.path.exists(umap_test_file_name) and \
-                os.path.exists(labels_umap_train_file_name) and os.path.exists(labels_umap_test_file_name): 
+            if all(os.path.exists(p) for p in umap_files.values()): 
                 latents_2d_train = np.load(umap_train_file_name)
                 latents_2d_test = np.load(umap_test_file_name)
                 labels_noise_train = np.load(labels_umap_train_file_name)
@@ -107,7 +108,6 @@ if __name__ == '__main__':
                     measurement_noise_cnn_train, 
                     mislabeled_cnn_train
                 ) = extract_features(train_loader, model)
-
 
                 measurement_noise_cnn_train = measurement_noise_cnn_train.astype(int)*2
                 mislabeled_cnn_train = mislabeled_cnn_train.astype(int)
