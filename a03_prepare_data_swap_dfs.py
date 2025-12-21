@@ -357,14 +357,6 @@ if __name__ == '__main__':
 
         df_insect_1['mislabeled'] = df_insect_1["directory"].isin([f"{data_dir}/{subset}/{insect_classes[1]}/{insect_classes[0]}_for_{insect_classes[1]}", f"{data_dir}/{subset}/{insect_classes[0]}/{insect_classes[0]}_good"])
 
-        # add Best Alternative Class (BAC) column
-        df_insect_0['bac'] = 1 - df_insect_0.label
-        df_insect_1['bac'] = 1 - df_insect_1.label
-
-        # add Probability of Alternative Class (PAC) column
-        df_insect_0['pac'] = df_insect_0.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
-        df_insect_1['pac'] = df_insect_1.apply(lambda row: row['pred_probas'][int(row['bac'])], axis=1)
-
         # update labels column to be outlier or inlier
         df_insect_0['noisy_label_classification'] = df_insect_0['label']
         df_insect_1['noisy_label_classification'] = df_insect_1['label']
