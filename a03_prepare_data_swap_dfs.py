@@ -13,16 +13,6 @@ from models import compute_accuracy, compute_predictions
 from utils import set_seed
 
 
-def update_mislabeled_flags(row, mislabeled_col, insect_0_value, insect_classes):
-    if row[mislabeled_col]:
-        row[f'mislabeled_{insect_classes[0]}'] = insect_0_value
-        row[f'mislabeled_{insect_classes[1]}'] = not insect_0_value
-    else:
-        row[f'mislabeled_{insect_classes[0]}'] = False
-        row[f'mislabeled_{insect_classes[1]}'] = False
-    return row
-
-
 # Step 1: Define categories using df-consistent terminology
 def get_category_lists(insect_classes):
     true_categories = []
