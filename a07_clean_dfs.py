@@ -5,7 +5,7 @@ import torch
 import yaml
 
 from datasets import set_feature_extraction_transform
-from datasets.clean_df import clean_df
+from datasets.clean_df import clean_df, clean_df_no_od
 from utils import set_seed
 
 
@@ -26,7 +26,8 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
     
-    cnn_types = ['cnn', 'cnn_corrected_mislabels','adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan']
+    # TODO check that all cases here are relevant
+    cnn_types = ['cnn_no_noise', 'cnn', 'cnn_corrected_mislabels','cnn_no_od','adbench_xd_hdbscan','adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 'cnn_no_noise']
     subsets = ['train', 'val']
 
     results = []
@@ -51,10 +52,12 @@ if __name__ == '__main__':
                 else:
                     df_subset_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{main_insect_class}.csv')
                 df_subset = pd.read_csv(df_subset_path)
+                if cnn_type == 'cnn_no_noise':
+                    df_subset = df_subset[(df_subset['mislabeled'] == False) & (df_subset['measurement_noise'] == False)]
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
 
-            if 'cnn' in cnn_type:
+            if 'cnn' in cnn_type and 'no_od' not in cnn_type:
                 od_methods = ['UmapHdbscanOD']  
             elif cnn_type == 'adbench':
                 od_methods = ['ECOD']
@@ -62,19 +65,24 @@ if __name__ == '__main__':
                 od_methods = ['MCD']
             elif cnn_type == 'adbench_xd_hdbscan':
                 od_methods = ['UmapHdbscanOD']
+            elif cnn_type == 'cnn_no_od':
+                od_methods = ['no_od']
             
             for od_method in od_methods:
-                df_train_val_clean, df_train_val_outliers, metrics = clean_df(
-                    df_train_val, 
-                    model, 
-                    config, 
-                    set_feature_extraction_transform(), 
-                    pin_memory, 
-                    main_insect_class, 
-                    phase='train_val', 
-                    method=cnn_type, 
-                    od_method=od_method
-                )
+                if od_method == 'no_od':
+                    df_train_val_clean, df_train_val_outliers, metrics = clean_df_no_od(df_train_val, main_insect_class)
+                else:
+                    df_train_val_clean, df_train_val_outliers, metrics = clean_df(
+                        df_train_val, 
+                        model, 
+                        config, 
+                        set_feature_extraction_transform(), 
+                        pin_memory, 
+                        main_insect_class, 
+                        phase='train_val', 
+                        method=cnn_type, 
+                        od_method=od_method
+                    )
                 
                 for subset in subsets:
                     df_subset_clean = df_train_val_clean[df_train_val_clean.filepath.str.contains(subset)]
