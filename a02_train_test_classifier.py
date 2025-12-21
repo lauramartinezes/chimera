@@ -45,7 +45,7 @@ if __name__ == '__main__':
         exp_suffix = '_initial'
 
     elif experiments == 'all_cases':
-        method_datasets = ['cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 'raw', 'cleaning_benchmark']
+        method_datasets = ['cnn_no_od', 'cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_2d_20_contamination', 'adbench_xd_hdbscan', 'raw', 'cleaning_benchmark']
         exp_suffix = ''
     else:
         raise ValueError(f"Unknown experiment type: {experiments}")
@@ -70,12 +70,14 @@ if __name__ == '__main__':
         else:
             clean_dataset='_clean'
 
-        if 'cnn' in method or method == 'adbench_xd_hdbscan':
+        if ('cnn' in method and 'no_od' not in method) or method == 'adbench_xd_hdbscan':
             od_method = '_UmapHdbscanOD'
         elif method == 'adbench':
             od_method = '_ECOD'
         elif 'adbench_2d' in method:
             od_method = '_MCD'
+        elif method == 'cnn_no_od':
+            od_method = '_no_od'
         else:   
             od_method = ''
             
