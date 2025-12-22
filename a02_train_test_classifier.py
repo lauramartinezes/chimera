@@ -7,7 +7,6 @@ import pandas as pd
 import timm
 import torch
 import torch.nn as nn
-import yaml
 
 from sklearn.utils.class_weight import compute_class_weight
 
@@ -17,7 +16,7 @@ from models.save_best_model import save_best_model
 from models.metrics import compute_accuracy
 from models.plot import plot_training_curves
 from models.train_val_test import test_model, train_epoch, validate_epoch
-from utils import set_seed
+from utils import load_config, set_seed
 
 
 def get_args():
@@ -34,9 +33,7 @@ def get_args():
 
 
 if __name__ == '__main__':
-    # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     args = get_args()
     experiments = args.experiments

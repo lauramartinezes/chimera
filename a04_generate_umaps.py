@@ -3,14 +3,13 @@ import numpy as np
 import pandas as pd
 import timm
 import torch
-import yaml
 
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
 from umaps.get_train_test_umap import get_train_test_umap
 from umaps.plot import plot_test_latent_space_wrt_train, plot_train_latent_space
-from utils import set_seed
+from utils import load_config, set_seed
 
 def init_umap_filenames(umap_folder, main_insect_class, method):
     stem = f"{main_insect_class}_{method}"
@@ -24,9 +23,7 @@ def init_umap_filenames(umap_folder, main_insect_class, method):
 
 
 if __name__ == '__main__':
-    # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     # Set manual seed for reproducibility
     random_seed = config["exp_params"]["manual_seed"]

@@ -2,17 +2,14 @@ import os
 import pandas as pd
 import timm
 import torch
-import yaml
 
 from datasets import load_data_from_df, set_test_transform, plot_conf_matrix_after_swap
 from models import compute_accuracy, compute_predictions
-from utils import set_seed
+from utils import load_config, set_seed
 
 
 if __name__ == '__main__':
-    # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     # Set manual seed for reproducibility
     random_seed = config["exp_params"]["manual_seed"]

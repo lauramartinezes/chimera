@@ -1,18 +1,16 @@
 import os
 import glob
 import pandas as pd
-import yaml
 
 from datasets.split_data import *
-from utils import is_dir_empty
+from utils import is_dir_empty, load_config, save_config
 
 pd.set_option('display.max_rows', None)
 
 
 if __name__ == "__main__":
     # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     insect_classes = config["data_params"]["data_classes"] 
     trash_class = config["data_params"]["trash_class"]
@@ -23,9 +21,7 @@ if __name__ == "__main__":
     dest_dir = os.path.join(root_dir, f"split_{'_'.join(map(str, split))}")
     config["data_params"]["splitted_data_dir"] = dest_dir
 
-    # Write back full config
-    with open("config.yaml", "w") as f:
-        yaml.dump(config, f)
+    save_config(config, "config.yaml")
 
     if is_dir_empty(dest_dir):
         print(f"Destination directory {dest_dir} is empty. Proceeding with dataset splitting...")

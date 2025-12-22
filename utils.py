@@ -2,6 +2,18 @@ import os
 import random
 import numpy as np
 import torch
+import yaml
+
+
+def save_config(config, file_path):
+    with open(file_path, "w") as f:
+        yaml.dump(config, f)
+
+
+def load_config(file_path):
+    with open(file_path, "r") as file:
+        config = yaml.safe_load(file)
+    return config
 
 
 def set_seed(seed):

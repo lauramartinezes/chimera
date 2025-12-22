@@ -1,16 +1,15 @@
 import os
 
 import pandas as pd
-import yaml
 
 from datasets.plot import plot_conf_matrix_after_data_cleaning
+from utils import load_config
 
 
 if __name__ == '__main__':  
     pd.set_option('display.max_columns', None)  
-    # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    
+    config = load_config("config.yaml")
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]

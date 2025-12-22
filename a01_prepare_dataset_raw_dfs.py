@@ -1,13 +1,11 @@
 import os
 
-import yaml
-
 from datasets.get_raw_dfs import get_df_subset, get_df_test
+from utils import load_config
 
 
 if __name__ == '__main__':
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]

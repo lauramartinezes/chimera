@@ -2,17 +2,14 @@
 import os
 import numpy as np
 import pandas as pd
-import yaml
 
 from a04_generate_umaps import init_umap_filenames
 from umaps.plot import plot_latent_space_with_tooltips
-from utils import set_seed
+from utils import load_config, set_seed
 
 
 if __name__ == '__main__':
-    # Load the configuration
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    config = load_config("config.yaml")
 
     # Set manual seed for reproducibility
     random_seed = config["exp_params"]["manual_seed"]
