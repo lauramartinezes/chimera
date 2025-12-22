@@ -37,12 +37,13 @@ if __name__ == '__main__':
 
     args = get_args()
     experiments = args.experiments
-    if experiments == 'noisy_vs_cleaning_benchmark':
-        method_datasets = ['raw', 'cleaning_benchmark']
-        exp_suffix = '_initial'
+    method_datasets = ['raw', 'cleaning_benchmark']
 
+    if experiments == 'noisy_vs_cleaning_benchmark':
+        exp_suffix = '_initial'
     elif experiments == 'all_cases':
-        method_datasets = ['cnn_no_od', 'cnn', 'cnn_corrected_mislabels', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan', 'raw', 'cleaning_benchmark']
+        cleaning_strategies = config['cleaning_params']['strategies']
+        method_datasets = cleaning_strategies + method_datasets
         exp_suffix = ''
     else:
         raise ValueError(f"Unknown experiment type: {experiments}")
@@ -64,20 +65,11 @@ if __name__ == '__main__':
     for method in method_datasets:
         if method=='cleaning_benchmark' or method=='raw': 
             clean_dataset=''
+            od_method=''
         else:
             clean_dataset='_clean'
+            od_method = config['cleaning_params'][method]['outlier_detection_method']
 
-        if ('cnn' in method and 'no_od' not in method) or method == 'adbench_xd_hdbscan':
-            od_method = '_UmapHdbscanOD'
-        elif method == 'adbench':
-            od_method = '_ECOD'
-        elif 'adbench_2d' in method:
-            od_method = '_MCD'
-        elif method == 'cnn_no_od':
-            od_method = '_no_od'
-        else:   
-            od_method = ''
-            
         ##########################
         ### DATA LOADING
         ##########################
@@ -85,34 +77,31 @@ if __name__ == '__main__':
         df_val = load_subset_df_classification(insect_classes, 'val', method, od_method, data_dir, clean_dataset)
         df_test = pd.read_csv(os.path.join(data_dir, f'df_test.csv'))
 
-        train_loader = load_data_from_df(
-            df_train,
+        loader_kwargs = dict(
+                seed=random_seed,
+                batch_size=config["data_params"]["batch_size"],
+                num_workers=config["data_params"]["num_workers"],
+                pin_memory=pin_memory,
+            )
+        
+        train_loader = load_data_from_df(df_train,
             set_train_transform(),
-            random_seed,
-            config["data_params"][f"batch_size"],
-            config["data_params"]["num_workers"],
-            pin_memory,
-            shuffle=True
+            shuffle=True,
+            **loader_kwargs
         )
 
         val_loader = load_data_from_df(
             df_val,
             set_test_transform(),
-            random_seed,
-            config["data_params"][f"batch_size"],
-            config["data_params"]["num_workers"],
-            pin_memory,
-            shuffle=False
+            shuffle=False,
+            **loader_kwargs
         )
 
         test_loader = load_data_from_df(
             df_test,
             set_test_transform(),
-            random_seed,
-            config["data_params"][f"batch_size"],
-            config["data_params"]["num_workers"],
-            pin_memory,
-            shuffle=False
+            shuffle=False,
+            **loader_kwargs
         )
         
         ##########################
@@ -126,11 +115,6 @@ if __name__ == '__main__':
         model.to(device)
 
         os.makedirs(config["logging_params"]["save_dir"], exist_ok=True)
-        
-        save_path = os.path.join(
-            config["logging_params"]["save_dir"], 
-            f'{model_name}_classifier{clean_dataset}_{method}{exp_suffix}.pth'
-        )
         save_path_best = os.path.join(
             config["logging_params"]["save_dir"], 
             f'{model_name}_classifier{clean_dataset}_{method}_best{exp_suffix}.pth'
@@ -225,8 +209,7 @@ if __name__ == '__main__':
                         num_epochs=epoch + 1
                     )
 
-            print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))
-            torch.save(model.state_dict(), save_path)         
+            print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))       
 
         else:
             model.load_state_dict(torch.load(save_path_best))
