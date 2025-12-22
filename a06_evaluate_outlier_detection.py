@@ -8,7 +8,7 @@ from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
 from outlier_detectors import get_outlier_detection_metrics, preprocess_latents_for_outlier_detection
-from utils import load_config, set_seed
+from utils import load_config, save_config, set_seed
 
 
 def select_best_outlier_detection_model(df_outliers):
@@ -92,11 +92,15 @@ if __name__ == '__main__':
                 mislabeled_cnn.astype(int),
                 seed=42
             )
-
             dfs_outliers.append(df_outliers_class)
 
         df_outliers = pd.concat(dfs_outliers, axis=1, keys=insect_classes)
         best_model = select_best_outlier_detection_model(df_outliers)
+        
+        config.setdefault("cleaning_strategies_params", {})
+        config["cleaning_strategies_params"].setdefault(strategy, {})
+        config['cleaning_strategies_params'][strategy]['best_outlier_detection']=best_model
+        save_config(config, "config.yaml")
         
         df_outliers.to_csv(os.path.join(csv_folder, f'{strategy}_outlier_metrics.csv'), index=False)
         print(f'Metrics for {strategy} are available')  

@@ -1,3 +1,10 @@
+cleaning_strategies_params:
+  adbench_2d:
+    best_outlier_detection: MCD
+  names:
+  - cnn
+  - adbench
+  - adbench_2d
 data_params:
   batch_size: 64
   data_classes:
