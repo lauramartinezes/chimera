@@ -13,25 +13,25 @@ if __name__ == '__main__':
 
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
-    method_datasets = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan'] 
+    cleaning_strategies = ['cnn', 'cnn_corrected_mislabels', 'cnn_no_od', 'adbench', 'adbench_2d', 'adbench_xd_hdbscan'] 
     subsets = ['train', 'val']
 
-    for method in method_datasets:
+    for strategy in cleaning_strategies:
         # Generate a df with rows for each insect class
         df_analysis = pd.DataFrame(index=insect_classes)
 
-        if 'cnn' in method and 'no_od' not in method:
+        if 'cnn' in strategy and 'no_od' not in strategy:
             od_methods = ['UmapHdbscanOD']  
-        elif method == 'adbench':
+        elif strategy == 'adbench':
             od_methods = ['ECOD']
-        elif 'adbench_2d' in method:
+        elif 'adbench_2d' in strategy:
             od_methods = ['MCD']
-        elif method == 'adbench_xd_hdbscan':
+        elif strategy == 'adbench_xd_hdbscan':
             od_methods = ['UmapHdbscanOD']
-        elif method == 'cnn_no_od':
+        elif strategy == 'cnn_no_od':
             od_methods = ['no_od']
 
-        print(f'Analyzing {method} method')
+        print(f'Analyzing {strategy} method')
         for od_method in od_methods:
             for i, main_insect_class in enumerate(insect_classes):
                 mislabeled_insect_class = insect_classes[1 - i]
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                     df_subset_path = os.path.join(
                         data_dir, 
                         'outliers', 
-                        f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv'
+                        f'df_{subset}_{strategy}_{main_insect_class}_{od_method}_outliers.csv'
                     )
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
                     df_subset_path = os.path.join(
                         data_dir, 
                         'outliers', 
-                        f'df_{subset}_{method}_{main_insect_class}_{od_method}_outliers.csv'
+                        f'df_{subset}_{strategy}_{main_insect_class}_{od_method}_outliers.csv'
                     )
                     df_subset = pd.read_csv(df_subset_path)
                     df_subsets.append(df_subset)
@@ -113,10 +113,10 @@ if __name__ == '__main__':
 
             data_analysis_path = os.path.join(config["logging_params"]["save_dir"], 'Conf_Mat_after_cleaning')
             os.makedirs(data_analysis_path, exist_ok=True)
-            df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{method}_{od_method}_train_val.csv'))
+            df_analysis.to_csv(os.path.join(data_analysis_path, f'df_analysis_{strategy}_{od_method}_train_val.csv'))
 
             for index, row in df_analysis.iterrows():
-                plot_conf_matrix_after_data_cleaning(row, index + f'_{od_method}_train_val', method, data_analysis_path)
+                plot_conf_matrix_after_data_cleaning(row, index + f'_{od_method}_train_val', strategy, data_analysis_path)
             
 
 
