@@ -1,10 +1,26 @@
-cleaning_strategies_params:
+cleaning_params:
+  adbench:
+    outlier_detection_method: ECOD
   adbench_2d:
-    best_outlier_detection: MCD
-  names:
-  - cnn
+    outlier_detection_method: MCD
+  adbench_xd_hdbscan:
+    outlier_detection_method: UmapHdbscanOD
+  cnn:
+    outlier_detection_method: UmapHdbscanOD
+  cnn_corrected_mislabels:
+    outlier_detection_method: UmapHdbscanOD
+  cnn_no_od:
+    outlier_detection_method: no_od
+  strategies:
   - adbench
   - adbench_2d
+  - adbench_xd_hdbscan
+  - cnn
+  - cnn_corrected_mislabels
+  - cnn_no_od
+  subsets:
+  - train
+  - val
 data_params:
   batch_size: 64
   data_classes:
