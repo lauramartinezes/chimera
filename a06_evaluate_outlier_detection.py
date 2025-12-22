@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import timm
 import torch
@@ -8,6 +9,17 @@ from datasets.load_data import load_data_from_df
 from models import extract_features
 from outlier_detectors import get_outlier_methods_csv, preprocess_latents_for_outlier_detection
 from utils import load_config, set_seed
+
+
+def select_best_outlier_detection_model(df_outliers):
+    eps = 1e-12  # avoid divide-by-zero
+    vals = df_outliers.select_dtypes(include="number").to_numpy()   # grabs aucroc/aucpr columns automatically
+    df_outliers[("overall", "harmonic_mean")] = vals.shape[1] / np.sum(1.0 / (vals + eps), axis=1)
+
+    model_col = df_outliers.select_dtypes(exclude="number").columns[0]
+    best_idx = df_outliers[("overall", "harmonic_mean")].idxmax()
+    best_model = df_outliers.loc[best_idx, model_col]
+    return best_model
 
 
 if __name__ == '__main__':
@@ -24,7 +36,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    cnn_types = ['cnn', 'adbench', 'adbench_2d']
+    cnn_types = ['adbench_2d']#['cnn', 'adbench', 'adbench_2d']
     subsets = ['train', 'val']
     
     model_cnn = timm.create_model(
@@ -33,16 +45,19 @@ if __name__ == '__main__':
     )
     model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
     model_cnn.eval()
-    
-    for i, main_insect_class in enumerate(insect_classes):
-        mislabeled_insect_class = insect_classes[1 - i]
 
-        for cnn_type in cnn_types:
-            if 'adbench' in cnn_type:
-                suffix = config["data_params"]["raw_suffix"]
-            else:
-                suffix = config["data_params"]["swap_suffix"]
-            
+    csv_folder = os.path.join(config["logging_params"]["save_dir"], 'OUTLIERS_CSVS')
+    os.makedirs(csv_folder, exist_ok=True)
+    
+    for cnn_type in cnn_types:
+        if 'adbench' in cnn_type:
+            suffix = config["data_params"]["raw_suffix"]
+        else:
+            suffix = config["data_params"]["swap_suffix"]
+        
+        dfs_outliers = []
+        for i, main_insect_class in enumerate(insect_classes):
+            mislabeled_insect_class = insect_classes[1 - i]
             dfs_subsets = []
             for subset in subsets:
                 df_subset_path = os.path.join(
@@ -71,14 +86,18 @@ if __name__ == '__main__':
 
             latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, cnn_type)
 
-            df_outliers = get_outlier_methods_csv(
+            df_outliers_class = get_outlier_methods_csv(
                 latents_cnn,
                 measurement_noise_cnn.astype(int),
                 mislabeled_cnn.astype(int),
-                f'{cnn_type}_{main_insect_class}_train',
-                dirname=config["logging_params"]["save_dir"],
                 seed=42
             )
- 
-            print(f'Metrics for {cnn_type} are available')  
+
+            dfs_outliers.append(df_outliers_class)
+
+        df_outliers = pd.concat(dfs_outliers, axis=1, keys=insect_classes)
+        best_model = select_best_outlier_detection_model(df_outliers)
+        
+        df_outliers.to_csv(os.path.join(csv_folder, f'{cnn_type}_outlier_metrics.csv'), index=False)
+        print(f'Metrics for {cnn_type} are available')  
 
