@@ -36,7 +36,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    cnn_types = ['adbench_2d']#['cnn', 'adbench', 'adbench_2d']
+    cleaning_strategies = ['cnn', 'adbench', 'adbench_2d']
     subsets = ['train', 'val']
     
     model_cnn = timm.create_model(
@@ -49,8 +49,8 @@ if __name__ == '__main__':
     csv_folder = os.path.join(config["logging_params"]["save_dir"], 'OUTLIERS_CSVS')
     os.makedirs(csv_folder, exist_ok=True)
     
-    for cnn_type in cnn_types:
-        if 'adbench' in cnn_type:
+    for strategy in cleaning_strategies:
+        if 'adbench' in strategy:
             suffix = config["data_params"]["raw_suffix"]
         else:
             suffix = config["data_params"]["swap_suffix"]
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 mislabeled_cnn
             ) = extract_features(loader, model_cnn) 
 
-            latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, cnn_type)
+            latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, strategy)
 
             df_outliers_class = get_outlier_detection_metrics(
                 latents_cnn,
@@ -98,6 +98,6 @@ if __name__ == '__main__':
         df_outliers = pd.concat(dfs_outliers, axis=1, keys=insect_classes)
         best_model = select_best_outlier_detection_model(df_outliers)
         
-        df_outliers.to_csv(os.path.join(csv_folder, f'{cnn_type}_outlier_metrics.csv'), index=False)
-        print(f'Metrics for {cnn_type} are available')  
+        df_outliers.to_csv(os.path.join(csv_folder, f'{strategy}_outlier_metrics.csv'), index=False)
+        print(f'Metrics for {strategy} are available')  
 
