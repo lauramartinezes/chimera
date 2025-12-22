@@ -9,7 +9,7 @@ from outlier_detectors.plot import plot_y_true_vs_y_od_pred_umap
 from outlier_detectors.utils import metric
 
 
-def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase="train", method='cnn', od_method='UmapHdbscanOD', seed=42):
+def clean_df(df, model, config, transform, pin_memory, main_insect_class, insect_classes, phase="train", method='cnn', od_method='UmapHdbscanOD', seed=42):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -101,7 +101,7 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
 
     # Remove samples whose predicted label does not coincide with the original one
     if f'noisy_label_classification' in df_no_outliers.columns:
-        reference_label = 0 if main_insect_class == 'wmv' else 1
+        reference_label = insect_classes.index(main_insect_class)
         df_good = df_no_outliers[df_no_outliers[f'noisy_label_classification'] == reference_label]
         df_mislabels = df_no_outliers[df_no_outliers[f'noisy_label_classification'] != reference_label]
         df_mislabels[f'noisy_label_classification'] = reference_label
@@ -115,9 +115,9 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
         
     return df_clean, df, metrics
 
-def clean_df_no_od(df, main_insect_class):
+def clean_df_no_od(df, main_insect_class, insect_classes):
     df['outlier_detected'] = False
-    reference_label = 0 if main_insect_class == 'wmv' else 1
+    reference_label = insect_classes.index(main_insect_class)
     df_good = df[df[f'noisy_label_classification'] == reference_label]
 
     return df_good, df, {}

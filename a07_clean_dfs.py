@@ -55,7 +55,8 @@ if __name__ == '__main__':
             if od_method == 'no_od':
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df_no_od(
                     df_train_val, 
-                    main_insect_class
+                    main_insect_class,
+                    insect_classes
                     )
             else:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
@@ -65,6 +66,7 @@ if __name__ == '__main__':
                     set_feature_extraction_transform(), 
                     pin_memory, 
                     main_insect_class, 
+                    insect_classes,
                     phase='train_val', 
                     method=strategy, 
                     od_method=od_method
