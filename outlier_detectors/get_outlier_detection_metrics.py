@@ -1,5 +1,3 @@
-import os
-
 import pandas as pd
 
 from outlier_detectors.PyOD import PYOD
@@ -12,11 +10,9 @@ def get_outlier_detection_metrics(X_train, measurement_noises,  label_noises, se
 
     metrics_list = []
     
-    models = ['SOS', 'IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF', #'AOM', aom considers scores from ensemble 
-        'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN',
-        'LMDD', 'LODA', 'LOF', #'LOCI', 'LSCP', 'MAD', loci takes a lifetime, lscp needs a detector list, MAD algorithm is just for univariate data. Got Data with 2 Dimensions
-        'MCD', 'PCA', 'SOD', 'DeepSVDD', #'VAE','AutoEncoder','XGBOD' xgbod also needs an estimator list for unsupervised
-        'MOGAAL'] #'ROD', 'SOGAAL' rod blocks the pc, sogaal there is a bug related to mismatching batch sizes in the lib
+    models = ['SOS', 'IForest', 'OCSVM', 'ABOD', 'CBLOF', 'COF',  
+        'COPOD', 'ECOD',  'FeatureBagging', 'HBOS', 'KNN', 'LMDD', 
+        'LODA', 'LOF', 'MCD', 'PCA', 'SOD', 'DeepSVDD', 'MOGAAL']
     
     for model in models:
         if model!='UmapHdbscanOD':
