@@ -7,7 +7,7 @@ from outlier_detectors.UmapHdbscanOD import UmapHdbscanOD
 from outlier_detectors.utils import metric
 
 
-def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, seed=42):
+def get_outlier_detection_metrics(X_train, measurement_noises,  label_noises, seed=42):
     y_train = measurement_noises + label_noises
 
     metrics_list = []

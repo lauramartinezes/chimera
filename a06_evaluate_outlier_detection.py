@@ -7,7 +7,7 @@ import torch
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
-from outlier_detectors import get_outlier_methods_csv, preprocess_latents_for_outlier_detection
+from outlier_detectors import get_outlier_detection_metrics, preprocess_latents_for_outlier_detection
 from utils import load_config, set_seed
 
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
             latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, cnn_type)
 
-            df_outliers_class = get_outlier_methods_csv(
+            df_outliers_class = get_outlier_detection_metrics(
                 latents_cnn,
                 measurement_noise_cnn.astype(int),
                 mislabeled_cnn.astype(int),
