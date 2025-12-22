@@ -40,8 +40,6 @@ if __name__ == '__main__':
     for strategy in cleaning_strategies:
         od_method = config['cleaning_params'][strategy]['outlier_detection_method']
         for i, main_insect_class in enumerate(insect_classes):
-            mislabeled_insect_class = insect_classes[1 - i]
-
             df_subsets = []
             for subset in subsets:
                 if 'adbench' in strategy:
