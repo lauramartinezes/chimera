@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import pandas as pd
 import timm
 import torch
@@ -13,8 +12,9 @@ from models import compute_accuracy, compute_predictions
 from utils import set_seed
 
 
-# Step 5: Plotting
-def plot_conf_matrix_after_swap(conf_matrix, subtitle=None, path='.'):
+# Plotting Confusion Matrix after swap
+def plot_conf_matrix_after_swap(df, all_predictions, insect_classes, subtitle=None, path='.'):
+    conf_matrix = build_extended_confusion_matrix(df, all_predictions, insect_classes)
     plt.figure(figsize=(10, 8))
 
     # Normalize the values row-wise for color scaling
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
     os.makedirs(conf_matrix_path, exist_ok=True)
 
-    all_confusion_matrices = []
+    dfs = []
 
     for subset in subsets:
         ##########################
@@ -183,11 +183,10 @@ if __name__ == '__main__':
             print(f"Prediction: {all_subset_predictions[0]}\nActual: {all_subset_actuals[0]}\nProbabilities: {all_subset_probs[0]}")
             print(f"Accuracy: {accuracy[0]}") 
         
-        conf_matrix = build_extended_confusion_matrix(df_subset, all_subset_predictions, insect_classes)
-        all_confusion_matrices.append(conf_matrix)
-
         df_subset['pred_label'] = all_subset_predictions
         df_subset['pred_probas'] = all_subset_probs
+
+        dfs.append(df_subset)
 
         for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
@@ -209,6 +208,12 @@ if __name__ == '__main__':
             df_out.to_csv(out_path, index=False)
     
     # Get total confusion matrix
-    conf_matrix_total = sum(all_confusion_matrices)
-    plot_conf_matrix_after_swap(conf_matrix_total, subtitle='total', path=conf_matrix_path)
+    df_all = pd.concat(dfs, ignore_index=True)
+    plot_conf_matrix_after_swap(
+        df_all, 
+        df_all['pred_label'].to_list(), 
+        insect_classes, 
+        subtitle='total', 
+        path=conf_matrix_path
+    )
 
