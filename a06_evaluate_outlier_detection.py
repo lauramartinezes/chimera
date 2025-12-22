@@ -1,5 +1,5 @@
 import os
-import numpy as np
+
 import pandas as pd
 import timm
 import torch
@@ -7,19 +7,8 @@ import torch
 from datasets import set_feature_extraction_transform
 from datasets.load_data import load_data_from_df
 from models import extract_features
-from outlier_detectors import get_outlier_detection_metrics, preprocess_latents_for_outlier_detection
+from outlier_detectors import get_outlier_detection_metrics, preprocess_latents_for_outlier_detection, select_best_outlier_detection_model
 from utils import load_config, save_config, set_seed
-
-
-def select_best_outlier_detection_model(df_outliers):
-    eps = 1e-12  # avoid divide-by-zero
-    vals = df_outliers.select_dtypes(include="number").to_numpy()   # grabs aucroc/aucpr columns automatically
-    df_outliers[("overall", "harmonic_mean")] = vals.shape[1] / np.sum(1.0 / (vals + eps), axis=1)
-
-    model_col = df_outliers.select_dtypes(exclude="number").columns[0]
-    best_idx = df_outliers[("overall", "harmonic_mean")].idxmax()
-    best_model = df_outliers.loc[best_idx, model_col]
-    return best_model
 
 
 if __name__ == '__main__':

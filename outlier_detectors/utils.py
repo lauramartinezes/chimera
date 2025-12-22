@@ -30,3 +30,14 @@ def preprocess_latents_for_outlier_detection(latents_cnn, cnn_type):
         return reducer_2_d.fit_transform(latents_cnn)
     else:
         return latents_cnn
+    
+
+def select_best_outlier_detection_model(df_outliers):
+    eps = 1e-12  # avoid divide-by-zero
+    vals = df_outliers.select_dtypes(include="number").to_numpy()   # grabs aucroc/aucpr columns automatically
+    df_outliers[("overall", "harmonic_mean")] = vals.shape[1] / np.sum(1.0 / (vals + eps), axis=1)
+
+    model_col = df_outliers.select_dtypes(exclude="number").columns[0]
+    best_idx = df_outliers[("overall", "harmonic_mean")].idxmax()
+    best_model = df_outliers.loc[best_idx, model_col]
+    return best_model
