@@ -33,13 +33,13 @@ if __name__ == '__main__':
     ##########################
     ### MODEL LOADING
     ##########################
-    model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
-    model.to(device)
-
     save_path_best = os.path.join(
         config["logging_params"]["save_dir"], 
         f'{model_name}_classifier_{raw_suffix}_best_initial.pth'
     )
+    
+    model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
+    model.to(device)
     
     if os.path.exists(save_path_best):
         model.load_state_dict(torch.load(save_path_best))
@@ -47,11 +47,7 @@ if __name__ == '__main__':
     else:
         print("Model not found")
 
-    conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
-    os.makedirs(conf_matrix_path, exist_ok=True)
-
     dfs = []
-
     for subset in subsets:
         ##########################
         ### DATA LOADING
@@ -118,6 +114,9 @@ if __name__ == '__main__':
             df_out.to_csv(out_path, index=False)
     
     # Get total confusion matrix
+    conf_matrix_path = os.path.join('logs', 'Conf_Mat_after_swap')
+    os.makedirs(conf_matrix_path, exist_ok=True)
+
     df_all = pd.concat(dfs, ignore_index=True)
     plot_conf_matrix_after_swap(
         df_all, 
