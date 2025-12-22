@@ -3,96 +3,10 @@ import pandas as pd
 import timm
 import torch
 import yaml
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-from datasets import set_test_transform
-from datasets.load_data import load_data_from_df
+from datasets import load_data_from_df, set_test_transform, plot_conf_matrix_after_swap
 from models import compute_accuracy, compute_predictions
 from utils import set_seed
-
-
-# Plotting Confusion Matrix after swap
-def plot_conf_matrix_after_swap(df, all_predictions, insect_classes, subtitle=None, path='.'):
-    conf_matrix = build_extended_confusion_matrix(df, all_predictions, insect_classes)
-    plt.figure(figsize=(10, 8))
-
-    # Normalize the values row-wise for color scaling
-    normalized = conf_matrix.div(conf_matrix.sum(axis=1), axis=0).fillna(0)
-
-    # Plot the heatmap with normalized colors but integer annotations
-    sns.heatmap(
-        normalized,
-        annot=conf_matrix,          # Show actual counts
-        fmt="d",                    # Format annotation as integer
-        cmap="Blues",
-        vmin=0, vmax=1              # Row-wise normalization is in [0,1]
-    )
-
-    plt.xticks(rotation=0)# 20, ha="right")  # Make x-axis labels easier to read
-    plt.yticks(rotation=0)               # Keep y-axis labels straight
-
-    plt.title(f"Confusion Matrix ({subtitle.title()})" if subtitle else "Confusion Matrix")
-    plt.xlabel("Predicted Class")
-    plt.ylabel("True Class and Nature")
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, f'confusion_matrix_{subtitle}.svg'))
-
-
-# Compute confusion matrix
-def build_extended_confusion_matrix(df, all_predictions, insect_classes):
-    true_cats, pred_cats = get_category_lists(insect_classes)
-    conf_matrix = pd.DataFrame(0, index=true_cats, columns=pred_cats)
-
-    for idx, row in df.iterrows():
-        true_cat = get_true_category(row, insect_classes)
-        pred_label = all_predictions[idx]
-        pred_cat = get_predicted_category(true_cat, pred_label, insect_classes)
-        if pred_cat in conf_matrix.columns:
-            conf_matrix.loc[true_cat, pred_cat] += 1
-    
-    return conf_matrix
-
-
-# Step 1: Define categories using df-consistent terminology
-def get_category_lists(insect_classes):
-    true_categories = []
-
-    # Add 'good' and 'mislabeled' categories for each real class
-    for i, cls in enumerate(insect_classes):
-        other_cls = insect_classes[1 - i]  # pick the other class
-        true_categories.append(f"{cls}_good")
-        true_categories.append(f"{cls}_labeled_as_{other_cls}")
-
-    # Add measurement noise categories
-    for cls in insect_classes:
-        true_categories.append(f"measurement_noise_labeled_as_{cls}")
-
-    
-    predicted_categories = insect_classes  # still only the predicted class names
-    return true_categories, predicted_categories
-
-
-# Step 2: Determine the true category of a sample   
-def get_true_category(row, insect_classes):
-    if row["measurement_noise"]:
-        cls = insect_classes[row["label"]]  # still uses original label
-        return f"measurement_noise_labeled_as_{cls}"
-
-    cls = insect_classes[row["label"]]
-    if row["mislabeled"]:
-        # Swap logic for mislabeled
-        if cls == insect_classes[0]:  # wmv mislabeled
-            return f"{insect_classes[1]}_labeled_as_{insect_classes[0]}"
-        else:  # v mislabeled
-            return f"{insect_classes[0]}_labeled_as_{insect_classes[1]}"
-    else:
-        return f"{cls}_good"
-
-
-# Step 3: Determine the predicted category based on classifier output and true nature
-def get_predicted_category(true_cat, pred_label, insect_classes):
-    return insect_classes[pred_label]
 
 
 if __name__ == '__main__':
@@ -130,7 +44,6 @@ if __name__ == '__main__':
         f'{model_name}_classifier_{raw_suffix}_best_initial.pth'
     )
     
-    # Load the model
     if os.path.exists(save_path_best):
         model.load_state_dict(torch.load(save_path_best))
         print("Model correctly loaded")
@@ -216,4 +129,3 @@ if __name__ == '__main__':
         subtitle='total', 
         path=conf_matrix_path
     )
-
