@@ -25,25 +25,40 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    cleaning_strategies = ['cnn', 'adbench', 'adbench_2d']
-    subsets = ['train', 'val']
+    cleaning_strategies = config['cleaning_params']['strategies']
+    subsets = config['cleaning_params']['subsets']
     
-    model_cnn = timm.create_model(
+    model = timm.create_model(
         config["model_params"]["name"], 
         pretrained=config["model_params"]["pretrained"]
     )
-    model_cnn = torch.nn.Sequential(*(list(model_cnn.children())[:-1]))
-    model_cnn.eval()
+    model = torch.nn.Sequential(*(list(model.children())[:-1]))
+    model.eval()
 
     csv_folder = os.path.join(config["logging_params"]["save_dir"], 'OUTLIERS_CSVS')
     os.makedirs(csv_folder, exist_ok=True)
     
     for strategy in cleaning_strategies:
+        # First assign od method to those where it is fixed
+        if 'no_od' in strategy:
+            config.setdefault("cleaning_params", {})
+            config["cleaning_params"].setdefault(strategy, {})
+            config['cleaning_params'][strategy]['best_outlier_detection'] = 'no_od'
+            save_config(config, "config.yaml")
+            continue
+
+        if ('cnn' in strategy and 'no_od' not in strategy) or (strategy == 'adbench_xd_hdbscan'):
+            config.setdefault("cleaning_params", {})
+            config["cleaning_params"].setdefault(strategy, {})
+            config['cleaning_params'][strategy]['best_outlier_detection'] = 'UmapHdbscanOD'
+            save_config(config, "config.yaml")
+            continue
+
         if 'adbench' in strategy:
             suffix = config["data_params"]["raw_suffix"]
         else:
             suffix = config["data_params"]["swap_suffix"]
-        
+            
         dfs_outliers = []
         for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
@@ -71,7 +86,7 @@ if __name__ == '__main__':
                 labels_cnn, 
                 measurement_noise_cnn, 
                 mislabeled_cnn
-            ) = extract_features(loader, model_cnn) 
+            ) = extract_features(loader, model) 
 
             latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, strategy)
 
@@ -84,11 +99,11 @@ if __name__ == '__main__':
             dfs_outliers.append(df_outliers_class)
 
         df_outliers = pd.concat(dfs_outliers, axis=1, keys=insect_classes)
-        best_model = select_best_outlier_detection_model(df_outliers)
+        best_od_method = select_best_outlier_detection_model(df_outliers)
         
-        config.setdefault("cleaning_strategies_params", {})
-        config["cleaning_strategies_params"].setdefault(strategy, {})
-        config['cleaning_strategies_params'][strategy]['best_outlier_detection']=best_model
+        config.setdefault("cleaning_params", {})
+        config["cleaning_params"].setdefault(strategy, {})
+        config['cleaning_params'][strategy]['outlier_detection_method']=best_od_method
         save_config(config, "config.yaml")
         
         df_outliers.to_csv(os.path.join(csv_folder, f'{strategy}_outlier_metrics.csv'), index=False)
