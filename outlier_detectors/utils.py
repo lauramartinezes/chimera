@@ -24,9 +24,9 @@ def metric(y_true, y_score, pos_label=1):
     return {'aucroc':aucroc, 'aucpr':aucpr}
 
 
-def preprocess_latents_for_outlier_detection(latents_cnn, cnn_type):
+def preprocess_latents_for_outlier_detection(latents_cnn, cnn_type, seed=42):
     if '2d' in cnn_type:
-        reducer_2_d = umap.UMAP(n_components=2, random_state=42, n_jobs=1)
+        reducer_2_d = umap.UMAP(n_components=2, random_state=seed, n_jobs=1)
         return reducer_2_d.fit_transform(latents_cnn)
     else:
         return latents_cnn
