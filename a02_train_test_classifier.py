@@ -84,7 +84,8 @@ if __name__ == '__main__':
                 pin_memory=pin_memory,
             )
         
-        train_loader = load_data_from_df(df_train,
+        train_loader = load_data_from_df(
+            df_train,
             set_train_transform(),
             shuffle=True,
             **loader_kwargs
