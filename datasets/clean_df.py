@@ -35,7 +35,7 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     umap_hdbscan_od = UmapHdbscanOD(
         main_class_name=main_insect_class, 
         save_dir=os.path.join(config["logging_params"]["save_dir"], "UMAP_HDBSCAN_Analysis", method),
-        seed=42
+        seed=seed
     )
 
     N = len(latents)
@@ -64,7 +64,7 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
     metrics = {}
     if od_method != 'UmapHdbscanOD':
         if method !='adbench':
-            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=42, n_jobs=1)
+            reducer_optimd = umap.UMAP(n_components=optimal_dim, random_state=seed, n_jobs=1)
             latents = reducer_optimd.fit_transform(latents)
         y_pred, metrics = get_outlier_predictions(
             latents,
