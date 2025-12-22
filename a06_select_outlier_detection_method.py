@@ -43,14 +43,14 @@ if __name__ == '__main__':
         if strategy == 'cnn_no_od':
             config.setdefault("cleaning_params", {})
             config["cleaning_params"].setdefault(strategy, {})
-            config['cleaning_params'][strategy]['best_outlier_detection'] = 'no_od'
+            config['cleaning_params'][strategy]['outlier_detection_method'] = 'no_od'
             save_config(config, "config.yaml")
             continue
 
         if strategy in ['cnn', 'cnn_corrected_mislabels', 'adbench_xd_hdbscan']:
             config.setdefault("cleaning_params", {})
             config["cleaning_params"].setdefault(strategy, {})
-            config['cleaning_params'][strategy]['best_outlier_detection'] = 'UmapHdbscanOD'
+            config['cleaning_params'][strategy]['outlier_detection_method'] = 'UmapHdbscanOD'
             save_config(config, "config.yaml")
             continue
 
