@@ -6,7 +6,7 @@ files_with_args=(
   "a02_train_test_classifier.py"
   "a03_prepare_data_swap_dfs.py"
   "a04_generate_umaps.py"
-  "a06_evaluate_outlier_detection.py"
+  "a06_select_outlier_detection_method.py"
   "a07_clean_dfs.py"
   "a08_analyze_meas_label_noise.py"
   "a02_train_test_classifier.py --experiments all_cases"
