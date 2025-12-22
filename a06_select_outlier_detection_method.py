@@ -40,14 +40,14 @@ if __name__ == '__main__':
     
     for strategy in cleaning_strategies:
         # First assign od method to those where it is fixed
-        if 'no_od' in strategy:
+        if strategy == 'cnn_no_od':
             config.setdefault("cleaning_params", {})
             config["cleaning_params"].setdefault(strategy, {})
             config['cleaning_params'][strategy]['best_outlier_detection'] = 'no_od'
             save_config(config, "config.yaml")
             continue
 
-        if ('cnn' in strategy and 'no_od' not in strategy) or (strategy == 'adbench_xd_hdbscan'):
+        if strategy in ['cnn', 'cnn_corrected_mislabels', 'adbench_xd_hdbscan']:
             config.setdefault("cleaning_params", {})
             config["cleaning_params"].setdefault(strategy, {})
             config['cleaning_params'][strategy]['best_outlier_detection'] = 'UmapHdbscanOD'
