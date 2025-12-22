@@ -36,7 +36,7 @@ if __name__ == '__main__':
     df_test_path = os.path.join(data_dir, f'df_test.csv')
     df_test = pd.read_csv(df_test_path)
 
-    # Resnet method
+    # Use model pretrained only on ImageNet
     model = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
     model = torch.nn.Sequential(*(list(model.children())[:-1]))
     model.eval()
