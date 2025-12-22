@@ -7,10 +7,7 @@ from outlier_detectors.UmapHdbscanOD import UmapHdbscanOD
 from outlier_detectors.utils import metric
 
 
-def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename=None, dirname=None, seed=42):
-    csv_folder = os.path.join(dirname, 'OUTLIERS_CSVS')
-    os.makedirs(csv_folder, exist_ok=True)
-
+def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, seed=42):
     y_train = measurement_noises + label_noises
 
     metrics_list = []
@@ -36,5 +33,4 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
 
         metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
         temp_metrics_df = pd.DataFrame(metrics_list)
-        temp_metrics_df.to_csv(os.path.join(csv_folder, f'{filename}_outlier_metrics.csv'), index=False)
     return temp_metrics_df
