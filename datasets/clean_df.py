@@ -9,7 +9,7 @@ from outlier_detectors.plot import plot_y_true_vs_y_od_pred_umap
 from outlier_detectors.utils import metric
 
 
-def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase="train", method='cnn', od_method='UmapHdbscanOD'):
+def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase="train", method='cnn', od_method='UmapHdbscanOD', seed=42):
     # Load the data
     loader = load_data_from_df(
         df,
@@ -70,6 +70,7 @@ def clean_df(df, model, config, transform, pin_memory, main_insect_class, phase=
             latents,
             y_true,
             model=od_method,
+            seed=seed
         )
 
     elif od_method == 'UmapHdbscanOD':
@@ -122,9 +123,9 @@ def clean_df_no_od(df, main_insect_class):
     return df_good, df, {}
 
 
-def get_outlier_predictions(X_train, y_train, model='MCD'):
+def get_outlier_predictions(X_train, y_train, model='MCD', seed=42):
     print(f'{model} outlier extraction')
-    pyod_model = PYOD(seed=42, model_name=model)
+    pyod_model = PYOD(seed=seed, model_name=model)
     pyod_model.fit(X_train, [])
     anomaly_scores = pyod_model.predict_score(X_train)
     metrics = metric(y_true=y_train, y_score=anomaly_scores, pos_label=1)
