@@ -10,10 +10,7 @@ from utils import load_config, set_seed
 
 if __name__ == '__main__':
     config = load_config("config.yaml")
-
-    # Set manual seed for reproducibility
-    random_seed = config["exp_params"]["manual_seed"]
-    set_seed(random_seed)
+    set_seed(config["exp_params"]["manual_seed"])
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
     device = config["trainer_params"]["device"]
@@ -23,14 +20,16 @@ if __name__ == '__main__':
     insect_classes = config["data_params"]["data_classes"]
     data_dir = config["data_params"]["splitted_data_dir"]
     
-    cleaning_strategies = ['cnn_corrected_mislabels', 'cnn_no_noise', 'cnn_no_od', 'cnn'
-                 'adbench', 'adbench_2d', 'adbench_xd_hdbscan']
-    subsets = ['train', 'val']
+    cleaning_strategies = config['cleaning_params']['strategies']
+    subsets = config['cleaning_params']['subsets']
 
     results = []
 
     # CNN model
-    model = timm.create_model(config["model_params"]["name"], pretrained=config["model_params"]["pretrained"])
+    model = timm.create_model(
+        config["model_params"]["name"], 
+        pretrained=config["model_params"]["pretrained"]
+    )
     model = torch.nn.Sequential(*(list(model.children())[:-1]))
     model.eval()
     print("Model correctly initialized")
@@ -39,6 +38,7 @@ if __name__ == '__main__':
     os.makedirs(os.path.join(data_dir, 'outliers'), exist_ok=True)
 
     for strategy in cleaning_strategies:
+        od_method = config['cleaning_params'][strategy]['outlier_detection_method']
         for i, main_insect_class in enumerate(insect_classes):
             mislabeled_insect_class = insect_classes[1 - i]
 
@@ -49,22 +49,14 @@ if __name__ == '__main__':
                 else:
                     df_subset_path = os.path.join(data_dir, f'df_{subset}_{swap_suffix}_{main_insect_class}.csv')
                 df_subset = pd.read_csv(df_subset_path)
-                if strategy == 'cnn_no_noise':
-                    df_subset = df_subset[(df_subset['mislabeled'] == False) & (df_subset['measurement_noise'] == False)]
                 df_subsets.append(df_subset)
             df_train_val = pd.concat(df_subsets, ignore_index=True)
-
-            if ('cnn' in strategy and 'no_od' not in strategy) or (strategy == 'adbench_xd_hdbscan'):
-                od_method = 'UmapHdbscanOD'
-            elif strategy == 'adbench':
-                od_method = 'ECOD'
-            elif 'adbench_2d' in strategy:
-                od_method = 'MCD'
-            elif strategy == 'cnn_no_od':
-                od_method = 'no_od'
             
             if od_method == 'no_od':
-                df_train_val_clean, df_train_val_outliers, metrics = clean_df_no_od(df_train_val, main_insect_class)
+                df_train_val_clean, df_train_val_outliers, metrics = clean_df_no_od(
+                    df_train_val, 
+                    main_insect_class
+                    )
             else:
                 df_train_val_clean, df_train_val_outliers, metrics = clean_df(
                     df_train_val, 
