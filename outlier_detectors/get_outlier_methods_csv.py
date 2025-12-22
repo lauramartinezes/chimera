@@ -37,3 +37,4 @@ def get_outlier_methods_csv(X_train, measurement_noises,  label_noises, filename
         metrics_list.append({'Model': model, 'aucroc': metrics['aucroc'], 'aucpr': metrics['aucpr']})
         temp_metrics_df = pd.DataFrame(metrics_list)
         temp_metrics_df.to_csv(os.path.join(csv_folder, f'{filename}_outlier_metrics.csv'), index=False)
+    return temp_metrics_df

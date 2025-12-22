@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
             latents_cnn = preprocess_latents_for_outlier_detection(latents_cnn, cnn_type)
 
-            get_outlier_methods_csv(
+            df_outliers = get_outlier_methods_csv(
                 latents_cnn,
                 measurement_noise_cnn.astype(int),
                 mislabeled_cnn.astype(int),
