@@ -7,12 +7,6 @@ def compute_accuracy(model, data_loader, device):
     correct_pred, num_examples = 0, 0
     correct_pred_class_0, correct_pred_class_1 = 0, 0
     num_examples_class_0, num_examples_class_1 = 0, 0
-    num_examples_measurement_noise_class_0, num_examples_measurement_noise_class_1 = 0, 0
-    num_examples_label_noise_class_0, num_examples_label_noise_class_1 = 0, 0
-    num_examples_good_class_0, num_examples_good_class_1 = 0, 0
-    correct_pred_measurement_noise_class_0, correct_pred_measurement_noise_class_1 = 0, 0
-    correct_pred_label_noise_class_0, correct_pred_label_noise_class_1 = 0, 0
-    correct_pred_good_class_0, correct_pred_good_class_1 = 0, 0
 
     for images, labels, measurement_noise, label_noise  in tqdm.tqdm(data_loader, desc="Computing accuracy", total=len(data_loader)):        
         images = images.to(device)
@@ -27,34 +21,16 @@ def compute_accuracy(model, data_loader, device):
         num_examples += labels.size(0)
         num_examples_class_0 += (labels == 0).sum()
         num_examples_class_1 += (labels == 1).sum()
-        num_examples_measurement_noise_class_0 += ((measurement_noise == True) & (labels == 0)).sum()
-        num_examples_measurement_noise_class_1 += ((measurement_noise == True) & (labels == 1)).sum()
-        num_examples_label_noise_class_0 += ((label_noise == True) & (labels == 0)).sum()
-        num_examples_label_noise_class_1 += ((label_noise == True) & (labels == 1)).sum()
-        num_examples_good_class_0 += ((label_noise == False) & (measurement_noise == False) & (labels == 0)).sum()
-        num_examples_good_class_1 += ((label_noise == False) & (measurement_noise == False) & (labels == 1)).sum()
 
         correct_pred += (predicted_labels == labels).sum()
         correct_pred_class_0 += ((predicted_labels == labels) & (labels == 0)).sum()
         correct_pred_class_1 += ((predicted_labels == labels) & (labels == 1)).sum()
-        correct_pred_measurement_noise_class_0 += ((predicted_labels == labels) & (measurement_noise == True) & (labels == 0)).sum()
-        correct_pred_measurement_noise_class_1 += ((predicted_labels == labels) & (measurement_noise == True) & (labels == 1)).sum()
-        correct_pred_label_noise_class_0 += ((predicted_labels == labels) & (label_noise == True) & (labels == 0)).sum()
-        correct_pred_label_noise_class_1 += ((predicted_labels == labels) & (label_noise == True) & (labels == 1)).sum()
-        correct_pred_good_class_0 += ((predicted_labels == labels) & (measurement_noise == False) & (label_noise == False) & (labels == 0)).sum()
-        correct_pred_good_class_1 += ((predicted_labels == labels) & (measurement_noise == False) & (label_noise == False) & (labels == 1)).sum()
-    
+        
     correct_pred_percent = correct_pred.float() / num_examples * 100
     correct_pred_class_0_percent = correct_pred_class_0.float() / num_examples_class_0 * 100
     correct_pred_class_1_percent = correct_pred_class_1.float() / num_examples_class_1 * 100
-    correct_pred_measurement_noise_class_0_percent = correct_pred_measurement_noise_class_0.float() / num_examples_measurement_noise_class_0 * 100
-    correct_pred_measurement_noise_class_1_percent = correct_pred_measurement_noise_class_1.float() / num_examples_measurement_noise_class_1 * 100
-    correct_pred_label_noise_class_0_percent = correct_pred_label_noise_class_0.float() / num_examples_label_noise_class_0 * 100
-    correct_pred_label_noise_class_1_percent = correct_pred_label_noise_class_1.float() / num_examples_label_noise_class_1 * 100
-    correct_pred_good_class_0_percent = correct_pred_good_class_0.float() / num_examples_good_class_0 * 100
-    correct_pred_good_class_1_percent = correct_pred_good_class_1.float() / num_examples_good_class_1 * 100
-
-    return correct_pred_percent, correct_pred_class_0_percent, correct_pred_class_1_percent, correct_pred_measurement_noise_class_0_percent, correct_pred_measurement_noise_class_1_percent, correct_pred_label_noise_class_0_percent, correct_pred_label_noise_class_1_percent, correct_pred_good_class_0_percent, correct_pred_good_class_1_percent
+    
+    return correct_pred_percent, correct_pred_class_0_percent, correct_pred_class_1_percent
 
 def compute_loss(model, data_loader, device, criterion=None, class_weights_tensor=None):
     epoch_loss = 0

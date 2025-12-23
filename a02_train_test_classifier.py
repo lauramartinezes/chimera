@@ -216,7 +216,7 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(save_path_best))
             model.eval()
             with torch.set_grad_enabled(False): # save memory during inference
-                (best_val_accuracy, _, _, _, _, _, _, _, _) = compute_accuracy(model, val_loader, device=device)
+                (best_val_accuracy, _, _) = compute_accuracy(model, val_loader, device=device)
                 print('Best Validation accuracy: %.2f%%' % best_val_accuracy)
 
         ##########################
