@@ -98,6 +98,6 @@ if __name__ == '__main__':
             results.append(metrics)
             df_results = pd.DataFrame(results)
             results_path = os.path.join(config["logging_params"]["save_dir"], 'df_best_od_evaluation.csv')
-            df_results.to_csv(results_path, mode='a', index=False, header=False)
+            df_results.to_csv(results_path, index=False)
             print('metrics: ', metrics)
             print('')
