@@ -2,11 +2,13 @@ import torch
 import torch.nn.functional as F
 import tqdm
 
+from collections import defaultdict
+
 
 def compute_accuracy(model, data_loader, device):
     correct_pred, num_examples = 0, 0
-    correct_pred_class_0, correct_pred_class_1 = 0, 0
-    num_examples_class_0, num_examples_class_1 = 0, 0
+    correct_pred_per_class = defaultdict(int)
+    num_examples_per_class = defaultdict(int)
 
     for images, labels, measurement_noise, label_noise  in tqdm.tqdm(data_loader, desc="Computing accuracy", total=len(data_loader)):        
         images = images.to(device)
@@ -18,19 +20,24 @@ def compute_accuracy(model, data_loader, device):
         probas = F.softmax(logits, dim=1)
         _, predicted_labels = torch.max(probas, 1)
 
+        correct_pred += (predicted_labels == labels).sum().item()
         num_examples += labels.size(0)
-        num_examples_class_0 += (labels == 0).sum()
-        num_examples_class_1 += (labels == 1).sum()
-
-        correct_pred += (predicted_labels == labels).sum()
-        correct_pred_class_0 += ((predicted_labels == labels) & (labels == 0)).sum()
-        correct_pred_class_1 += ((predicted_labels == labels) & (labels == 1)).sum()
         
-    correct_pred_percent = correct_pred.float() / num_examples * 100
-    correct_pred_class_0_percent = correct_pred_class_0.float() / num_examples_class_0 * 100
-    correct_pred_class_1_percent = correct_pred_class_1.float() / num_examples_class_1 * 100
+        for class_idx in labels.unique():
+            class_idx = class_idx.item()
+            class_mask = (labels == class_idx)
+
+            num_examples_per_class[class_idx] += class_mask.sum().item()
+            correct_pred_per_class[class_idx] += ((predicted_labels == labels) & class_mask).sum().item()
     
-    return correct_pred_percent, correct_pred_class_0_percent, correct_pred_class_1_percent
+    correct_pred_percent = correct_pred / num_examples * 100
+    
+    # Compute per-class accuracy
+    per_class_accuracy = {}
+    for class_idx in num_examples_per_class:
+        per_class_accuracy[class_idx] = 100.0 * correct_pred_per_class[class_idx] / num_examples_per_class[class_idx]
+
+    return correct_pred_percent, per_class_accuracy
 
 def compute_loss(model, data_loader, device, criterion=None, class_weights_tensor=None):
     epoch_loss = 0

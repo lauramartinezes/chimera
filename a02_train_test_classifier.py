@@ -161,7 +161,6 @@ if __name__ == '__main__':
                 (val_epoch_loss, test_epoch_loss, 
                  train_accuracy, val_accuracy, test_accuracy, 
                  lowest_val_class_accuracy) = validate_epoch(
-                        insect_classes,
                         model, 
                         train_loader, val_loader, test_loader, 
                         criterion, device, class_weights_tensor, 
@@ -216,7 +215,7 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(save_path_best))
             model.eval()
             with torch.set_grad_enabled(False): # save memory during inference
-                (best_val_accuracy, _, _) = compute_accuracy(model, val_loader, device=device)
+                (best_val_accuracy, _) = compute_accuracy(model, val_loader, device=device)
                 print('Best Validation accuracy: %.2f%%' % best_val_accuracy)
 
         ##########################
@@ -224,17 +223,21 @@ if __name__ == '__main__':
         ##########################
         # Load the best model
         model.load_state_dict(torch.load(save_path_best))
-        (test_accuracy, test_insect_0_accuracy, test_insect_1_accuracy, 
-        test_predictions, test_actuals, test_probs) = test_model(insect_classes, model, test_loader, device)
+        (test_accuracy, test_per_class_accuracy, 
+        test_predictions, test_actuals, test_probs) = test_model(model, test_loader, device)
 
-        results.append({
+        results_entry = {
             "clean_dataset": not(clean_dataset==''),
             "best_val_accuracy": round(best_val_accuracy, 2),
-            "test_accuracy": round(test_accuracy.item(), 2),
-            f"test_{insect_classes[0]}_accuracy": round(test_insect_0_accuracy.item(), 2),
-            f"test_{insect_classes[1]}_accuracy": round(test_insect_1_accuracy.item(), 2),
+            "test_accuracy": round(test_accuracy, 2),
             'method': f'{method}'
-        })
+        }
+        # Add per-class accuracy dynamically
+        for class_idx, acc in test_per_class_accuracy.items():
+            class_name = insect_classes[class_idx]
+            results_entry[f"test_{class_name}_accuracy"] = round(acc, 2)
+        results.append(results_entry)
+
         df_results = pd.DataFrame(results)
         only_test_results = '_only_test' if retrain_models==False else ''
         results_file_name = f'df_{model_name}_results{only_test_results}{exp_suffix}.csv'
