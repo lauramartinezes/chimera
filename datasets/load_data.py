@@ -13,7 +13,7 @@ def load_subset_df_classification(insect_classes, subset, method, od_method, roo
         df_subset_path = os.path.join(
             root_dir,
             'clean' if clean_dataset=='_clean' else '', 
-            f'df_{subset}_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}_{od_method}{clean_dataset}.csv'
+            f'df_{subset}_{method if method != "cleaning_benchmark" else "raw"}_{main_insect_class}{"_" if od_method!="" else ""}{od_method}{clean_dataset}.csv'
         )
         df_subset_i = pd.read_csv(df_subset_path)
         if method == 'cleaning_benchmark':
