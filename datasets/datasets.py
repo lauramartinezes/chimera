@@ -33,7 +33,7 @@ class NoisyImageDataset(Dataset):
         label = self.labels[idx]
         mislabeled = self.mislabeled[idx]  
         measurement_noise = self.measurement_noise[idx]
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")
 
         if self.transform:
             image = self.transform(image)
