@@ -3,7 +3,7 @@ import os
 import pandas as pd
 
 
-def get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class):
+def get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class, files_extension='*.png'):
     sample_configs = [
         {
             'folder': f'{main_insect_class}_good',
@@ -29,7 +29,7 @@ def get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class):
 
     for config in sample_configs:
         folder_path = os.path.join(data_dir, subset, main_insect_class, config['folder'])
-        filepaths = glob.glob(os.path.join(folder_path, '*.png'))
+        filepaths = glob.glob(os.path.join(folder_path, files_extension))
 
         df = pd.DataFrame({
             'label': config['label'],
@@ -42,11 +42,11 @@ def get_df_subset(data_dir, subset, main_insect_class, mislabeled_insect_class):
     return pd.concat(df_list, ignore_index=True)
 
 
-def get_df_test(classes, data_dir):
+def get_df_test(classes, data_dir, files_extension='*.png'):
     df_classes_test = []
     for i, cls in enumerate(classes):
         class_folder_test = os.path.join(data_dir, 'test', cls)
-        class_files_test = glob.glob(os.path.join(class_folder_test, '*.png'))
+        class_files_test = glob.glob(os.path.join(class_folder_test, files_extension))
 
         df_class_test = pd.DataFrame({
             'label': i,

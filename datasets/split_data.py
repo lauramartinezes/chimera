@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 
 
-def get_df(folder):
-    files = glob.glob(os.path.join(folder, '*.png'))
+def get_df(folder, files_extension='*.png'):
+    files = glob.glob(os.path.join(folder, files_extension))
     df = pd.DataFrame(files, columns=['filepath'])
     if 'phoneboxdata' in folder:
         df['platename'] = df.filepath.apply(lambda x: '_'.join(os.path.basename(x).split('_')[:-1]))
