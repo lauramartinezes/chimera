@@ -21,6 +21,8 @@ if __name__ == "__main__":
     dest_dir = os.path.join(root_dir, f"split_{'_'.join(map(str, split))}")
     config["data_params"]["splitted_data_dir"] = dest_dir
 
+    file_extension = config["data_params"]["file_extension"]
+
     save_config(config, "config.yaml")
 
     if is_dir_empty(dest_dir):
@@ -29,7 +31,7 @@ if __name__ == "__main__":
         class_file_dict = {}
         for insect_class in insect_classes:
             cls_path = os.path.join(src_dir, insect_class)
-            class_file_dict[insect_class] = glob.glob(os.path.join(cls_path, '*.png'))
+            class_file_dict[insect_class] = glob.glob(os.path.join(cls_path, file_extension))
 
         # Get the trash class path
         trash_path = os.path.join(src_dir, trash_class)
@@ -46,7 +48,7 @@ if __name__ == "__main__":
         # Split each insect class
         df_class_subsets = {}
         for insect_class in insect_classes:
-            df = get_df(os.path.join(src_dir, insect_class))
+            df = get_df(os.path.join(src_dir, insect_class), files_extension=file_extension)
             subset_split = [
                 split_result['train']['good'], 
                 split_result['train']['mislabel'], 
@@ -63,7 +65,7 @@ if __name__ == "__main__":
             print(df_subsets['subset'].value_counts())
 
         # Split trash class
-        df_trash = get_df(trash_path)
+        df_trash = get_df(trash_path, files_extension=file_extension)
         subset_trash_split = [
             split_result['train']['other'], 
             split_result['train']['other'], 
