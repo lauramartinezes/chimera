@@ -1,8 +1,8 @@
 cleaning_params:
   adbench:
-    outlier_detection_method: ECOD
-  adbench_2d:
     outlier_detection_method: MCD
+  adbench_2d:
+    outlier_detection_method: PCA
   adbench_xd_hdbscan:
     outlier_detection_method: UmapHdbscanOD
   cnn:
@@ -24,20 +24,22 @@ cleaning_params:
 data_params:
   batch_size: 64
   data_classes:
-  - wmv
-  - wrl
+  - Pullover
+  - Shirt
+  file_extension: '*.png'
+  image_size: 28
   nature_split:
   - 60
   - 20
   - 20
   num_workers: 0
-  original_data_dir: data/phoneboxdata
+  original_data_dir: data/fashionmnist
   raw_suffix: raw
   splitted_data_dir: data/split_60_20_20
   swap_suffix: swap
-  trash_class: not_insect
+  trash_class: Bag
 exp_params:
-  LR: 1.0e-05
+  LR: 0.0001
   manual_seed: 1
   weight_decay: 0.0
 logging_params:
