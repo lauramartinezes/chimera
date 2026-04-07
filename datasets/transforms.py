@@ -1,9 +1,9 @@
 from torchvision import transforms
 
 
-def set_train_transform():
+def set_train_transform(image_size=150):
     return transforms.Compose([
-        transforms.Resize(size=(150, 150), antialias=True),
+        transforms.Resize(size=(image_size, image_size), antialias=True),
         transforms.RandomVerticalFlip(p=0.5),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomAutocontrast(p=0.7),
@@ -15,8 +15,8 @@ def set_train_transform():
     ])
 
 
-def set_test_transform():
-    return set_inference_transform(150)
+def set_test_transform(image_size=150):
+    return set_inference_transform(image_size)
 
 
 def set_feature_extraction_transform():
