@@ -45,7 +45,7 @@ pip install -r requirements.txt
 ### 2.3 Using a Custom Dataset
 1. Organize the dataset into a directory with subfolders for each class
 2. Place your dataset inside the `data` directory 
-3. Modify the `config.yaml` with the dataset folder path, the names of the classes of interest, the name of the mesaurement noise class and the files extension.
+3. Modify the `config.yaml` to specify the dataset folder path, the names of the classes of interest, the name of the mesaurement noise class and the file extension
 4. Repeat steps 1 and 2 from Section 2.1
 
 ### *(Optional)*
