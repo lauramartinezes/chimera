@@ -76,7 +76,7 @@ Results will be stored in the `logs` folder
 2. Modify inside `config.yaml` the `data_params`:
     - `file_extension`
     - `original_data_dir`
-    - `data_classes` (classes of interest)
+    - `data_classes` (the classes of interest)
     - `trash_class` (measurement noise)
 
 3. Run:
@@ -89,3 +89,13 @@ To explore UMAP projections interactively:
 ```
 python a05_visualize_umaps_in_app.py
 ```
+
+## 📈 Results
+
+CHIMERA was evaluated on our insect dataset. Removing both measurement and label noise from the data improves model performance:
+
+| Dataset | Accuracy (Noisy) | Accuracy (Cleaned) |
+|---------|-----------------|------------------|
+| Insect  | 87.93%          | 90.52%           |
+
+For more detailed results, including UMAP visualizations and dataset statistics, see [RESULTS](results.md).
