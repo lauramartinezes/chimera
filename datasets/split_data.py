@@ -262,6 +262,12 @@ def calculate_custom_splits(total_samples, train_composition):
     total_used = train_counts['good'] + train_counts['mislabel'] + \
                  val_counts['good'] + val_counts['mislabel'] + \
                  test_counts['good']
+    
+    diff = total_samples - total_used
+    if diff != 0:
+        # Adjust train good count to fix any rounding issues
+        train_counts['good'] += diff
+        total_used += diff
 
     return {
         'train': train_counts,
