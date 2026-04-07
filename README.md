@@ -1,53 +1,91 @@
-# CHIMERA: Cleaning Heterogeneous Image Datasets from Measurement and Label Noise for Robust Classification Accuracy
+# CHIMERA: A Pipeline for Cleaning Noisy Image Datasets
+## 📚 Paper 
+[![Paper](https://img.shields.io/badge/Paper-SSRN-blue)](https://dx.doi.org/10.2139/ssrn.6169047)
+
+If you would like to cite this work or read the full details, please see:
+
+**CHIMERA: Cleaning Heterogeneous Image Datasets from Measurement and Label Noise for Robust Classification Accuracy**  
+📄 [https://dx.doi.org/10.2139/ssrn.6169047](https://dx.doi.org/10.2139/ssrn.6169047)
 
 
-## Abstract
-AI model performance relies on high-quality data, yet in agriculture, collecting large, clean datasets is challenging due to time-consuming acquisition and biological variability, making data cleaning fundamental. Traditional cleaning often focuses on measurement noise, corrupted or irrelevant inputs like artifacts or non-target objects that deviate from the valid data distribution and are therefore treated as outliers. Equally important is label noise, which arises when valid inputs are assigned labels inconsistent with their feature representations, manifesting as anomalies in the feature–label relationship rather than as statistical outliers. Although both noise types have been widely studied, they are typically handled independently, making a unified strategy essential. We propose CHIMERA (Cleaning Heterogeneous Image Datasets from Measurement and Label Noise for Robust Classification Accuracy), a framework that detects and separates measurement and label noise in image classification, discarding the former and flagging the latter for relabelling. CHIMERA begins by fine-tuning a pretrained network on the noisy samples to generate predicted labels, assumed to better reflect ground truth. Based on these labels, samples are grouped and processed via feature extraction and outlier detection. Detected outliers are deemed measurement noise, while inliers with mismatched predicted and original labels are flagged as label noise. Using an insect classification task for pest monitoring, we demonstrate how CHIMERA improves dataset quality and classification performance, achieving 90.52% accuracy, compared to 87.93% on the noisy dataset. By disentangling measurement and label noise, CHIMERA provides a practical approach to clean image datasets, enhancing the robustness of models in resource-constrained agricultural settings. 
+## 🔍 What is CHIMERA?
 
-## 1. Installation
-Create a conda environment and activate it
+CHIMERA is a pipeline for cleaning image datasets by separating:
+- **Measurement noise** (bad images, artifacts)
+- **Label noise** (mislabelled images)
+
+It helps improve dataset quality and model performance with minimal manual effort.
+
+## 💡 Getting Started
+CHIMERA supports multiple dataset workflows. Choose the one that fits your case:
+
+- [Run with FashionMNIST Dataset](#a-fashionmnist-dataset)  
+- [Run with Insect Dataset](#b-insect-dataset)  
+- [Run with a Custom Dataset](#c-custom-dataset)
+
+> Tip: If you are unsure, start with FashionMNIST as it is the quickest way to test the pipeline.
+
+
+## 📦 Installation
+### 1. Create a conda environment
 ```
-conda create -n stickyod python=3.10.8
-conda activate stickyod
+conda create -n chimera python=3.10.8
+conda activate chimera
 ```
 
-Add pytorch library (with GPU) to your environment (if the command below does not work follow the instructions in https://pytorch.org/get-started/locally/)
+### 2. Install Pytorch (with GPU) 
 ```
 conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
 ```
+If this fails, follow the instructions on the official [PyTorch website](https://pytorch.org/get-started/locally/).
 
-Next, install pip and the jupyter notebook related libraries
-```
-conda install pip jupyterlab ipython ipywidgets nb_conda_kernels ipykernel
-```
-
-and, to install the remaining libraries, run 
+### 3. Install additional dependencies
 ```
 pip install -r requirements.txt
 ```
 
-## 2. How-to
-### 2.1 Using the FashionMNIST Dataset
-1. Run the bash script `run_pipeline.sh` from terminal
+## 🚀 Usage
+### A) FashionMNIST Dataset
+Run the bash script `run_pipeline.sh` from terminal
+```
+bash run_pipeline.sh
+```
+
+Results will be stored in the `logs` folder
+### B) Insect Dataset
+1. Contact wouter.saeys@kuleuven.be to get access to the `phoneboxdata` and the `split_60_20_20` folders
+    - [`phoneboxdata`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/phoneboxdata?csf=1&web=1&e=dFP3tJ)
+   - [`split_60_20_20`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/split_60_20_20?csf=1&web=1&e=to8rQM)
+2. Place both folders inside the `data/` directory
+3. Rename `config_phonebox.yaml` to `config.yaml`
+4. Run:
     ```
     bash run_pipeline.sh
     ```
 
-2. Check the  results stored in the `logs` folder
-### 2.2 Using the Phonebox Dataset
-1. Contact wouter.saeys@kuleuven.be to get access to the `phoneboxdata` and the `split_60_20_20` folders
-    - [`phoneboxdata`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/phoneboxdata?csf=1&web=1&e=dFP3tJ)
-   - [`split_60_20_20`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/split_60_20_20?csf=1&web=1&e=to8rQM)
-2. Add the two folders to the `data` directory
-3. Rename `config_phonebox.yaml` to `config.yaml`
-4. Repeat steps 1 and 2 from Section 2.1
+### C)  Custom Dataset
+1. Organize your dataset:
+    ```python
+    data/
+    your_dataset/
+        class_a/
+        class_b/
+        class_trash/ # this will be your measurement noise
+        ...
+    ```
+2. Modify inside `config.yaml` the `data_params`:
+    - `file_extension`
+    - `original_data_dir`
+    - `data_classes` (classes of interest)
+    - `trash_class` (measurement noise)
 
-### 2.3 Using a Custom Dataset
-1. Organize the dataset into a directory with subfolders for each class
-2. Place your dataset inside the `data` directory 
-3. Modify the `config.yaml` with the dataset folder path, the names of the classes of interest, the name of the mesaurement noise class and the files extension.
-4. Repeat steps 1 and 2 from Section 2.1
+3. Run:
+    ```
+    bash run_pipeline.sh
+    ```
+### 📊 Visualization (Optional)
 
-### *(Optional)*
-
-To look at the umap projections in an interactive manner, run `a05_visualize_umaps_in_app.py`
+To explore UMAP projections interactively:
+```
+python a05_visualize_umaps_in_app.py
+```
