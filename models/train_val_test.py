@@ -8,6 +8,8 @@ def train_epoch(model, train_loader, optimizer, criterion, device, case, epoch, 
     model.train()
     epoch_loss = 0
     for batch_idx, (images, labels, _, _) in enumerate(train_loader):
+        if images.shape[0] == 1: # skip batches of size 1
+            continue
         images = images.to(device)
         labels = labels.to(device)
             
