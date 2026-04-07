@@ -86,21 +86,21 @@ if __name__ == '__main__':
         
         train_loader = load_data_from_df(
             df_train,
-            set_train_transform(),
+            set_train_transform(image_size=config["data_params"]["image_size"]),
             shuffle=True,
             **loader_kwargs
         )
 
         val_loader = load_data_from_df(
             df_val,
-            set_test_transform(),
+            set_test_transform(image_size=config["data_params"]["image_size"]),
             shuffle=False,
             **loader_kwargs
         )
 
         test_loader = load_data_from_df(
             df_test,
-            set_test_transform(),
+            set_test_transform(image_size=config["data_params"]["image_size"]),
             shuffle=False,
             **loader_kwargs
         )

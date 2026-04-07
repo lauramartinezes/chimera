@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
         loader = load_data_from_df(
             df_subset,
-            set_test_transform(),
+            set_test_transform(image_size=config["data_params"]["image_size"]),
             config["exp_params"]["manual_seed"],
             config["data_params"][f"batch_size"],
             config["data_params"]["num_workers"],
