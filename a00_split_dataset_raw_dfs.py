@@ -47,25 +47,33 @@ if __name__ == "__main__":
         df_class_subsets = {}
         for insect_class in insect_classes:
             df = get_df(os.path.join(src_dir, insect_class))
-            df_subsets, summary = get_df_subsets(df, [
+            subset_split = [
                 split_result['train']['good'], 
                 split_result['train']['mislabel'], 
                 split_result['test']['good'], 
                 split_result['validation']['good'], 
                 split_result['validation']['mislabel']
-            ])
+            ]
+            if 'phoneboxdata' in src_dir:
+                df_subsets, summary = get_df_subsets(df, subset_split)
+            else:
+                df_subsets, summary = split_df_by_counts_with_summary(df, subset_split, seed=config["exp_params"]["manual_seed"])
             df_class_subsets[insect_class] = df_subsets
             print(f'Assignment summary for {insect_class}: {summary}')
             print(df_subsets['subset'].value_counts())
 
         # Split trash class
         df_trash = get_df(trash_path)
-        df_trash_subsets, summary_trash = get_df_subsets(df_trash, [
+        subset_trash_split = [
             split_result['train']['other'], 
             split_result['train']['other'], 
             split_result['validation']['other'], 
             split_result['validation']['other']
-        ])
+        ]
+        if 'phoneboxdata' in src_dir:
+            df_trash_subsets, summary_trash = get_df_subsets(df_trash, subset_trash_split)
+        else:
+            df_trash_subsets, summary_trash = split_df_by_counts_with_summary(df_trash, subset_trash_split, seed=config["exp_params"]["manual_seed"])
         print(f'Assignment summary for {trash_class}: {summary_trash}')
         print(df_trash_subsets['subset'].value_counts())
 

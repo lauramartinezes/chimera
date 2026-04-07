@@ -10,11 +10,13 @@ import pandas as pd
 def get_df(folder):
     files = glob.glob(os.path.join(folder, '*.png'))
     df = pd.DataFrame(files, columns=['filepath'])
-    df['platename'] = df.filepath.apply(lambda x: '_'.join(os.path.basename(x).split('_')[:-1]))
-    df['year'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[0])
-    df['location'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[1])
-    df['week'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[2])
-
+    if 'phoneboxdata' in folder:
+        df['platename'] = df.filepath.apply(lambda x: '_'.join(os.path.basename(x).split('_')[:-1]))
+        df['year'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[0])
+        df['location'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[1])
+        df['week'] = df.filepath.apply(lambda x: os.path.basename(x).split('_')[2])
+    else:
+        df['platename'] = df.filepath.apply(lambda x: os.path.basename(x))
     return df
 
 def determine_min_class_size(class_file_dict):
@@ -171,6 +173,45 @@ def handle_excess_samples(df_with_subsets, assignment_summary, targets, strategy
     df_adjusted = pd.concat(subset_dfs, ignore_index=True)
 
     return df_adjusted
+
+def split_df_by_counts_with_summary(df, counts, seed=42, subset_col="subset"):
+    """
+    Randomly splits rows into subsets with exact row counts.
+    Returns (df_subsets, summary_df) in the same style as your other function.
+    """
+    n = len(df)
+    counts = list(map(int, counts))
+
+    if sum(counts) > n:
+        raise ValueError(f"counts must sum to len(df)={n}, got sum(counts)={sum(counts)}")
+
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(df.index.to_numpy())
+
+    labels = np.ones(n, dtype=int) * -1  # initialize with -1 for unassigned
+    start = 0
+    for k, c in enumerate(counts):
+        labels[start:start+c] = k
+        start += c
+
+    df_subsets = df.copy()
+    df_subsets[subset_col] = pd.Series(labels, index=idx).reindex(df.index).astype(int)
+
+    # summary in your style
+    summary_rows = []
+    for k, target in enumerate(counts):
+        subset_idx = df_subsets.index[df_subsets[subset_col] == k].to_list()
+        actual = len(subset_idx)
+        summary_rows.append({
+            "Subset": f"Subset {k+1}",
+            "Values": ", ".join(map(str, subset_idx)),   # analogous to your "Values" field
+            "Actual Samples": actual,
+            "Target Samples": target,
+            "Deviation": abs(actual - target),
+        })
+
+    summary_df = pd.DataFrame(summary_rows)
+    return df_subsets, summary_df
 
 def get_df_subsets(df, targets, random_seed=42):
     df_with_subsets, assignment_summary = split_column_with_simulated_annealing(df, 'platename', targets, random_seed=random_seed)
