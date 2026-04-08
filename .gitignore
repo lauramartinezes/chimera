@@ -137,12 +137,20 @@ dmypy.json
 *.mat
 *.npy
 *.csv
+*.gz
+*.zip
+*ubyte
+*-py
+*.svg
 
 wandb/*
 output/*
-data/*
 outputs/*
 logs*
 zz_history_logs/*
 
 run_pipeline_hook.sh
+
+!image/**
+!data/*.zip
+
