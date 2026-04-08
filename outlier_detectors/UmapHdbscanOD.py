@@ -10,8 +10,6 @@ class UmapHdbscanOD:
     def __init__(self, main_class_name=None, save_dir=None, seed=42):
         self.main_class_name = main_class_name
         self.save_dir = save_dir
-        if save_dir:
-            os.makedirs(save_dir, exist_ok=True)
         self.seed = seed
 
     def find_optimal_params(self, data, dims=[2 ** i for i in range(1, 9)],
@@ -52,6 +50,7 @@ class UmapHdbscanOD:
             best_dim, best_mcs, best_ms = [int(x) for x in scores[best_idx, :3]]
 
         if self.save_dir:
+            os.makedirs(self.save_dir, exist_ok=True)
             self._plot_scores(scores, dims, min_cluster_size_values, min_samples_values, best_dim, best_mcs, best_ms)
             self._plot_final_clusters(data, best_dim, best_mcs, best_ms)
 
