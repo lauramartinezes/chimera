@@ -142,7 +142,7 @@ wandb/*
 output/*
 data/*
 outputs/*
-logs/*
+logs*
 zz_history_logs/*
 
 run_pipeline_hook.sh
