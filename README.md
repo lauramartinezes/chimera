@@ -16,7 +16,7 @@ CHIMERA is a pipeline for cleaning image datasets by separating:
 
 It helps improve dataset quality and model performance with minimal manual effort.
 
-## 💡 Getting Started
+## 🚀 Getting Started
 CHIMERA supports multiple dataset workflows. Choose the one that fits your case:
 
 - [Run with FashionMNIST Dataset](#a-fashionmnist-dataset)  
@@ -43,8 +43,36 @@ If this fails, follow the instructions on the official [PyTorch website](https:/
 ```
 pip install -r requirements.txt
 ```
+## 🧠 Overview
 
-## 🚀 Usage
+![CHIMERA Pipeline](images/pipeline_diagram.svg)
+
+## 🧹 Data Cleaning Strategies
+
+The pipeline supports multiple cleaning strategies, including CHIMERA and several baseline or variant methods that can be configured in `config.yaml`.
+
+### Available strategies
+
+- `cnn` (CHIMERA)  
+  This is the main method proposed in the paper. It combines CNN-based feature extraction, outlier detection, and label consistency checks to identify measurement and label noise.
+
+- `cnn_corrected_mislabels`  
+  Extension of CHIMERA where detected label noise is automatically corrected instead of only being flagged.
+
+- `cnn_no_od`  
+  Variant of CHIMERA without the outlier detection step.
+
+- `adbench`  
+  Applies anomaly detection using the ADBench framework.
+
+- `adbench_2d`  
+  Applies anomaly detection in a 2D projected feature space.
+
+- `adbench_xd_hdbscan`  
+  Applies anomaly detection in high-dimensional space combined with HDBSCAN clustering.
+
+
+## ⚡ Usage
 ### A) FashionMNIST Dataset
 Run the bash script `run_pipeline.sh` from terminal
 ```
