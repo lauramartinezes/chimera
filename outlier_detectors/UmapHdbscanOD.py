@@ -106,7 +106,6 @@ class UmapHdbscanOD:
         ax.set_title(f"HDBSCAN in 2D UMAP (Dim={best_dim}, mcs={best_mcs}, ms={best_ms})")
         ax.axis('off')
 
-        fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Final_HDBSCAN_2D.png"))
         fig.savefig(os.path.join(self.save_dir, f"{self.main_class_name}_Final_HDBSCAN_2D.svg"))
 
 

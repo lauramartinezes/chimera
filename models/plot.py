@@ -57,9 +57,7 @@ def plot_probability_distribution(probs, true_labels, start=0.5, end=1.0, step=0
     plt.xlim(start - half_step, end + half_step)
     plt.legend()
     plt.grid(True)
-    png_path = os.path.join(save_path, f'{filename_suffix}_prob_distribution_{clean_dataset}_{method}.png')
     svg_path = os.path.join(save_path, f'{filename_suffix}_prob_distribution_{clean_dataset}_{method}.svg')
-    plt.savefig(png_path)
     plt.savefig(svg_path)
     plt.close()
 
@@ -116,10 +114,8 @@ def plot_prediction_confidence_by_predicted_class(probs, start=0.5, end=1.0, ste
     # 7. Save if path provided
     if save_path:
         os.makedirs(save_path, exist_ok=True)
-        png_path = os.path.join(save_path, f'{filename_suffix}_confidence_by_predicted_class_{clean_dataset}_{method}.png')
         svg_path = os.path.join(save_path, f'{filename_suffix}_confidence_by_predicted_class_{clean_dataset}_{method}.svg')
-        plt.savefig(png_path)
         plt.savefig(svg_path)
-        print(f"Saved to {png_path} and {svg_path}")
+        print(f"Saved to {svg_path}")
     else:
         plt.show()
