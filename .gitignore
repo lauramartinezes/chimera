@@ -133,7 +133,6 @@ dmypy.json
 *.png
 *.parquet
 *.pth.tar
-*.svg
 *.pkl
 *.mat
 *.npy
