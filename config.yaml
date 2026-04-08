@@ -2,7 +2,7 @@ cleaning_params:
   adbench:
     outlier_detection_method: MCD
   adbench_2d:
-    outlier_detection_method: PCA
+    outlier_detection_method: MCD
   adbench_xd_hdbscan:
     outlier_detection_method: UmapHdbscanOD
   cnn:
@@ -24,8 +24,8 @@ cleaning_params:
 data_params:
   batch_size: 64
   data_classes:
-  - Pullover
-  - Shirt
+  - T-shirt
+  - Coat
   file_extension: '*.png'
   image_size: 28
   nature_split:
