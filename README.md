@@ -126,4 +126,4 @@ CHIMERA was evaluated on our insect dataset. Removing both measurement and label
 |---------|-----------------|------------------|
 | Insect  | 87.93%          | 90.52%           |
 
-For more detailed results, including UMAP visualizations and dataset statistics, see [RESULTS](results.md).
+For more detailed results, see [RESULTS](Results.md).

@@ -5,6 +5,8 @@ The following results illustrate the outputs produced by CHIMERA when applied to
 - [FashionMNIST](#a-fashionmnist)
 - [Insect Dataset](#b-insect-dataset)
 ### A) FashionMNIST
+We consider a binary classification setting with classes **T-shirt (l_n=1)** and **Coat (l_n=2)**. The following results illustrate the different stages of the CHIMERA pipeline on this dataset.
+
 #### Predicted Label generation output
 <p align="center">
 <img src="images/fashionmnist/confusion_matrix_total.svg" width="500">
@@ -45,6 +47,8 @@ The following results illustrate the outputs produced by CHIMERA when applied to
 | Clean Data Benchmark                         | 98.71%       | 98.97%         | 98.45%         |
 
 ### B) Insect Dataset
+We consider a binary classification setting with classes **chicory-leaf miner fly (wmv, l_n=1)** and **carrot fly (wrl, l_n=2)**. The following results illustrate the different stages of the CHIMERA pipeline on this dataset.
+
 #### Predicted Label generation output 
 <p align="center">
 <img src="images/phonebox/confusion_matrix_total.svg" width="500">
