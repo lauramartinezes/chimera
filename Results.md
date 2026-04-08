@@ -2,21 +2,21 @@
 ### A) FashionMNIST
 - **Predicted Label generation output**
 <p align="center">
-<img src="images\fashionmnist\confusion_matrix_total.svg" width="500">
+<img src="images/fashionmnist/confusion_matrix_total.svg" width="500">
 </p>
 
 - **Outlier Detection output**
 <p align="center">
-<img src="images\fashionmnist\true_vs_pred_cnn_T-shirt_train_val_UmapHdbscanOD.svg" width="90%">
+<img src="images/fashionmnist/true_vs_pred_cnn_T-shirt_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 <p align="center">
-<img src="images\fashionmnist\true_vs_pred_cnn_Coat_train_val_UmapHdbscanOD.svg" width="90%">
+<img src="images/fashionmnist/true_vs_pred_cnn_Coat_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 
 - **Overall Noise detections**
 <p align="center">
-  <img src="images\fashionmnist\confusion_matrix_cnn_T-shirt_UmapHdbscanOD_train_val.svg" width="45%">
-  <img src="images\fashionmnist\confusion_matrix_cnn_Coat_UmapHdbscanOD_train_val.svg" width="45%">
+  <img src="images/fashionmnist/confusion_matrix_cnn_T-shirt_UmapHdbscanOD_train_val.svg" width="45%">
+  <img src="images/fashionmnist/confusion_matrix_cnn_Coat_UmapHdbscanOD_train_val.svg" width="45%">
 </p>
 
 - **Classification Performance for the different cleaning strategies**
@@ -33,21 +33,21 @@
 ### B) Insect Dataset
 - **Predicted Label generation output**
 <p align="center">
-<img src="images\phonebox\confusion_matrix_total.svg" width="500">
+<img src="images/phonebox/confusion_matrix_total.svg" width="500">
 </p>
 
 - **Outlier Detection output**
 <p align="center">
-<img src="images\phonebox\true_vs_pred_cnn_wmv_train_val_UmapHdbscanOD.svg" width="90%">
+<img src="images/phonebox/true_vs_pred_cnn_wmv_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 <p align="center">
-<img src="images\phonebox\true_vs_pred_cnn_wrl_train_val_UmapHdbscanOD.svg" width="90%">
+<img src="images/phonebox/true_vs_pred_cnn_wrl_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 
 - **Overall Noise detections**
 <p align="center">
-  <img src="images\phonebox\confusion_matrix_cnn_wmv_UmapHdbscanOD_train_val.svg" width="45%">
-  <img src="images\phonebox\confusion_matrix_cnn_wrl_UmapHdbscanOD_train_val.svg" width="45%">
+  <img src="images/phonebox/confusion_matrix_cnn_wmv_UmapHdbscanOD_train_val.svg" width="45%">
+  <img src="images/phonebox/confusion_matrix_cnn_wrl_UmapHdbscanOD_train_val.svg" width="45%">
 </p>
 
 - **Classification Performance for the different cleaning strategies**
