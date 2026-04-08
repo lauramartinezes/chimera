@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
     pin_memory = len(config['trainer_params']['gpus']) != 0
     data_dir = config["data_params"]["splitted_data_dir"]
+    original_dataset = config["data_params"]["original_data_dir"]
     insect_classes = config["data_params"]["data_classes"] 
     model_name = config["model_params"]["name"] 
     device = config["trainer_params"]["device"]
@@ -84,9 +85,10 @@ if __name__ == '__main__':
                 pin_memory=pin_memory,
             )
         
+        augmentation = True if 'phonebox' in original_dataset else False
         train_loader = load_data_from_df(
             df_train,
-            set_train_transform(image_size=config["data_params"]["image_size"]),
+            set_train_transform(image_size=config["data_params"]["image_size"], insect_augmentation=augmentation),
             shuffle=True,
             **loader_kwargs
         )
