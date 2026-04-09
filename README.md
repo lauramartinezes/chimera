@@ -118,8 +118,6 @@ The pipeline supports multiple cleaning strategies, including CHIMERA and severa
     Results will be stored in the `logs` folder
 ### B) Insect Dataset
 1. Contact wouter.saeys@kuleuven.be to get access to the `phoneboxdata` and the `split_60_20_20` folders
-    - [`phoneboxdata`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/phoneboxdata?csf=1&web=1&e=dFP3tJ)
-   - [`split_60_20_20`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/split_60_20_20?csf=1&web=1&e=to8rQM)
 2. Place both folders inside the `data/` directory
 3. Rename `config_phonebox.yaml` to `config.yaml`
 4. Run:
