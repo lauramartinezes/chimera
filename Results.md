@@ -1,4 +1,4 @@
-## 📈 Results
+## 🔍 Results
 The following results illustrate the outputs produced by CHIMERA when applied to the FashionMNIST and Insect datasets. They showcase the different stages of the pipeline, including predicted label generation, outlier detection, and final noise identification.
 
 ### Datasets
