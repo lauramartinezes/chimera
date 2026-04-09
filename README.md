@@ -30,7 +30,7 @@
   <!-- Third row: Citation text -->
   <tr>
     <td colspan="2" align="left">
-      If you would like to cite this work or read the full details, please see:<br>
+      To cite this work or read the full details, please see:<br>
       📄 <a href="https://dx.doi.org/10.2139/ssrn.6169047">https://dx.doi.org/10.2139/ssrn.6169047</a>
     </td>
   </tr>
