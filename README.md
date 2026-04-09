@@ -97,13 +97,13 @@ The pipeline supports multiple cleaning strategies, including CHIMERA and severa
   Variant of CHIMERA without the outlier detection step.
 
 - `adbench`  
-  Applies anomaly detection using the ADBench framework.
+  Applies anomaly detection using the [ADBench](https://github.com/Minqi824/ADBench) framework.
 
 - `adbench_2d`  
-  Applies anomaly detection in a 2D projected feature space.
+  Applies anomaly detection in a 2D UMAP feature space.
 
 - `adbench_xd_hdbscan`  
-  Applies anomaly detection in high-dimensional space combined with HDBSCAN clustering.
+  Applies anomaly detection in an x-dimensional UMAP feature space combined with HDBSCAN clustering.
 
 
 ## ⚡ Usage
