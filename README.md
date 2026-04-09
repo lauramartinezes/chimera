@@ -1,25 +1,39 @@
 # CHIMERA: A Pipeline for Cleaning Noisy Image Datasets
 ## 📚 Paper 
-[![Paper](https://img.shields.io/badge/Paper-SSRN-blue)](https://dx.doi.org/10.2139/ssrn.6169047)
+<table>
+  <!-- First row: Paper badge -->
+  <tr>
+    <td colspan="2" align="left">
+      <a href="https://dx.doi.org/10.2139/ssrn.6169047">
+        <img src="https://img.shields.io/badge/Paper-SSRN-blue" alt="Paper">
+      </a>
+    </td>
+  </tr>
 
-<table border="0" cellspacing="0" cellpadding="0">
-<tr>
-  <td><img src="images/chimera_logo.svg" width="170"></td>
-  <td style="padding-left: 20px;">
-    <b>CHIMERA:</b><br>
-    <b>C</b>leaning<br>
-    <b>H</b>eterogeneous<br>
-    <b>I</b>mage Datasets from<br>
-    <b>M</b>easurement and<br>
-    Label Nois<b>e</b> for<br>
-    <b>R</b>obust Classification<br>
-    <b>A</b>ccuracy
-  </td>
-</tr>
+  <!-- Second row: Image + CHIMERA text -->
+  <tr>
+    <td><img src="images/chimera_logo.svg" width="170"></td>
+    <td style="padding-left: 20px; vertical-align: middle;">
+      <b>CHIMERA:</b><br>
+      <b>C</b>leaning<br>
+      <b>H</b>eterogeneous<br>
+      <b>I</b>mage Datasets from<br>
+      <b>M</b>easurement and<br>
+      Label Nois<b>e</b> for<br>
+      <b>R</b>obust Classification<br>
+      <b>A</b>ccuracy
+    </td>
+  </tr>
+
+  <!-- Third row: Citation text -->
+  <tr>
+    <td colspan="2" align="left">
+      If you would like to cite this work or read the full details, please see:<br>
+      📄 <a href="https://dx.doi.org/10.2139/ssrn.6169047">https://dx.doi.org/10.2139/ssrn.6169047</a>
+    </td>
+  </tr>
 </table>
 
-If you would like to cite this work or read the full details, please see:   
-📄 [https://dx.doi.org/10.2139/ssrn.6169047](https://dx.doi.org/10.2139/ssrn.6169047)
 
 
 ## 🔍 What is CHIMERA?
