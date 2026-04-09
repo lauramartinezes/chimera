@@ -12,7 +12,7 @@ We consider a binary classification setting with classes **T-shirt (l_n=1)** and
 <img src="images/fashionmnist/confusion_matrix_total.svg" width="500">
 </p>
 <p align="center">
-<em>Confusion matrix comparing the predicted labels after CNN fine-tuning (columns) vs. the type of sample (rows), either normal, label noise or measurement noise.</em>
+<em>Confusion matrix comparing the predicted label (columns) vs. the given label and type of sample (rows), either normal, label noise or measurement noise.</em>
 </p>
 
 #### Outlier Detection output 
@@ -54,7 +54,7 @@ We consider a binary classification setting with classes **chicory-leaf miner fl
 <img src="images/phonebox/confusion_matrix_total.svg" width="500">
 </p>
 <p align="center">
-<em>Confusion matrix comparing the predicted labels after CNN fine-tuning (columns) vs. the type of sample (rows), either normal, label noise or measurement noise.</em>
+<em>Confusion matrix comparing the predicted label (columns) vs. the given label and type of sample (rows), either normal, label noise or measurement noise.</em>
 </p>
 
 #### Outlier Detection output 
