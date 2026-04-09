@@ -2,9 +2,21 @@
 ## 📚 Paper 
 [![Paper](https://img.shields.io/badge/Paper-SSRN-blue)](https://dx.doi.org/10.2139/ssrn.6169047)
 
-| | |
-|---|---|
-| <img src="images/chimera_logo.svg" width="170"> | **C**leaning<br>**H**eterogeneous<br>**I**mage Datasets from<br>**M**easurement and<br>Label Nois**e** for<br>**R**obust Classification<br>**A**ccuracy |
+<table border="0" cellspacing="0" cellpadding="0">
+<tr>
+  <td><img src="images/chimera_logo.svg" width="170"></td>
+  <td style="padding-left: 20px;">
+    <b>CHIMERA:</b><br>
+    <b>C</b>leaning<br>
+    <b>H</b>eterogeneous<br>
+    <b>I</b>mage Datasets from<br>
+    <b>M</b>easurement and<br>
+    Label Nois<b>e</b> for<br>
+    <b>R</b>obust Classification<br>
+    <b>A</b>ccuracy
+  </td>
+</tr>
+</table>
 
 If you would like to cite this work or read the full details, please see:   
 📄 [https://dx.doi.org/10.2139/ssrn.6169047](https://dx.doi.org/10.2139/ssrn.6169047)
