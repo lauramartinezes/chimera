@@ -12,8 +12,8 @@
 
   <!-- Second row: Image + CHIMERA text -->
   <tr>
-    <td style="width:170px; white-space: nowrap; vertical-align: middle;">
-      <img src="images/chimera_logo.svg" width="170">
+    <td style="width:160px; white-space: nowrap; vertical-align: middle;">
+      <img src="images/chimera_logo.svg" width="160">
     </td>
     <td style="padding-left: 20px; vertical-align: middle;">
       <b>C</b>leaning<br>
