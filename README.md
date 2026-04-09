@@ -16,14 +16,16 @@
       <img src="images/chimera_logo.svg" width="160">
     </td>
     <td style="padding-left: 20px; vertical-align: middle;">
-      <b>C</b>leaning<br>
-      <b>H</b>eterogeneous<br>
-      <b>I</b>mage Datasets from<br>
-      <b>M</b>easurement and<br>
-      Label Nois<b>e</b> for<br>
-      <b>R</b>obust Classification<br>
-      <b>A</b>ccuracy
-    </td>
+  <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+    <span><b>C</b>leaning</span>
+    <span><b>H</b>eterogeneous</span>
+    <span><b>I</b>mage Datasets from</span>
+    <span><b>M</b>easurement and</span>
+    <span>Label Nois<b>e</b> for</span>
+    <span><b>R</b>obust Classification</span>
+    <span><b>A</b>ccuracy</span>
+  </div>
+</td>
   </tr>
 
   <!-- Third row: Citation text -->
