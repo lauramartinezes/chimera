@@ -16,7 +16,6 @@
       <img src="images/chimera_logo.svg" width="170">
     </td>
     <td style="padding-left: 20px; vertical-align: middle;">
-      <b>CHIMERA:</b><br>
       <b>C</b>leaning<br>
       <b>H</b>eterogeneous<br>
       <b>I</b>mage Datasets from<br>
