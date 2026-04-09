@@ -12,7 +12,9 @@
 
   <!-- Second row: Image + CHIMERA text -->
   <tr>
-    <td><img src="images/chimera_logo.svg" width="170"></td>
+    <td style="width:50%; white-space:nowrap;">
+      <img src="images/chimera_logo.svg" width="170">
+    </td>
     <td style="padding-left: 20px; vertical-align: middle;">
       <b>CHIMERA:</b><br>
       <b>C</b>leaning<br>
