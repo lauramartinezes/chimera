@@ -37,7 +37,7 @@
 
 
 
-## 🔍 What is CHIMERA?
+## 💡 What is CHIMERA?
 
 CHIMERA is a pipeline for cleaning image datasets by separating:
 - **Measurement noise** (bad images, artifacts)
@@ -149,7 +149,7 @@ To explore UMAP projections interactively:
 python a05_visualize_umaps_in_app.py
 ```
 
-## 📈 Results
+## 🔍 Results
 
 CHIMERA was evaluated on our insect dataset. Removing both measurement and label noise from the data improves model performance:
 
