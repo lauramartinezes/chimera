@@ -94,7 +94,7 @@ The pipeline supports multiple cleaning strategies, including CHIMERA and severa
   Extension of CHIMERA where detected label noise is automatically corrected instead of only being flagged.
 
 - `cnn_no_od`  
-  Variant of CHIMERA without the outlier detection step.
+  Variant of CHIMERA without the outlier detection step, to only detect label noise candidates.
 
 - `adbench`  
   Applies anomaly detection using the [ADBench](https://github.com/Minqi824/ADBench) framework.
