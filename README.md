@@ -74,12 +74,14 @@ The pipeline supports multiple cleaning strategies, including CHIMERA and severa
 
 ## ⚡ Usage
 ### A) FashionMNIST Dataset
-Run the bash script `run_pipeline.sh` from terminal
-```
-bash run_pipeline.sh
-```
+1. Go inside the `data/` folder and unzip the `fashionmnist.zip` and the `split_60_20_20.zip` files inside it
 
-Results will be stored in the `logs` folder
+2. Run the bash script `run_pipeline.sh` from terminal
+    ```
+    bash run_pipeline.sh
+    ```
+
+    Results will be stored in the `logs` folder
 ### B) Insect Dataset
 1. Contact wouter.saeys@kuleuven.be to get access to the `phoneboxdata` and the `split_60_20_20` folders
     - [`phoneboxdata`](https://kuleuven.sharepoint.com/:f:/r/sites/T0006791/Shared%20Documents/LA%20Insects/PhD%20-%20Laura%20Martinez%20Esmeral/WP2/phoneboxdata?csf=1&web=1&e=dFP3tJ)
