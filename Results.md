@@ -23,7 +23,7 @@ We consider a binary classification setting with classes **T-shirt (l_n=1)** and
 <img src="images/fashionmnist/true_vs_pred_cnn_Coat_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 <p align="center">
-<em>Ground-truth (left) vs. Outlier detection results in 2D UMAP visualization (right) for the T-shirt and Coat classes.</em>
+<em>2D UMAP visualization of Ground-truth (left) vs. Outlier detection results (right) for the T-shirt and Coat classes.</em>
 </p>
 
 #### Overall Noise detections 
@@ -65,7 +65,7 @@ We consider a binary classification setting with classes **chicory-leaf miner fl
 <img src="images/phonebox/true_vs_pred_cnn_wrl_train_val_UmapHdbscanOD.svg" width="90%">
 </p>
 <p align="center">
-<em>Ground-truth (left) vs. Outlier detection results in 2D UMAP visualization (right) for the chicory-leaf miner fly (wmv) and carrot fly (wrl) classes.</em>
+<em>2D UMAP visualization of Ground-truth (left) vs. Outlier detection results (right) for the chicory-leaf miner fly (wmv) and carrot fly (wrl) classes.</em>
 </p>
 
 #### Overall Noise detections 
