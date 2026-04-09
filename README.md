@@ -1,4 +1,9 @@
 # CHIMERA: A Pipeline for Cleaning Noisy Image Datasets
+**Authors:** Laura Martínez Esmeral,  Bart De Ketelaere, Wouter Saeys, Astrid Tempelaere
+
+**Contact:**  
+- Code and general questions: via GitHub issues  
+- Data access (Insect dataset): wouter.saeys@kuleuven.be
 ## 📚 Paper 
 <table>
   <!-- First row: Paper badge -->
