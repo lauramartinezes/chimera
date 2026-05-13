@@ -77,6 +77,11 @@ If this fails, follow the instructions on the official [PyTorch website](https:/
 ```
 pip install -r requirements.txt
 ```
+
+## 💻 System requirements
+
+The experiments reported in the paper were run on a Linux workstation with a GPU. Since the implementation is based on PyTorch, it can in principle be executed on other supported operating systems, including Windows and macOS. For convenience, the full pipeline can be launched using the Bash script `run_pipeline.sh`, which sequentially runs the relevant Python scripts. Users without Bash support can instead run these scripts manually in the same order. Regarding hardware requirements, GPU acceleration is not strictly required, but execution times on CPU-only machines are expected to be significantly longer.
+
 ## 🧠 Overview
 
 ![CHIMERA Pipeline](images/pipeline_diagram.svg)
